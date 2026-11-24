@@ -97,6 +97,8 @@ class PatientProfile(Base):
     emergency_alerts = relationship("EmergencyAlert", back_populates="patient", cascade="all, delete-orphan")
     location_logs = relationship("LocationLog", back_populates="patient", cascade="all, delete-orphan")
     digital_twin = relationship("DigitalTwinBaseline", back_populates="patient", uselist=False, cascade="all, delete-orphan")
+    drift_records = relationship("HealthDriftRecord", back_populates="patient", cascade="all, delete-orphan")
+
 
 
 class CaregiverProfile(Base):

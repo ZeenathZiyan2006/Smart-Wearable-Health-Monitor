@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import ai, auth, emergency, health, location, users
+from app.api.v1 import ai, auth, emergency, health, health_drift, location, users
 
 api_router = APIRouter()
 
@@ -10,4 +10,5 @@ api_router.include_router(health.router, prefix="/health", tags=["Wearable Healt
 api_router.include_router(location.router, prefix="/location", tags=["GPS Tracking & Geolocation"])
 api_router.include_router(emergency.router, prefix="/emergency", tags=["Emergency SOS & Caregiver Escalation"])
 api_router.include_router(ai.router, prefix="/ai", tags=["AI Engine & Digital Twin"])
+api_router.include_router(health_drift.router, prefix="/ai/health-drift", tags=["Health Drift Intelligence"])
 

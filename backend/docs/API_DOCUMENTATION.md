@@ -1139,3 +1139,214 @@ PulseGuardian AI's AI Engine implements an adaptive Personal Health Digital Twin
   "cold_start": false
 }
 ```
+
+
+---
+
+## 6. AI Engine – Health Drift Intelligence
+
+PulseGuardian AI's Health Drift Intelligence module identifies subtle, gradual shifts in a patient's baseline physiological and lifestyle patterns over configurable timeframes (3-day, 7-day, 30-day windows). Utilizing Exponentially Weighted Moving Averages (EWMA), simple moving averages, and linear regression slopes, the engine distinguishes persistent physiological drift from transient fluctuations.
+
+> [!IMPORTANT]
+> **Medical Disclaimer**: PulseGuardian AI provides health tracking and anomaly detection for observational purposes only. It is not a medical diagnosis or disease prediction tool. Please consult a qualified healthcare professional.
+
+---
+
+### 6.1 Overall Health Drift Summary
+* **Endpoint**: `GET /api/v1/ai/health-drift/summary`
+* **Query Parameters**:
+  * `patient_id` (Optional, required for Caregivers/Admins)
+  * `window_days` (Default: 7, Range: 3 to 90 days)
+* **Access**: Patient (Self) / Assigned Caregiver / Admin
+* **Description**: Returns consolidated multi-metric drift analysis across resting heart rate, SpO2, body temperature, sleep duration, and daily step count. Includes comparative 3-day, 7-day, and 30-day trend summaries.
+
+**Response JSON (200 OK):**
+```json
+{
+  "patient_id": 1,
+  "analysis_timestamp": "2026-11-24T08:30:00Z",
+  "window_days": 7,
+  "period_start": "2026-11-17T08:30:00Z",
+  "period_end": "2026-11-24T08:30:00Z",
+  "overall_drift_status": "moderate_drift",
+  "overall_confidence": "high",
+  "data_completeness_percentage": 100.0,
+  "metrics_summary": {
+    "heart_rate": {
+      "metric_name": "heart_rate",
+      "display_name": "Resting Heart Rate",
+      "unit": "BPM",
+      "baseline_value": 72.0,
+      "current_value": 81.4,
+      "drift_delta": 9.4,
+      "drift_percentage": 13.1,
+      "trend_direction": "upward",
+      "slope_per_day": 1.714,
+      "persistence_score": 1.0,
+      "is_persistent": true,
+      "classification": "persistent_drift",
+      "significance": "moderate_drift",
+      "data_sufficiency": "sufficient",
+      "recorded_days_count": 7,
+      "total_window_days": 7,
+      "explanation": "Resting Heart Rate exhibits a gradual upward drift over the observed window: current EWMA is 81.4 BPM (+13.1% from baseline 72.0 BPM) with a rate of +1.71 BPM/day. Consistency was maintained across 7 of 7 days, indicating persistent moderate drift.",
+      "data_points": [
+        { "date": "2026-11-18", "value": 72.0, "moving_avg": 72.0, "baseline": 72.0 },
+        { "date": "2026-11-19", "value": 74.0, "moving_avg": 73.3, "baseline": 72.0 },
+        { "date": "2026-11-20", "value": 76.0, "moving_avg": 75.1, "baseline": 72.0 },
+        { "date": "2026-11-21", "value": 78.0, "moving_avg": 77.0, "baseline": 72.0 },
+        { "date": "2026-11-22", "value": 80.0, "moving_avg": 79.0, "baseline": 72.0 },
+        { "date": "2026-11-23", "value": 82.0, "moving_avg": 81.0, "baseline": 72.0 },
+        { "date": "2026-11-24", "value": 84.0, "moving_avg": 83.0, "baseline": 72.0 }
+      ]
+    },
+    "spo2": {
+      "metric_name": "spo2",
+      "display_name": "Blood Oxygen (SpO2)",
+      "unit": "%",
+      "baseline_value": 98.0,
+      "current_value": 98.0,
+      "drift_delta": 0.0,
+      "drift_percentage": 0.0,
+      "trend_direction": "stable",
+      "slope_per_day": 0.0,
+      "persistence_score": 0.0,
+      "is_persistent": false,
+      "classification": "stable",
+      "significance": "stable",
+      "data_sufficiency": "sufficient",
+      "recorded_days_count": 7,
+      "total_window_days": 7,
+      "explanation": "Blood Oxygen (SpO2) is stable over the observed period (current 98.0 % vs baseline 98.0 %, deviation 0.0%).",
+      "data_points": []
+    }
+  },
+  "multi_window_trends": {
+    "3d": {
+      "heart_rate": { "drift_delta": 11.0, "drift_percentage": 15.3, "trend_direction": "upward" },
+      "spo2": { "drift_delta": 0.0, "drift_percentage": 0.0, "trend_direction": "stable" },
+      "temperature": { "drift_delta": 0.0, "drift_percentage": 0.0, "trend_direction": "stable" }
+    },
+    "7d": {
+      "heart_rate": { "drift_delta": 11.0, "drift_percentage": 15.3, "trend_direction": "upward" },
+      "spo2": { "drift_delta": 0.0, "drift_percentage": 0.0, "trend_direction": "stable" },
+      "temperature": { "drift_delta": 0.0, "drift_percentage": 0.0, "trend_direction": "stable" }
+    },
+    "30d": {
+      "heart_rate": { "drift_delta": 11.0, "drift_percentage": 15.3, "trend_direction": "upward" },
+      "spo2": { "drift_delta": 0.0, "drift_percentage": 0.0, "trend_direction": "stable" },
+      "temperature": { "drift_delta": 0.0, "drift_percentage": 0.0, "trend_direction": "stable" }
+    }
+  },
+  "key_findings": [
+    "Resting Heart Rate: Persistent upward drift (+13.1% vs baseline)."
+  ],
+  "recommendations": [
+    "Consider sharing this trend summary with your assigned caregiver or healthcare provider during your next routine consultation.",
+    "Resting heart rate has trended higher across multiple days. Ensure adequate hydration, rest, and minimize stimulants."
+  ],
+  "medical_disclaimer": "PulseGuardian AI provides health tracking and anomaly detection for observational purposes only. It is not a medical diagnosis or disease prediction tool. Please consult a qualified healthcare professional."
+}
+```
+
+---
+
+### 6.2 Individual Metric Drift Breakdown
+* **Endpoint**: `GET /api/v1/ai/health-drift/metric/{metric_name}`
+* **Path Parameter**: `metric_name` (`heart_rate`, `spo2`, `temperature`, `sleep_duration`, `daily_steps`)
+* **Query Parameters**:
+  * `patient_id` (Optional, required for Caregivers/Admins)
+  * `window_days` (Default: 7, Range: 3 to 90 days)
+* **Access**: Patient (Self) / Assigned Caregiver / Admin
+* **Description**: Returns granular mathematical trajectory, linear regression rate of change per day, consistency ratio, persistence classification, and daily chart coordinates for the chosen metric.
+
+**Response JSON (200 OK):**
+```json
+{
+  "metric_name": "spo2",
+  "display_name": "Blood Oxygen (SpO2)",
+  "unit": "%",
+  "baseline_value": 98.0,
+  "current_value": 95.3,
+  "drift_delta": -2.7,
+  "drift_percentage": -2.8,
+  "trend_direction": "downward",
+  "slope_per_day": -0.5,
+  "persistence_score": 1.0,
+  "is_persistent": true,
+  "classification": "persistent_drift",
+  "significance": "moderate_drift",
+  "data_sufficiency": "sufficient",
+  "recorded_days_count": 7,
+  "total_window_days": 7,
+  "explanation": "Blood Oxygen (SpO2) exhibits a gradual downward drift over the observed window: current EWMA is 95.3 % (-2.8% from baseline 98.0 %) with a rate of -0.50 %/day. Consistency was maintained across 7 of 7 days, indicating persistent moderate drift.",
+  "data_points": [
+    { "date": "2026-11-18", "value": 98.0, "moving_avg": 98.0, "baseline": 98.0 },
+    { "date": "2026-11-19", "value": 97.5, "moving_avg": 97.7, "baseline": 98.0 },
+    { "date": "2026-11-20", "value": 97.0, "moving_avg": 97.2, "baseline": 98.0 },
+    { "date": "2026-11-21", "value": 96.5, "moving_avg": 96.7, "baseline": 98.0 },
+    { "date": "2026-11-22", "value": 96.0, "moving_avg": 96.2, "baseline": 98.0 },
+    { "date": "2026-11-23", "value": 95.5, "moving_avg": 95.7, "baseline": 98.0 },
+    { "date": "2026-11-24", "value": 95.0, "moving_avg": 95.3, "baseline": 98.0 }
+  ]
+}
+```
+
+---
+
+### 6.3 Historical Drift Timeline Audit
+* **Endpoint**: `GET /api/v1/ai/health-drift/timeline`
+* **Query Parameters**:
+  * `patient_id` (Optional, required for Caregivers/Admins)
+  * `metric_name` (Optional: e.g. `'heart_rate'`)
+  * `limit` (Default: 50, Range: 1 to 100)
+* **Access**: Patient (Self) / Assigned Caregiver / Admin
+* **Description**: Lists historical persistent drift records logged to the database audit trail over time.
+
+**Response JSON (200 OK):**
+```json
+{
+  "patient_id": 1,
+  "total_records": 1,
+  "records": [
+    {
+      "id": 1,
+      "patient_id": 1,
+      "period_start": "2026-11-17T08:30:00Z",
+      "period_end": "2026-11-24T08:30:00Z",
+      "drift_parameter": "heart_rate",
+      "baseline_value": 72.0,
+      "current_period_value": 81.4,
+      "drift_delta": 9.4,
+      "drift_percentage": 13.1,
+      "significance": "moderate_drift",
+      "ai_recommendation": "Resting Heart Rate exhibits a gradual upward drift over the observed window: current EWMA is 81.4 BPM (+13.1% from baseline 72.0 BPM) with a rate of +1.71 BPM/day.",
+      "created_at": "2026-11-24T08:30:05Z"
+    }
+  ]
+}
+```
+
+---
+
+### 6.4 Configurable Time-Window Analysis (On-Demand)
+* **Endpoint**: `POST /api/v1/ai/health-drift/analyze`
+* **Access**: Patient (Self) / Assigned Caregiver / Admin
+* **Description**: Evaluates health drift for custom timeframes (e.g., 14, 30, or 60 days) and arbitrary metric subsets.
+
+**Request JSON:**
+```json
+{
+  "patient_id": 1,
+  "window_days": 14,
+  "metrics": [
+    "heart_rate",
+    "spo2",
+    "sleep_duration"
+  ],
+  "persist": true
+}
+```
+
+**Response JSON (200 OK):**
+Returns standard `OverallHealthDriftSummary` calculated over the requested 14-day window.

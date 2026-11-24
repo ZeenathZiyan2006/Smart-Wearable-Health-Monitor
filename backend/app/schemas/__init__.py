@@ -56,6 +56,15 @@ from app.schemas.ai import (
     HealthTimelineResponse,
     MEDICAL_DISCLAIMER,
 )
+from app.schemas.health_drift import (
+    DriftDataPoint,
+    MetricDriftResult,
+    OverallHealthDriftSummary,
+    HealthDriftTimelineItem,
+    HealthDriftTimelineResponse,
+    HealthDriftAnalysisRequest,
+)
+
 
 
 __all__ = [
@@ -107,4 +116,10 @@ __all__ = [
     "HealthTimelinePoint",
     "HealthTimelineResponse",
     "MEDICAL_DISCLAIMER",
+    "DriftDataPoint",
+    "MetricDriftResult",
+    "OverallHealthDriftSummary",
+    "HealthDriftTimelineItem",
+    "HealthDriftTimelineResponse",
+    "HealthDriftAnalysisRequest",
 ]

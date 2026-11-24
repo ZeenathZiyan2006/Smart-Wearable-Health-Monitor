@@ -52,3 +52,6 @@ class HealthDriftRecord(Base):
     
     ai_recommendation = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    patient = relationship("PatientProfile", back_populates="drift_records")
+
