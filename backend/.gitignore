@@ -1,0 +1,14 @@
+# Environments and Secrets
+.env
+.env.*
+!.env.example
+
+# Local SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python bytecode and test cache
+__pycache__/
+*.py[cod]
+.pytest_cache/

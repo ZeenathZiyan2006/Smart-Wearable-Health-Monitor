@@ -1,0 +1,13 @@
+from fastapi import APIRouter
+
+from app.api.v1 import ai, auth, emergency, health, location, users
+
+api_router = APIRouter()
+
+api_router.include_router(auth.router, prefix="/auth", tags=["Authentication & Profile"])
+api_router.include_router(users.router, prefix="/users", tags=["Patients, Caregivers & Associations"])
+api_router.include_router(health.router, prefix="/health", tags=["Wearable Health Ingestion & Telemetry"])
+api_router.include_router(location.router, prefix="/location", tags=["GPS Tracking & Geolocation"])
+api_router.include_router(emergency.router, prefix="/emergency", tags=["Emergency SOS & Caregiver Escalation"])
+api_router.include_router(ai.router, prefix="/ai", tags=["AI Engine & Digital Twin"])
+
