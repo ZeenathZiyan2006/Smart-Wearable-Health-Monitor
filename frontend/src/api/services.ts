@@ -20,7 +20,7 @@ export const authApi = {
     return res.data;
   },
 
-  socialLogin: async (payload: { provider: 'google' | 'microsoft'; role?: string; email?: string; full_name?: string }): Promise<AuthResponse> => {
+  socialLogin: async (payload: { provider: 'google' | 'microsoft'; role?: string; email?: string; password?: string; full_name?: string }): Promise<AuthResponse> => {
     const res = await apiClient.post<AuthResponse>('/auth/social-login', payload);
     return res.data;
   },

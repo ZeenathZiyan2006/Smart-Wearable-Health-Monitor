@@ -10,7 +10,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  socialLogin: (provider: 'google' | 'microsoft', targetRole?: UserRole, email?: string, fullName?: string) => Promise<void>;
+  socialLogin: (provider: 'google' | 'microsoft', targetRole?: UserRole, email?: string, fullName?: string, password?: string) => Promise<void>;
   logout: () => void;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
   setRole: (role: UserRole) => void;
@@ -83,7 +83,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     provider: 'google' | 'microsoft',
     targetRole?: UserRole,
     customEmail?: string,
-    customFullName?: string
+    customFullName?: string,
+    customPassword?: string
   ) => {
     const chosenRole = targetRole || role;
     const res = await authService.socialLogin({
@@ -91,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role: chosenRole,
       email: customEmail,
       full_name: customFullName,
+      password: customPassword,
     });
     localStorage.setItem('access_token', res.access_token);
     localStorage.setItem('refresh_token', res.refresh_token);

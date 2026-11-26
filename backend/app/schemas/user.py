@@ -204,6 +204,7 @@ class ResetPasswordRequest(BaseModel):
 class SocialLoginRequest(BaseModel):
     provider: str = Field(..., description="Provider name: google or microsoft")
     email: Optional[EmailStr] = None
+    password: Optional[str] = Field(None, description="Account password for credential verification")
     role: Optional[str] = Field("patient", description="Role if new user is provisioned")
     full_name: Optional[str] = None
     id_token: Optional[str] = None

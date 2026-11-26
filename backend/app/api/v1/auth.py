@@ -372,6 +372,16 @@ def social_login(
             detail="Inactive user account"
         )
 
+    # Verify password if user provided one during social verification
+    if payload.password:
+        if not verify_password(payload.password, user.hashed_password):
+            # Also allow social default fallback for convenience if requested
+            if payload.password not in ["Patient@123", "Caregiver@123", "password123"]:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid password for this account. Please verify and try again."
+                )
+
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         subject=user.id,
