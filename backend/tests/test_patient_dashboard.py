@@ -95,3 +95,77 @@ def test_patient_dashboard_endpoints(client):
     allg_post = client.post("/api/v1/patient/dashboard/allergies", json={"allergen": "Penicillin", "severity": "severe"}, headers=headers)
     assert allg_post.status_code == status.HTTP_201_CREATED
     assert allg_post.json()["allergen"] == "Penicillin"
+
+
+def test_patient_data_isolation_between_two_accounts(client):
+    """
+    Phase 1 Test:
+    Verify strict isolation between two patient accounts.
+    Prevent Patient 2 from accessing Patient 1's records via query parameters, URL, or payloads.
+    """
+    # 1. Register Patient 1
+    p1_data = {
+        "full_name": "Patient Alpha",
+        "date_of_birth": "1988-06-12",
+        "gender": "female",
+        "contact_number": "+91 9888811111",
+        "family_email": "alpha.family@example.com",
+        "password": "Password@123",
+        "confirm_password": "Password@123"
+    }
+    r1 = client.post("/api/v1/patient/register", json=p1_data)
+    assert r1.status_code == status.HTTP_201_CREATED
+    token1 = r1.json()["access_token"]
+    h1 = {"Authorization": f"Bearer {token1}"}
+
+    # Patient 1 adds medicine
+    med_res = client.post("/api/v1/patient/dashboard/medicines", json={
+        "medicine_name": "Alpha-Statin 10mg",
+        "dosage": "1 Tablet",
+        "frequency": "Daily",
+        "total_quantity": 30,
+        "remaining_quantity": 30
+    }, headers=h1)
+    assert med_res.status_code == status.HTTP_201_CREATED
+    p1_patient_id = med_res.json()["patient_id"]
+
+    # 2. Register Patient 2
+    p2_data = {
+        "full_name": "Patient Beta",
+        "date_of_birth": "1992-09-24",
+        "gender": "male",
+        "contact_number": "+91 9777722222",
+        "family_email": "beta.family@example.com",
+        "password": "Password@123",
+        "confirm_password": "Password@123"
+    }
+    r2 = client.post("/api/v1/patient/register", json=p2_data)
+    assert r2.status_code == status.HTTP_201_CREATED
+    token2 = r2.json()["access_token"]
+    h2 = {"Authorization": f"Bearer {token2}"}
+
+    # 3. Security Check: Patient 2 tries to access Patient 1's medicines via URL parameter
+    leak_attempt = client.get(f"/api/v1/patient/dashboard/medicines?patient_id={p1_patient_id}", headers=h2)
+    assert leak_attempt.status_code == status.HTTP_403_FORBIDDEN
+    assert "Access denied" in leak_attempt.json()["detail"]
+
+    # 4. Security Check: Patient 2 tries to create medicine under Patient 1's ID
+    inject_attempt = client.post(f"/api/v1/patient/dashboard/medicines?patient_id={p1_patient_id}", json={
+        "medicine_name": "Malicious Tablet",
+        "dosage": "500mg",
+        "frequency": "Daily"
+    }, headers=h2)
+    assert inject_attempt.status_code == status.HTTP_403_FORBIDDEN
+
+    # 5. Security Check: Patient 2 tries to read Patient 1's telemetry
+    telemetry_attempt = client.get(f"/api/v1/health/latest?patient_id={p1_patient_id}", headers=h2)
+    assert telemetry_attempt.status_code == status.HTTP_403_FORBIDDEN
+
+    # 6. Security Check: Patient 2 tries to read Patient 1's GPS location
+    location_attempt = client.get(f"/api/v1/location/latest/{p1_patient_id}", headers=h2)
+    assert location_attempt.status_code == status.HTTP_403_FORBIDDEN
+
+    # 7. Patient 2 accesses their own dashboard - must be cleanly isolated and empty
+    p2_own_meds = client.get("/api/v1/patient/dashboard/medicines", headers=h2)
+    assert p2_own_meds.status_code == status.HTTP_200_OK
+    assert len(p2_own_meds.json()) == 0

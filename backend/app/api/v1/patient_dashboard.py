@@ -10,7 +10,8 @@ from sqlalchemy import desc, func
 
 from app.core.database import get_db
 from app.api.deps import get_current_active_user
-from app.models.user import User, UserRole, PatientProfile
+from app.api.v1.health import _check_patient_read_permission
+from app.models.user import User, UserRole, PatientProfile, PatientCaregiverAssociation, FamilyAccount, FamilyPatientRelationship
 from app.models.health import (
     HealthTelemetry,
     MedicalReport,
@@ -46,19 +47,54 @@ router = APIRouter()
 
 
 def resolve_patient_profile(current_user: User, patient_id: Optional[int], db: Session) -> PatientProfile:
-    if current_user.role == UserRole.PATIENT:
+    """
+    Enforces strict patient data isolation.
+    - An authenticated patient can ONLY access their own health records.
+    - If a patient specifies a different patient_id in URLs/queries/payloads, access is denied (403 Forbidden).
+    - Caregivers and family accounts must be verified and authorized for the target patient.
+    """
+    user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if user_role_str == "patient":
         if not current_user.patient_profile:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient profile not found.")
+        if patient_id is not None and patient_id != current_user.patient_profile.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You are not authorized to access another patient's health records."
+            )
         return current_user.patient_profile
-    elif patient_id:
-        profile = db.query(PatientProfile).filter(PatientProfile.id == patient_id).first()
-        if not profile:
+
+    if user_role_str == "admin":
+        if patient_id:
+            profile = db.query(PatientProfile).filter(PatientProfile.id == patient_id).first()
+            if not profile:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target patient not found.")
+            return profile
+        first_p = db.query(PatientProfile).first()
+        if not first_p:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No patient profiles exist.")
+        return first_p
+
+    # Caregivers / Guardians / Family members
+    if patient_id:
+        target_profile = db.query(PatientProfile).filter(PatientProfile.id == patient_id).first()
+        if not target_profile:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target patient not found.")
-        return profile
-    elif current_user.role == UserRole.CAREGIVER and current_user.caregiver_profile:
-        first_assoc = current_user.caregiver_profile.patient_associations[0] if current_user.caregiver_profile.patient_associations else None
-        if first_assoc and first_assoc.patient:
-            return first_assoc.patient
+        _check_patient_read_permission(db, target_profile.id, current_user)
+        return target_profile
+
+    if user_role_str == "caregiver" and current_user.caregiver_profile and current_user.caregiver_profile.patient_associations:
+        return current_user.caregiver_profile.patient_associations[0].patient
+
+    fam_rel = db.query(FamilyPatientRelationship).join(
+        FamilyAccount, FamilyPatientRelationship.family_account_id == FamilyAccount.id
+    ).filter(
+        FamilyAccount.family_email == current_user.email,
+        FamilyPatientRelationship.is_authorized == True
+    ).first()
+    if fam_rel and fam_rel.patient_profile:
+        return fam_rel.patient_profile
+
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient identification required.")
 
 

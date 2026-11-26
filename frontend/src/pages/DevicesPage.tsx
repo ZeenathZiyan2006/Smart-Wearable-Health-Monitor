@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Watch, BatteryCharging, RefreshCw, Plus, Play, Cpu, Check, AlertCircle } from 'lucide-react';
+import { Watch, BatteryCharging, RefreshCw, Plus, Play, Cpu, Check, AlertCircle, Radio } from 'lucide-react';
 import { deviceService, healthService } from '../api/services';
 import { useLanguage } from '../context/LanguageContext';
 import type { Device } from '../api/types';
@@ -16,6 +16,31 @@ export const DevicesPage: React.FC = () => {
   const [newDeviceName, setNewDeviceName] = useState('PulseGuardian ESP32 Band');
   const [isSimulator, setIsSimulator] = useState(false);
   const [pairing, setPairing] = useState(false);
+  const [bleScanning, setBleScanning] = useState(false);
+
+  const handleScanBluetooth = async () => {
+    if (!('bluetooth' in navigator)) {
+      alert('Web Bluetooth is supported on Chrome, Edge, and Opera with Bluetooth enabled.');
+      return;
+    }
+    setBleScanning(true);
+    try {
+      const device = await (navigator as any).bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: ['heart_rate', 'battery_service', 0x180d, 0x180f]
+      });
+      const uuid = device.id || device.name || 'ESP32-BLE';
+      setNewDeviceUUID(uuid);
+      if (device.name) setNewDeviceName(device.name);
+      setIsSimulator(false);
+    } catch (err: any) {
+      if (err.name !== 'NotFoundError') {
+        alert(err.message || 'Bluetooth scanning error.');
+      }
+    } finally {
+      setBleScanning(false);
+    }
+  };
 
   const fetchDevices = async () => {
     setLoading(true);
@@ -211,6 +236,23 @@ export const DevicesPage: React.FC = () => {
             </p>
 
             <form onSubmit={handlePairDevice} className="space-y-4">
+              {/* Web Bluetooth Scanning Button */}
+              <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-indigo-900">Scan via Web Bluetooth</div>
+                  <div className="text-[10px] text-indigo-600">Discover nearby ESP32 or BLE smartband</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleScanBluetooth}
+                  disabled={bleScanning}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center space-x-1 cursor-pointer disabled:opacity-60"
+                >
+                  <Radio className={`w-3.5 h-3.5 ${bleScanning ? 'animate-spin' : ''}`} />
+                  <span>{bleScanning ? 'Scanning...' : 'Scan BLE'}</span>
+                </button>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Device Hardware UUID</label>
                 <input

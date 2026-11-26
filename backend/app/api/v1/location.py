@@ -112,10 +112,11 @@ def record_batch_location(
     return created_logs
 
 
+@router.get("/latest", response_model=LatestLocationOut)
 @router.get("/latest/{patient_id}", response_model=LatestLocationOut)
 @router.get("/patients/{patient_id}/latest", response_model=LatestLocationOut)
 def get_latest_patient_location(
-    patient_id: int,
+    patient_id: Optional[int] = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> Any:
@@ -123,17 +124,27 @@ def get_latest_patient_location(
     Get the latest known GPS coordinate of a patient with freshness & stale verification.
     Never invents coordinates when GPS was lost or unavailable.
     """
-    _check_patient_read_permission(db, patient_id, current_user)
+    target_id = patient_id
+    user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if target_id is None:
+        if user_role_str == "patient" and current_user.patient_profile:
+            target_id = current_user.patient_profile.id
+        elif current_user.caregiver_profile and current_user.caregiver_profile.patient_associations:
+            target_id = current_user.caregiver_profile.patient_associations[0].patient_id
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="patient_id is required.")
 
-    patient = db.query(PatientProfile).filter(PatientProfile.id == patient_id).first()
+    _check_patient_read_permission(db, target_id, current_user)
+
+    patient = db.query(PatientProfile).filter(PatientProfile.id == target_id).first()
     if not patient:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Patient profile {patient_id} not found."
+            detail=f"Patient profile {target_id} not found."
         )
 
     latest = db.query(LocationLog).filter(
-        LocationLog.patient_id == patient_id
+        LocationLog.patient_id == target_id
     ).order_by(LocationLog.recorded_at.desc()).first()
 
     now = datetime.now(timezone.utc)
@@ -141,7 +152,7 @@ def get_latest_patient_location(
     # Case 1: No GPS record ever logged
     if not latest:
         return {
-            "patient_id": patient_id,
+            "patient_id": target_id,
             "has_location": False,
             "is_stale": True,
             "status": "unavailable",
@@ -152,7 +163,7 @@ def get_latest_patient_location(
     # Case 2: Latest logged entry reports GPS hardware was unavailable
     if not latest.is_gps_available or latest.latitude is None or latest.longitude is None:
         return {
-            "patient_id": patient_id,
+            "patient_id": target_id,
             "has_location": False,
             "is_stale": True,
             "status": "unavailable",

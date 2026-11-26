@@ -485,3 +485,33 @@ export const patientDashboardApi = {
   },
 };
 export const patientDashboardService = patientDashboardApi;
+
+export const locationApi = {
+  trackLocation: async (payload: {
+    latitude?: number;
+    longitude?: number;
+    altitude?: number;
+    accuracy?: number;
+    speed?: number;
+    is_gps_available?: boolean;
+    device_battery?: number;
+    device_uuid?: string;
+    patient_id?: number;
+  }): Promise<any> => {
+    const res = await apiClient.post('/location/track', payload);
+    return res.data;
+  },
+
+  getLatest: async (patientId?: number): Promise<any> => {
+    const url = patientId ? `/location/latest/${patientId}` : '/location/latest';
+    const res = await apiClient.get(url);
+    return res.data;
+  },
+
+  getHistory: async (patientId?: number, hours = 24): Promise<any[]> => {
+    const url = patientId ? `/location/patients/${patientId}/history` : '/location/history';
+    const res = await apiClient.get(url, { params: { hours } });
+    return res.data;
+  },
+};
+export const locationService = locationApi;

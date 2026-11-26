@@ -84,6 +84,9 @@ export const DashboardPage: React.FC = () => {
   const [newDeviceInput, setNewDeviceInput] = useState('DEV-WEAR-001');
   const [pairingSuccessMsg, setPairingSuccessMsg] = useState<string | null>(null);
   const [copiedPatientId, setCopiedPatientId] = useState(false);
+  const [bleConnected, setBleConnected] = useState(false);
+  const [bleConnecting, setBleConnecting] = useState(false);
+  const [testWifiSending, setTestWifiSending] = useState(false);
 
   // MODULE 1, 4, 5, 6, 7 state
   const [bloodPressure, setBloodPressure] = useState<string>('120/80');
@@ -228,7 +231,12 @@ export const DashboardPage: React.FC = () => {
 
     loadDashboardData();
     const interval = setInterval(loadDashboardData, 12000);
-    return () => clearInterval(interval);
+    const handleOnline = () => { loadDashboardData(); };
+    window.addEventListener('online', handleOnline);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', handleOnline);
+    };
   }, []);
 
   // SOS Press & Hold mechanics (2.0-second safety hold to prevent accidental activation)
@@ -320,6 +328,74 @@ export const DashboardPage: React.FC = () => {
         setPairingSuccessMsg(null);
         setShowPairingModal(false);
       }, 2000);
+    }
+  };
+
+  const handleConnectBluetooth = async () => {
+    if (!('bluetooth' in navigator)) {
+      alert('Web Bluetooth requires Chrome, Edge, or Opera with Bluetooth hardware enabled.');
+      return;
+    }
+    setBleConnecting(true);
+    try {
+      const device = await (navigator as any).bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: ['heart_rate', 'battery_service', 'health_thermometer', 0x180d, 0x180f, 0x1809]
+      });
+
+      const server = await device.gatt?.connect();
+      setBleConnected(true);
+      const devUuid = device.id || device.name || 'ESP32-BLE-WATCH';
+      setActiveDeviceUuid(devUuid);
+      setNewDeviceInput(devUuid);
+      setPairingSuccessMsg(`Connected to ${device.name || 'Wearable BLE'}! Live telemetry stream established.`);
+
+      try {
+        const service = await server.getPrimaryService('heart_rate');
+        const characteristic = await service.getCharacteristic('heart_rate_measurement');
+        await characteristic.startNotifications();
+        characteristic.addEventListener('characteristicvaluechanged', (event: any) => {
+          const value = event.target.value;
+          const hr = value.getUint8(1);
+          setHeartRate(hr);
+          healthService.ingestTelemetry({
+            heart_rate: hr,
+            spo2: 98.4,
+            temperature: 36.6,
+            device_uuid: devUuid
+          }).catch(() => {});
+        });
+      } catch {}
+    } catch (err: any) {
+      if (err.name !== 'NotFoundError') {
+        alert(err.message || 'Bluetooth connection error.');
+      }
+    } finally {
+      setBleConnecting(false);
+    }
+  };
+
+  const handleSendTestWifiPacket = async () => {
+    setTestWifiSending(true);
+    try {
+      const now = new Date();
+      await healthService.ingestTelemetry({
+        device_uuid: activeDeviceUuid,
+        heart_rate: 76.0,
+        spo2: 98.5,
+        temperature: 36.7,
+        step_count: steps + 20,
+        battery_percentage: 92.0,
+        recorded_at: now.toISOString(),
+      });
+      setPairingSuccessMsg(`Wi-Fi telemetry packet ingested successfully for ${activeDeviceUuid}! Dashboard synced.`);
+      setIsLiveOnline(true);
+      setLastSyncStr('Just now');
+      loadDashboardData();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Failed to ingest Wi-Fi telemetry packet.');
+    } finally {
+      setTestWifiSending(false);
     }
   };
 
@@ -454,9 +530,13 @@ export const DashboardPage: React.FC = () => {
             {/* Badges / Pills */}
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-1">
               {/* Connected Pill */}
-              <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{isLiveOnline ? t('dash.wearableConnected', 'Wearable connected & live') : t('dash.wearableDemo', 'Wearable connected (Demo sync)')}</span>
+              <div className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-sm ${
+                isLiveOnline
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-amber-50 text-amber-700 border-amber-200'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${isLiveOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                <span>{isLiveOnline ? 'Wearable Connected & Live Stream' : 'Wearable Offline (Historical Baselines)'}</span>
               </div>
 
               {/* Battery Pill */}
@@ -467,6 +547,25 @@ export const DashboardPage: React.FC = () => {
                 <span className="text-slate-500">{t('dash.lastSync', 'Last sync')}: {lastSyncStr}</span>
               </div>
             </div>
+
+            {/* Offline warning indicator */}
+            {!isLiveOnline && (
+              <div className="w-full mt-2 p-2.5 bg-amber-50/90 border border-amber-200 rounded-2xl flex items-center justify-between text-xs text-amber-800">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>
+                    <strong>Hardware Offline:</strong> Displaying verified baseline data ({lastSyncStr}). Ensure ESP32 smartband is powered and linked.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPairingModal(true)}
+                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[10px] font-bold cursor-pointer shrink-0 ml-2"
+                >
+                  Pair / Connect
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -778,22 +877,43 @@ export const DashboardPage: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="relative w-full h-24 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center">
-                  <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:10px_10px]" />
-                  <div className="w-16 h-16 rounded-full bg-blue-500/15 border border-blue-400 flex items-center justify-center animate-pulse">
-                    <div className="w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-md"></div>
+                <div
+                  onClick={() => navigate('/gps')}
+                  className="relative w-full h-28 rounded-xl overflow-hidden border border-slate-200 cursor-pointer shadow-sm group"
+                  title="Click to open Full Google Maps Tracker"
+                >
+                  <iframe
+                    title="Google Map Live Patient Preview"
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0, pointerEvents: 'none' }}
+                    loading="lazy"
+                    src={`https://maps.google.com/maps?q=${gpsLocation.lat},${gpsLocation.lng}&z=15&output=embed`}
+                    className="w-full h-full"
+                  />
+                  <div className="absolute inset-0 bg-blue-900/10 group-hover:bg-transparent transition-all pointer-events-none" />
+                  <div className="absolute top-1 right-1 bg-white/95 px-2 py-0.5 rounded text-[10px] font-bold text-blue-600 shadow-sm flex items-center gap-1">
+                    <span>Google Maps</span>
                   </div>
-                  <div className="absolute bottom-1 bg-white/90 px-2 py-0.5 rounded text-[10px] font-bold text-slate-700 shadow-sm">
-                    {gpsLocation.lat}, {gpsLocation.lng}
+                  <div className="absolute bottom-1 left-1 bg-slate-900/80 backdrop-blur-sm text-white px-2 py-0.5 rounded text-[10px] font-mono font-bold shadow-sm">
+                    {gpsLocation.lat.toFixed(4)}, {gpsLocation.lng.toFixed(4)}
                   </div>
                 </div>
               </div>
 
-              <div className="mt-2 text-center">
+              <div className="mt-2 text-center space-y-1">
                 <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <span>✓</span>
                   <span>{t('dash.safeZoneActive', 'Safe Zone: Active (500m)')}</span>
                 </span>
+                <button
+                  type="button"
+                  onClick={() => navigate('/gps')}
+                  className="w-full text-center text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center justify-center gap-1 pt-0.5 cursor-pointer"
+                >
+                  <span>Open Full Google Map View</span>
+                  <span>→</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1292,6 +1412,58 @@ export const DashboardPage: React.FC = () => {
                 <span>{pairingSuccessMsg}</span>
               </div>
             )}
+
+            {/* Direct Bluetooth (BLE) Scan & Connect Button */}
+            <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-2xl space-y-2 mb-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
+                  <Radio className="w-4 h-4 text-indigo-600" />
+                  Web Bluetooth (BLE) Direct Connect
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  bleConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {bleConnected ? 'BLE Connected' : 'Not Paired'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-tight">
+                Wirelessly scan for nearby ESP32 smartbands or BLE heart rate monitors via browser Web Bluetooth.
+              </p>
+              <button
+                type="button"
+                onClick={handleConnectBluetooth}
+                disabled={bleConnecting}
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+              >
+                <Radio className={`w-3.5 h-3.5 ${bleConnecting ? 'animate-spin' : ''}`} />
+                <span>{bleConnecting ? 'Searching for Bluetooth devices...' : 'Scan & Pair BLE Device'}</span>
+              </button>
+            </div>
+
+            {/* Direct ESP32 Wi-Fi Ingestion Test */}
+            <div className="p-3 bg-cyan-50/70 border border-cyan-100 rounded-2xl space-y-2 mb-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-cyan-950 flex items-center gap-1.5">
+                  <Wifi className="w-4 h-4 text-cyan-600" />
+                  Direct Wi-Fi / HTTP Endpoint
+                </span>
+                <span className="text-[10px] font-mono text-cyan-700 font-bold bg-white px-1.5 py-0.5 rounded border border-cyan-200">
+                  POST /api/v1/health/telemetry
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-tight">
+                ESP32 hardware pushes JSON packets directly via Wi-Fi with device UUID <strong className="font-mono">{activeDeviceUuid}</strong>.
+              </p>
+              <button
+                type="button"
+                onClick={handleSendTestWifiPacket}
+                disabled={testWifiSending}
+                className="w-full py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+              >
+                <Wifi className={`w-3.5 h-3.5 ${testWifiSending ? 'animate-spin' : ''}`} />
+                <span>{testWifiSending ? 'Transmitting telemetry packet...' : 'Send Live Wi-Fi Telemetry Packet'}</span>
+              </button>
+            </div>
 
             <form onSubmit={handlePairDevice} className="space-y-4">
               <div>

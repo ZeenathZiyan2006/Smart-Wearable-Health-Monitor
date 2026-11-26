@@ -79,10 +79,11 @@ def _check_patient_read_permission(
     current_user: User
 ) -> None:
     """Verifies if the current user has permission to read the specified patient's health telemetry."""
-    if current_user.role == UserRole.ADMIN.value:
+    user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if user_role_str == "admin":
         return
 
-    if current_user.role == UserRole.PATIENT.value:
+    if user_role_str == "patient":
         if not current_user.patient_profile or current_user.patient_profile.id != patient_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -90,21 +91,32 @@ def _check_patient_read_permission(
             )
         return
 
-    if current_user.role == UserRole.CAREGIVER.value:
-        if not current_user.caregiver_profile:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Caregiver profile not found."
-            )
-        association = db.query(PatientCaregiverAssociation).filter(
-            PatientCaregiverAssociation.patient_id == patient_id,
-            PatientCaregiverAssociation.caregiver_id == current_user.caregiver_profile.id
-        ).first()
-        if not association:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied: You are not assigned to this patient."
-            )
+    if user_role_str == "caregiver":
+        if current_user.caregiver_profile:
+            association = db.query(PatientCaregiverAssociation).filter(
+                PatientCaregiverAssociation.patient_id == patient_id,
+                PatientCaregiverAssociation.caregiver_id == current_user.caregiver_profile.id
+            ).first()
+            if association:
+                return
+
+    # Check authorized family account relationship
+    from app.models.user import FamilyAccount, FamilyPatientRelationship
+    fam_rel = db.query(FamilyPatientRelationship).join(
+        FamilyAccount, FamilyPatientRelationship.family_account_id == FamilyAccount.id
+    ).filter(
+        FamilyPatientRelationship.patient_profile_id == patient_id,
+        FamilyAccount.family_email == current_user.email,
+        FamilyPatientRelationship.is_authorized == True,
+        FamilyPatientRelationship.can_view_records == True
+    ).first()
+    if fam_rel:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Access denied: You are not assigned or authorized to view this patient's health records."
+    )
 
 
 def _evaluate_acute_anomalies(
