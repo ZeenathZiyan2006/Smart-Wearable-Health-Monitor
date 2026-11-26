@@ -23,8 +23,10 @@ import {
 } from 'recharts';
 import { healthService } from '../api/services';
 import type { HealthTelemetry } from '../api/types';
+import { useLanguage } from '../context/LanguageContext';
 
 export const HealthMonitorPage: React.FC = () => {
+  const { t } = useLanguage();
   const [history, setHistory] = useState<HealthTelemetry[]>([]);
   const [filter, setFilter] = useState<'day' | 'week' | 'month'>('week');
   const [loading, setLoading] = useState(true);
@@ -80,9 +82,9 @@ export const HealthMonitorPage: React.FC = () => {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-800">Health Monitoring Center</h2>
+          <h2 className="text-2xl font-extrabold text-slate-800">{t('health.centerTitle', 'Health Monitoring Center')}</h2>
           <p className="text-sm text-slate-500">
-            Real-time biometric analytics, historical trends, and sensor diagnostics.
+            {t('health.centerDesc', 'Real-time biometric analytics, historical trends, and sensor diagnostics.')}
           </p>
         </div>
 
@@ -99,7 +101,7 @@ export const HealthMonitorPage: React.FC = () => {
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                {mode}
+                {t(`health.${mode}`, mode)}
               </button>
             ))}
           </div>
@@ -121,11 +123,11 @@ export const HealthMonitorPage: React.FC = () => {
             <Heart className="w-6 h-6 fill-rose-500" />
           </div>
           <div>
-            <div className="text-xs font-semibold text-slate-500">Resting Heart Rate</div>
+            <div className="text-xs font-semibold text-slate-500">{t('health.restingHR', 'Resting Heart Rate')}</div>
             <div className="text-2xl font-bold text-slate-800">
               {latest.heart_rate} <span className="text-xs font-normal text-slate-400">BPM</span>
             </div>
-            <div className="text-[11px] text-emerald-600 font-medium">Optimal Rhythm</div>
+            <div className="text-[11px] text-emerald-600 font-medium">{t('health.optimalRhythm', 'Optimal Rhythm')}</div>
           </div>
         </div>
 
@@ -134,11 +136,11 @@ export const HealthMonitorPage: React.FC = () => {
             <Droplets className="w-6 h-6 fill-blue-500" />
           </div>
           <div>
-            <div className="text-xs font-semibold text-slate-500">Oxygen Saturation</div>
+            <div className="text-xs font-semibold text-slate-500">{t('health.oxygenSaturation', 'Oxygen Saturation')}</div>
             <div className="text-2xl font-bold text-slate-800">
               {latest.spo2} <span className="text-xs font-normal text-slate-400">%</span>
             </div>
-            <div className="text-[11px] text-emerald-600 font-medium">Normal Blood Oxygen</div>
+            <div className="text-[11px] text-emerald-600 font-medium">{t('health.normalBloodOxygen', 'Normal Blood Oxygen')}</div>
           </div>
         </div>
 
@@ -147,11 +149,11 @@ export const HealthMonitorPage: React.FC = () => {
             <Thermometer className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs font-semibold text-slate-500">Skin Temperature</div>
+            <div className="text-xs font-semibold text-slate-500">{t('health.skinTemp', 'Skin Temperature')}</div>
             <div className="text-2xl font-bold text-slate-800">
               {latest.temperature} <span className="text-xs font-normal text-slate-400">°C</span>
             </div>
-            <div className="text-[11px] text-emerald-600 font-medium">Afebrile Baseline</div>
+            <div className="text-[11px] text-emerald-600 font-medium">{t('health.afebrileBaseline', 'Afebrile Baseline')}</div>
           </div>
         </div>
 
@@ -160,11 +162,11 @@ export const HealthMonitorPage: React.FC = () => {
             <Activity className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs font-semibold text-slate-500">Blood Pressure</div>
+            <div className="text-xs font-semibold text-slate-500">{t('health.bloodPressure', 'Blood Pressure')}</div>
             <div className="text-2xl font-bold text-slate-800">
               {latest.blood_pressure_sys || 120} / {latest.blood_pressure_dia || 80}
             </div>
-            <div className="text-[11px] text-emerald-600 font-medium">Standard Normotensive</div>
+            <div className="text-[11px] text-emerald-600 font-medium">{t('health.standardNormotensive', 'Standard Normotensive')}</div>
           </div>
         </div>
       </div>
@@ -176,9 +178,9 @@ export const HealthMonitorPage: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
               <Heart className="w-5 h-5 text-rose-500" />
-              <h3 className="text-base font-bold text-slate-800">Heart Rate Trend (BPM)</h3>
+              <h3 className="text-base font-bold text-slate-800">{t('health.hrTrend', 'Heart Rate Trend (BPM)')}</h3>
             </div>
-            <span className="text-xs font-semibold text-slate-400">Continuous Sampling</span>
+            <span className="text-xs font-semibold text-slate-400">{t('health.continuousSampling', 'Continuous Sampling')}</span>
           </div>
 
           <div className="h-64 w-full">
@@ -212,9 +214,9 @@ export const HealthMonitorPage: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
               <Droplets className="w-5 h-5 text-blue-500" />
-              <h3 className="text-base font-bold text-slate-800">Oxygen Saturation Trend (% SpO2)</h3>
+              <h3 className="text-base font-bold text-slate-800">{t('health.spo2Trend', 'Oxygen Saturation Trend (% SpO2)')}</h3>
             </div>
-            <span className="text-xs font-semibold text-slate-400">Target &gt; 95%</span>
+            <span className="text-xs font-semibold text-slate-400">{t('health.targetRange', 'Target > 95%')}</span>
           </div>
 
           <div className="h-64 w-full">

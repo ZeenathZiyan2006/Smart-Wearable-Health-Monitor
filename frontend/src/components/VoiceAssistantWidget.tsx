@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Sparkles, Send, Bot, Volume2 } from 'lucide-react';
 import { voiceService } from '../api/services';
+import { useLanguage } from '../context/LanguageContext';
+import { SupportedLanguage } from '../i18n/translations';
 
 interface VoiceAssistantWidgetProps {
   userName?: string;
@@ -11,22 +13,27 @@ export const VoiceAssistantWidget: React.FC<VoiceAssistantWidgetProps> = ({
   userName = 'Thrisha',
   className = '',
 }) => {
+  const { language, setLanguage, t, languages } = useLanguage();
   const [isRecording, setIsRecording] = useState(false);
-  const [selectedLang, setSelectedLang] = useState('en');
+  const [selectedLang, setSelectedLang] = useState<SupportedLanguage>(language);
   const [lastResponse, setLastResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [customText, setCustomText] = useState('');
   const [statusNote, setStatusNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedLang(language);
+  }, [language]);
 
   // Audio recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
   const quickPrompts = [
-    { label: 'Show my health report', text: 'Show my health report' },
-    { label: 'Are my vitals normal?', text: 'Are my vitals normal?' },
-    { label: 'Call Caregiver', text: 'Call Caregiver' },
-    { label: 'Play health tips', text: 'Play health tips' },
+    { label: t('voice.showReport', 'Show my health report'), text: t('voice.showReport', 'Show my health report') },
+    { label: t('voice.vitalsNormal', 'Are my vitals normal?'), text: t('voice.vitalsNormal', 'Are my vitals normal?') },
+    { label: t('voice.callCaregiver', 'Call Caregiver'), text: t('voice.callCaregiver', 'Call Caregiver') },
+    { label: t('voice.playTips', 'Play health tips'), text: t('voice.playTips', 'Play health tips') },
   ];
 
   const handlePromptClick = async (promptText: string) => {
@@ -157,9 +164,9 @@ export const VoiceAssistantWidget: React.FC<VoiceAssistantWidgetProps> = ({
 
         {/* Greeting & Speech Bubble */}
         <div className="text-center mb-4">
-          <h4 className="text-sm font-semibold text-white">Hello {userName}!</h4>
+          <h4 className="text-sm font-semibold text-white">{t('voice.hello', 'Hello')} {userName}!</h4>
           <p className="text-xs text-slate-300">
-            {isRecording ? 'Listening to your voice...' : 'How can I help you today?'}
+            {isRecording ? t('voice.listening', 'Listening...') : t('voice.howCanIHelp', 'How can I help you today?')}
           </p>
         </div>
 
@@ -210,13 +217,18 @@ export const VoiceAssistantWidget: React.FC<VoiceAssistantWidgetProps> = ({
           </span>
           <select
             value={selectedLang}
-            onChange={(e) => setSelectedLang(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-slate-200 text-[11px] focus:outline-none"
+            onChange={(e) => {
+              const langCode = e.target.value as SupportedLanguage;
+              setSelectedLang(langCode);
+              setLanguage(langCode);
+            }}
+            className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-slate-200 text-[11px] focus:outline-none cursor-pointer"
           >
-            <option value="en">English (US)</option>
-            <option value="hi">हिंदी (Hindi)</option>
-            <option value="ta">தமிழ் (Tamil)</option>
-            <option value="es">Español</option>
+            {languages.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.nativeName}
+              </option>
+            ))}
           </select>
         </div>
 

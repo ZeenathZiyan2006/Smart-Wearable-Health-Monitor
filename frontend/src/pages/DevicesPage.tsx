@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Watch, BatteryCharging, RefreshCw, Plus, Play, Cpu, Check, AlertCircle } from 'lucide-react';
 import { deviceService, healthService } from '../api/services';
+import { useLanguage } from '../context/LanguageContext';
 import type { Device } from '../api/types';
 
 export const DevicesPage: React.FC = () => {
+  const { t } = useLanguage();
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -103,9 +105,9 @@ export const DevicesPage: React.FC = () => {
     <div className="space-y-6 pb-12 max-w-4xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-800">Wearable Device Management</h2>
+          <h2 className="text-2xl font-extrabold text-slate-800">{t('devices.title', 'Wearable Devices & Hardware Hub')}</h2>
           <p className="text-sm text-slate-500">
-            Pair, monitor, configure, and synchronize wearable telemetry hardware (ESP32 / MAX30102).
+            {t('devices.subtitle', 'Manage BLE/WiFi ESP32 smartbands, monitor battery health, and test firmware sync.')}
           </p>
         </div>
 
@@ -115,7 +117,7 @@ export const DevicesPage: React.FC = () => {
             className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl text-xs font-bold shadow-sm flex items-center space-x-1.5"
           >
             <Plus className="w-4 h-4" />
-            <span>Pair New Device</span>
+            <span>{t('devices.pairNew', 'Pair New Device')}</span>
           </button>
 
           <button
@@ -183,7 +185,7 @@ export const DevicesPage: React.FC = () => {
                 onClick={() => handleSyncDevice(d.id)}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-600 text-white shadow-sm"
               >
-                Sync Now
+                {t('devices.syncNow', 'Sync Now')}
               </button>
 
               <button
@@ -192,7 +194,7 @@ export const DevicesPage: React.FC = () => {
                 title="Send synthetic packet to test ingestion pipeline"
               >
                 <Play className="w-3.5 h-3.5" />
-                <span>Simulate Packet</span>
+                <span>{t('devices.simulateStream', 'Simulate Telemetry Batch')}</span>
               </button>
             </div>
           </div>

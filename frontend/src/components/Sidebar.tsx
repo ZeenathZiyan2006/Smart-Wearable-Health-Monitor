@@ -17,30 +17,32 @@ import {
 } from 'lucide-react';
 import { PulseGuardianLogo } from './PulseGuardianLogo';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export const Sidebar: React.FC = () => {
   const { logout, user } = useAuth();
+  const { t } = useLanguage();
 
   const navItems = [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/health', label: 'Health Monitor', icon: Activity },
-    { to: '/ecg', label: 'ECG Monitor', icon: HeartPulse },
-    { to: '/sleep-activity', label: 'Sleep & Activity', icon: Moon },
-    { to: '/ai-insights', label: 'AI Insights', icon: Sparkles },
-    { to: '/gps', label: 'GPS Tracking', icon: MapPin },
-    { to: '/emergency', label: 'Emergency SOS', icon: AlertTriangle, badge: '1', badgeColor: 'bg-rose-500' },
-    { to: '/notifications', label: 'Notifications', icon: Bell, badge: '3', badgeColor: 'bg-rose-500' },
-    { to: '/communication', label: 'Communication', icon: MessageSquare },
-    { to: '/history', label: 'Health History', icon: History },
-    { to: '/devices', label: 'Devices', icon: Activity },
-    { to: '/settings', label: 'Settings', icon: Settings },
+    { to: '/', label: t('nav.dashboard', 'Dashboard'), icon: LayoutDashboard },
+    { to: '/health', label: t('nav.health', 'Health Monitor'), icon: Activity },
+    { to: '/ecg', label: t('nav.ecg', 'ECG Monitor'), icon: HeartPulse },
+    { to: '/sleep-activity', label: t('nav.sleepActivity', 'Sleep & Activity'), icon: Moon },
+    { to: '/ai-insights', label: t('nav.aiInsights', 'AI Insights'), icon: Sparkles },
+    { to: '/gps', label: t('nav.gps', 'GPS Tracking'), icon: MapPin },
+    { to: '/emergency', label: t('nav.emergency', 'Emergency SOS'), icon: AlertTriangle, badge: '1', badgeColor: 'bg-rose-500' },
+    { to: '/notifications', label: t('nav.notifications', 'Notifications'), icon: Bell, badge: '3', badgeColor: 'bg-rose-500' },
+    { to: '/communication', label: t('nav.communication', 'Communication'), icon: MessageSquare },
+    { to: '/history', label: t('nav.history', 'Health History'), icon: History },
+    { to: '/devices', label: t('nav.devices', 'Devices'), icon: Activity },
+    { to: '/settings', label: t('nav.settings', 'Settings'), icon: Settings },
   ];
 
   return (
     <aside className="w-64 bg-[#0a1526] text-slate-300 flex flex-col justify-between p-4 flex-shrink-0 min-h-screen border-r border-slate-800/80 select-none">
       {/* Top Brand Logo */}
       <div className="pt-2 pb-6 px-2">
-        <PulseGuardianLogo size="md" lightText tagline="Care. Protect. Live Better." />
+        <PulseGuardianLogo size="md" lightText tagline={t('app.subtagline', 'Care. Protect. Live Better.')} />
       </div>
 
       {/* Navigation Links */}
@@ -83,8 +85,8 @@ export const Sidebar: React.FC = () => {
           <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-center mx-auto mb-2 text-cyan-400 shadow-glow-cyan">
             <ShieldCheck className="w-5 h-5 text-cyan-400" />
           </div>
-          <p className="text-xs font-bold text-white tracking-wide">You're in Safe Hands</p>
-          <p className="text-[10px] text-cyan-200/70 mt-0.5">Stay healthy & happy!</p>
+          <p className="text-xs font-bold text-white tracking-wide">{t('brand.safeHands', "You're in Safe Hands")}</p>
+          <p className="text-[10px] text-cyan-200/70 mt-0.5">{t('brand.stayHealthy', 'Stay healthy & happy!')}</p>
         </div>
 
         {/* User Mini Profile & Logout */}
@@ -97,13 +99,15 @@ export const Sidebar: React.FC = () => {
               <p className="text-xs font-semibold text-white truncate max-w-[110px]">
                 {user?.full_name || 'Thrisha'}
               </p>
-              <p className="text-[10px] text-slate-400 capitalize">{user?.role || 'Patient'}</p>
+              <p className="text-[10px] text-slate-400 capitalize">
+                {user?.role === 'caregiver' ? t('role.caregiver', 'Caregiver') : t('role.patient', 'Patient')}
+              </p>
             </div>
           </div>
 
           <button
             onClick={logout}
-            title="Log Out"
+            title={t('nav.logout', 'Log Out')}
             className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
           >
             <LogOut className="w-4 h-4" />

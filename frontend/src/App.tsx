@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { WebSocketProvider } from './context/WebSocketContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardLayout } from './layouts/DashboardLayout';
 
@@ -53,44 +54,46 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <WebSocketProvider>
-        <BrowserRouter>
-          <Suspense fallback={<PageFallback />}>
-            <Routes>
-              {/* Public Authentication Route */}
-              <Route path="/login" element={<LoginPage />} />
+    <LanguageProvider>
+      <AuthProvider>
+        <WebSocketProvider>
+          <BrowserRouter>
+            <Suspense fallback={<PageFallback />}>
+              <Routes>
+                {/* Public Authentication Route */}
+                <Route path="/login" element={<LoginPage />} />
 
-              {/* Protected Application Routes */}
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <DashboardLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<DashboardPage />} />
-                <Route path="health" element={<HealthMonitorPage />} />
-                <Route path="ecg" element={<ECGMonitorPage />} />
-                <Route path="sleep-activity" element={<SleepActivityPage />} />
-                <Route path="ai-insights" element={<AIInsightsPage />} />
-                <Route path="gps" element={<GPSTrackingPage />} />
-                <Route path="emergency" element={<EmergencySOSPage />} />
-                <Route path="notifications" element={<NotificationsPage />} />
-                <Route path="communication" element={<CommunicationPage />} />
-                <Route path="history" element={<HealthHistoryPage />} />
-                <Route path="devices" element={<DevicesPage />} />
-                <Route path="settings" element={<SettingsPage />} />
-              </Route>
+                {/* Protected Application Routes */}
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<DashboardPage />} />
+                  <Route path="health" element={<HealthMonitorPage />} />
+                  <Route path="ecg" element={<ECGMonitorPage />} />
+                  <Route path="sleep-activity" element={<SleepActivityPage />} />
+                  <Route path="ai-insights" element={<AIInsightsPage />} />
+                  <Route path="gps" element={<GPSTrackingPage />} />
+                  <Route path="emergency" element={<EmergencySOSPage />} />
+                  <Route path="notifications" element={<NotificationsPage />} />
+                  <Route path="communication" element={<CommunicationPage />} />
+                  <Route path="history" element={<HealthHistoryPage />} />
+                  <Route path="devices" element={<DevicesPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
 
-              {/* Catch-all */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </WebSocketProvider>
-    </AuthProvider>
+                {/* Catch-all */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </WebSocketProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 };
 

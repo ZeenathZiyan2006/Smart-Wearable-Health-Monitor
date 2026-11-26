@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { healthService, emergencyService, aiService } from '../api/services';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { LiveECGCanvas } from '../components/LiveECGCanvas';
 import { VoiceAssistantWidget } from '../components/VoiceAssistantWidget';
 import type { DashboardSummary } from '../api/types';
@@ -28,6 +29,7 @@ import type { DashboardSummary } from '../api/types';
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
+  const { t } = useLanguage();
 
   // State
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -216,9 +218,9 @@ export const DashboardPage: React.FC = () => {
           <div className="flex-1 md:ml-6 mt-4 md:mt-0 space-y-3 text-center md:text-left">
             <div>
               <h1 className="text-2xl md:text-3xl font-extrabold text-slate-800 flex items-center justify-center md:justify-start gap-2">
-                Good Morning, {displayName}! 🌸
+                {t('dash.goodMorning', 'Good Morning')}, {displayName}! 🌸
               </h1>
-              <p className="text-slate-500 text-sm mt-0.5">Stay healthy, stay happy, and live longer.</p>
+              <p className="text-slate-500 text-sm mt-0.5">{t('dash.motto', 'Stay healthy, stay happy, and live longer.')}</p>
             </div>
 
             {/* Badges / Pills */}
@@ -226,7 +228,7 @@ export const DashboardPage: React.FC = () => {
               {/* Connected Pill */}
               <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{isLiveOnline ? 'Wearable connected & live' : 'Wearable connected (Demo sync)'}</span>
+                <span>{isLiveOnline ? t('dash.wearableConnected', 'Wearable connected & live') : t('dash.wearableDemo', 'Wearable connected (Demo sync)')}</span>
               </div>
 
               {/* Battery Pill */}
@@ -234,7 +236,7 @@ export const DashboardPage: React.FC = () => {
                 <BatteryCharging className="w-3.5 h-3.5 text-emerald-600" />
                 <span>{batteryPct}%</span>
                 <span className="text-slate-300">|</span>
-                <span className="text-slate-500">Last sync: {lastSyncStr}</span>
+                <span className="text-slate-500">{t('dash.lastSync', 'Last sync')}: {lastSyncStr}</span>
               </div>
             </div>
           </div>
@@ -253,8 +255,8 @@ export const DashboardPage: React.FC = () => {
               <ShieldAlert className="w-7 h-7 text-white animate-bounce" />
             </div>
             <div>
-              <h3 className="text-lg font-bold">Emergency SOS</h3>
-              <p className="text-xs text-rose-100">Hold 2 sec to trigger caregiver escalation</p>
+              <h3 className="text-lg font-bold">{t('sos.emergencySOS', 'Emergency SOS')}</h3>
+              <p className="text-xs text-rose-100">{t('sos.holdNotice', 'Hold 2 sec to trigger caregiver escalation')}</p>
             </div>
           </div>
 
@@ -281,17 +283,17 @@ export const DashboardPage: React.FC = () => {
                 {sosStatus === 'transmitting' && (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin text-rose-600" />
-                    <span>Broadcasting SOS to Caregivers...</span>
+                    <span>{t('sos.broadcasting', 'Broadcasting SOS to Caregivers...')}</span>
                   </>
                 )}
                 {sosStatus === 'dispatched' && (
-                  <span className="text-emerald-700 font-extrabold">✓ SOS Dispatched to Contacts</span>
+                  <span className="text-emerald-700 font-extrabold">{t('sos.dispatched', '✓ SOS Dispatched to Contacts')}</span>
                 )}
                 {sosStatus === 'error' && (
-                  <span className="text-rose-700 font-extrabold">Transmission Failed – Try Again</span>
+                  <span className="text-rose-700 font-extrabold">{t('sos.failed', 'Transmission Failed – Try Again')}</span>
                 )}
                 {sosStatus === 'idle' && (
-                  <span>{holdingSOS ? `Hold (${holdProgress}%)...` : '📞 Press & Hold ➔'}</span>
+                  <span>{holdingSOS ? `${t('sos.holding', 'Hold')} (${holdProgress}%)...` : t('sos.pressAndHold', '📞 Press & Hold ➔')}</span>
                 )}
               </span>
             </button>
@@ -316,11 +318,11 @@ export const DashboardPage: React.FC = () => {
             <div className="p-2 rounded-xl bg-rose-50 text-rose-500">
               <Heart className="w-4 h-4 fill-rose-500" />
             </div>
-            <span className="text-xs font-semibold text-slate-600">Heart Rate</span>
+            <span className="text-xs font-semibold text-slate-600">{t('vital.heartRate', 'Heart Rate')}</span>
           </div>
           <div className="mt-2">
             <div className="text-2xl font-extrabold text-slate-800">
-              {heartRate} <span className="text-xs font-normal text-slate-500">BPM</span>
+              {heartRate} <span className="text-xs font-normal text-slate-500">{t('vital.bpm', 'BPM')}</span>
             </div>
             <div className="flex items-center justify-between mt-1 text-[11px] text-emerald-600">
               <span>↑ +2%</span>
@@ -342,7 +344,7 @@ export const DashboardPage: React.FC = () => {
             <div className="p-2 rounded-xl bg-blue-50 text-blue-500">
               <Droplets className="w-4 h-4 fill-blue-500" />
             </div>
-            <span className="text-xs font-semibold text-slate-600">SpO2</span>
+            <span className="text-xs font-semibold text-slate-600">{t('vital.spo2', 'SpO2')}</span>
           </div>
           <div className="mt-2">
             <div className="text-2xl font-extrabold text-slate-800">
@@ -368,7 +370,7 @@ export const DashboardPage: React.FC = () => {
             <div className="p-2 rounded-xl bg-amber-50 text-amber-500">
               <Thermometer className="w-4 h-4" />
             </div>
-            <span className="text-xs font-semibold text-slate-600">Body Temp</span>
+            <span className="text-xs font-semibold text-slate-600">{t('vital.bodyTemp', 'Body Temp')}</span>
           </div>
           <div className="mt-2">
             <div className="text-2xl font-extrabold text-slate-800">
@@ -376,7 +378,7 @@ export const DashboardPage: React.FC = () => {
             </div>
             <div className="flex items-center space-x-1 mt-1 text-[11px] text-emerald-600 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              <span>Normal Range</span>
+              <span>{t('vital.normalRange', 'Normal Range')}</span>
             </div>
           </div>
         </div>
@@ -390,7 +392,7 @@ export const DashboardPage: React.FC = () => {
             <div className="p-2 rounded-xl bg-cyan-50 text-cyan-600">
               <Footprints className="w-4 h-4" />
             </div>
-            <span className="text-xs font-semibold text-slate-600">Steps</span>
+            <span className="text-xs font-semibold text-slate-600">{t('vital.steps', 'Steps')}</span>
           </div>
           <div className="mt-2">
             <div className="text-2xl font-extrabold text-slate-800">
@@ -414,14 +416,14 @@ export const DashboardPage: React.FC = () => {
             <div className="p-2 rounded-xl bg-indigo-50 text-indigo-500">
               <Moon className="w-4 h-4 fill-indigo-500" />
             </div>
-            <span className="text-xs font-semibold text-slate-600">Sleep</span>
+            <span className="text-xs font-semibold text-slate-600">{t('vital.sleep', 'Sleep')}</span>
           </div>
           <div className="mt-2">
             <div className="text-2xl font-extrabold text-slate-800">
               {sleepStr}
             </div>
             <div className="flex items-center space-x-1 mt-1 text-[11px] text-amber-500 font-medium">
-              <span>★ Excellent</span>
+              <span>{t('vital.excellent', '★ Excellent')}</span>
             </div>
           </div>
         </div>
@@ -445,13 +447,13 @@ export const DashboardPage: React.FC = () => {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-700">
                     <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
-                    <span>AI Health Insights</span>
+                    <span>{t('dash.aiHealthInsights', 'AI Health Insights')}</span>
                   </div>
                   <button
                     onClick={() => navigate('/ai-insights')}
-                    className="text-[11px] text-cyan-600 font-semibold hover:underline flex items-center"
+                    className="text-[11px] text-cyan-600 font-semibold hover:underline flex items-center cursor-pointer"
                   >
-                    View Details ➔
+                    {t('dash.viewDetails', 'View Details ➔')}
                   </button>
                 </div>
 
@@ -478,10 +480,10 @@ export const DashboardPage: React.FC = () => {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-700">
                     <MapPin className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Your Location</span>
+                    <span>{t('dash.yourLocation', 'Your Location')}</span>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
-                    {gpsLocation.isLive ? '● Live GPS' : '● Registered'}
+                    {gpsLocation.isLive ? t('dash.liveGPS', '● Live GPS') : t('dash.registered', '● Registered')}
                   </span>
                 </div>
 
@@ -499,7 +501,7 @@ export const DashboardPage: React.FC = () => {
               <div className="mt-2 text-center">
                 <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <span>✓</span>
-                  <span>Safe Zone: Active</span>
+                  <span>{t('dash.safeZoneActive', 'Safe Zone: Active (500m)')}</span>
                 </span>
               </div>
             </div>
@@ -512,37 +514,37 @@ export const DashboardPage: React.FC = () => {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-700">
                   <Moon className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Sleep & Activity</span>
+                  <span>{t('dash.sleepAndActivity', 'Sleep & Activity')}</span>
                 </div>
                 <button
                   onClick={() => navigate('/sleep-activity')}
-                  className="text-[11px] text-cyan-600 font-semibold hover:underline"
+                  className="text-[11px] text-cyan-600 font-semibold hover:underline cursor-pointer"
                 >
-                  View Details ➔
+                  {t('dash.viewDetails', 'View Details ➔')}
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-2 items-center my-1">
                 <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-indigo-50/50">
                   <span className="text-xl font-black text-indigo-950">{sleepStr}</span>
-                  <span className="text-[10px] text-indigo-600 font-medium">Sleep</span>
+                  <span className="text-[10px] text-indigo-600 font-medium">{t('vital.sleep', 'Sleep')}</span>
                 </div>
 
                 <div className="space-y-1.5 text-xs">
                   <div className="flex items-center space-x-1.5 text-slate-600 font-medium">
                     <span className="p-1 rounded bg-indigo-100 text-indigo-600">🛌</span>
-                    <span>88% Quality</span>
+                    <span>{t('dash.sleepQuality', '88% Quality')}</span>
                   </div>
                   <div className="flex items-center space-x-1.5 text-slate-600 font-medium">
                     <span className="p-1 rounded bg-cyan-100 text-cyan-600">🏃</span>
-                    <span>2.4 km Activity</span>
+                    <span>{t('dash.activityKm', '2.4 km Activity')}</span>
                   </div>
                 </div>
               </div>
 
               <div className="relative h-14 rounded-xl overflow-hidden bg-gradient-to-r from-blue-900 to-indigo-950 flex items-center justify-center text-white text-xs">
                 <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:8px_8px]" />
-                <span className="z-10 font-medium">✨ Peaceful Deep Sleep Monitored</span>
+                <span className="z-10 font-medium">{t('dash.sleepPeaceful', '✨ Peaceful Deep Sleep Monitored')}</span>
               </div>
             </div>
 
@@ -551,7 +553,7 @@ export const DashboardPage: React.FC = () => {
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center space-x-1.5 text-xs font-bold text-cyan-300">
                   <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Your Health Digital Twin</span>
+                  <span>{t('dash.digitalTwin', 'Your Health Digital Twin')}</span>
                 </div>
               </div>
 
@@ -575,12 +577,12 @@ export const DashboardPage: React.FC = () => {
                 </div>
 
                 <div className="flex-1 ml-3 space-y-2">
-                  <div className="text-[11px] text-slate-300 font-medium">Health Status</div>
+                  <div className="text-[11px] text-slate-300 font-medium">{t('dash.healthStatus', 'Health Status')}</div>
                   <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                     <span>✓</span>
-                    <span>Stable</span>
+                    <span>{t('dash.stable', 'Stable')}</span>
                   </div>
-                  <div className="text-[10px] text-slate-400">vs. your baseline</div>
+                  <div className="text-[10px] text-slate-400">{t('dash.vsBaseline', 'vs. your baseline')}</div>
                   <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
                     <div className="bg-gradient-to-r from-emerald-400 to-cyan-400 h-1.5 rounded-full w-[85%]" />
                   </div>
@@ -591,9 +593,9 @@ export const DashboardPage: React.FC = () => {
               <div className="text-right pt-1">
                 <button
                   onClick={() => navigate('/health')}
-                  className="px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40"
+                  className="px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 cursor-pointer"
                 >
-                  View Details ➔
+                  {t('dash.viewDetails', 'View Details ➔')}
                 </button>
               </div>
             </div>
@@ -603,62 +605,62 @@ export const DashboardPage: React.FC = () => {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-700">
                   <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Quick Actions</span>
+                  <span>{t('action.quickActions', 'Quick Actions')}</span>
                 </div>
                 <button
                   onClick={() => navigate('/settings')}
-                  className="text-[11px] text-cyan-600 font-semibold hover:underline"
+                  className="text-[11px] text-cyan-600 font-semibold hover:underline cursor-pointer"
                 >
-                  View All ➔
+                  {t('dash.viewAll', 'View All ➔')}
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-3 my-auto">
                 <button
                   onClick={() => navigate('/communication')}
-                  className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors group"
+                  className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
                 >
                   <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
                     <Mic className="w-4 h-4" />
                   </div>
                   <span className="text-[10px] font-semibold text-slate-600 mt-1.5 text-center">
-                    Voice Assistant
+                    {t('action.voiceAssistant', 'Voice Assistant')}
                   </span>
                 </button>
 
                 <button
                   onClick={() => navigate('/gps')}
-                  className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors group"
+                  className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
                 >
                   <div className="w-10 h-10 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
                     <Navigation className="w-4 h-4" />
                   </div>
                   <span className="text-[10px] font-semibold text-slate-600 mt-1.5 text-center">
-                    Find My Location
+                    {t('action.findLocation', 'Find My Location')}
                   </span>
                 </button>
 
                 <button
                   onClick={() => navigate('/communication')}
-                  className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors group"
+                  className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
                 >
                   <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
                     <Users className="w-4 h-4" />
                   </div>
                   <span className="text-[10px] font-semibold text-slate-600 mt-1.5 text-center">
-                    Contact Caregiver
+                    {t('action.contactCaregiver', 'Contact Caregiver')}
                   </span>
                 </button>
 
                 <button
                   onClick={() => navigate('/notifications')}
-                  className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors group"
+                  className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
                 >
                   <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
                     <Pill className="w-4 h-4" />
                   </div>
                   <span className="text-[10px] font-semibold text-slate-600 mt-1.5 text-center">
-                    Medication Reminder
+                    {t('action.medicationReminder', 'Medication Reminder')}
                   </span>
                 </button>
               </div>

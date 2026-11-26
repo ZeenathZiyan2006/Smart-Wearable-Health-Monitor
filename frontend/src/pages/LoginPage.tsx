@@ -20,17 +20,19 @@ import {
   Plus
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { SupportedLanguage } from '../i18n/translations';
 import { PulseGuardianLogo } from '../components/PulseGuardianLogo';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login, socialLogin, selectedRole, setSelectedRole } = useAuth();
+  const { language, setLanguage, t, languages } = useLanguage();
 
   const [email, setEmail] = useState('patient@pulseguardian.ai');
   const [password, setPassword] = useState('Patient@123');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [language, setLanguage] = useState('English');
   const [isLoading, setIsLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'microsoft' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -161,18 +163,18 @@ export const LoginPage: React.FC = () => {
         <div className="lg:w-1/2 relative bg-gradient-to-b from-[#f2f7fa] via-[#e8f2f5] to-[#def0f5] p-6 sm:p-10 lg:p-12 flex flex-col justify-between overflow-hidden">
           {/* Top Logo */}
           <div className="z-10">
-            <PulseGuardianLogo size="md" tagline="Smart Care. Safer Tomorrow." />
+            <PulseGuardianLogo size="md" tagline={t('app.tagline', 'Smart Care. Safer Tomorrow.')} />
           </div>
 
           {/* Hero Typography */}
           <div className="my-6 z-10">
             <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-black tracking-tight leading-[1.15]">
-              <span className="text-[#0f2942]">Your Health.</span>
+              <span className="text-[#0f2942]">{t('brand.quote', 'Your Health. Our Priority.').split('.')[0]}.</span>
               <br />
-              <span className="text-[#0284c7]">Our Priority.</span>
+              <span className="text-[#0284c7]">{t('brand.quote', 'Your Health. Our Priority.').split('.')[1] || t('brand.quote')}</span>
             </h1>
             <p className="mt-3 text-slate-600 text-sm sm:text-base max-w-md font-medium leading-relaxed">
-              Advanced wearable monitoring for a healthier, happier and safer life.
+              {t('brand.description', 'Advanced wearable monitoring for a healthier, happier and safer life.')}
             </p>
           </div>
 
@@ -208,8 +210,8 @@ export const LoginPage: React.FC = () => {
                 <Heart className="w-4 h-4 fill-cyan-600" />
               </div>
               <div className="text-left">
-                <p className="text-[11px] font-bold text-slate-800 leading-tight">Real-Time</p>
-                <p className="text-[10px] text-slate-500">Health Monitoring</p>
+                <p className="text-[11px] font-bold text-slate-800 leading-tight">{t('feat.realTime', 'Real-Time')}</p>
+                <p className="text-[10px] text-slate-500">{t('feat.healthMonitoring', 'Health Monitoring')}</p>
               </div>
             </div>
 
@@ -219,8 +221,8 @@ export const LoginPage: React.FC = () => {
                 <Shield className="w-4 h-4 fill-blue-600" />
               </div>
               <div className="text-left">
-                <p className="text-[11px] font-bold text-slate-800 leading-tight">Emergency</p>
-                <p className="text-[10px] text-slate-500">Alerts</p>
+                <p className="text-[11px] font-bold text-slate-800 leading-tight">{t('feat.emergencyAlerts', 'Emergency Alerts').split(' ')[0]}</p>
+                <p className="text-[10px] text-slate-500">{t('feat.emergencyAlerts', 'Emergency Alerts').split(' ').slice(1).join(' ') || t('feat.emergencyAlerts')}</p>
               </div>
             </div>
 
@@ -230,8 +232,8 @@ export const LoginPage: React.FC = () => {
                 <Brain className="w-4 h-4 text-teal-600" />
               </div>
               <div className="text-left">
-                <p className="text-[11px] font-bold text-slate-800 leading-tight">AI-Powered</p>
-                <p className="text-[10px] text-slate-500">Insights</p>
+                <p className="text-[11px] font-bold text-slate-800 leading-tight">{t('feat.aiPowered', 'AI-Powered')}</p>
+                <p className="text-[10px] text-slate-500">{t('feat.insights', 'Insights')}</p>
               </div>
             </div>
 
@@ -241,8 +243,8 @@ export const LoginPage: React.FC = () => {
                 <Globe className="w-4 h-4 text-cyan-600" />
               </div>
               <div className="text-left">
-                <p className="text-[11px] font-bold text-slate-800 leading-tight">Multilingual</p>
-                <p className="text-[10px] text-slate-500">Support</p>
+                <p className="text-[11px] font-bold text-slate-800 leading-tight">{t('feat.multilingualSupport', 'Multilingual Support').split(' ')[0]}</p>
+                <p className="text-[10px] text-slate-500">{t('feat.multilingualSupport', 'Multilingual Support').split(' ').slice(1).join(' ') || t('feat.multilingualSupport')}</p>
               </div>
             </div>
           </div>
@@ -253,8 +255,8 @@ export const LoginPage: React.FC = () => {
               <ShieldCheck className="w-5 h-5 text-[#0284c7]" />
             </div>
             <div>
-              <p className="text-xs font-bold text-[#0f2942]">Healthier Lives.</p>
-              <p className="text-[11px] text-slate-500">A Safer Community.</p>
+              <p className="text-xs font-bold text-[#0f2942]">{t('brand.safeCommunity', 'Healthier Lives. A Safer Community.').split('.')[0]}.</p>
+              <p className="text-[11px] text-slate-500">{t('brand.safeCommunity', 'Healthier Lives. A Safer Community.').split('.')[1] || t('brand.safeCommunity')}</p>
             </div>
           </div>
         </div>
@@ -270,13 +272,14 @@ export const LoginPage: React.FC = () => {
                 <Globe className="w-3.5 h-3.5 text-slate-400" />
                 <select
                   value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
+                  onChange={(e) => setLanguage(e.target.value as SupportedLanguage)}
                   className="bg-transparent border-none text-xs focus:outline-none cursor-pointer pr-1"
                 >
-                  <option value="English">English</option>
-                  <option value="Tamil">தமிழ் (Tamil)</option>
-                  <option value="Hindi">हिंदी (Hindi)</option>
-                  <option value="Kannada">ಕನ್ನಡ (Kannada)</option>
+                  {languages.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.nativeName}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -287,7 +290,7 @@ export const LoginPage: React.FC = () => {
             <div className="flex justify-center mb-2">
               <PulseGuardianLogo size="md" showTagline={false} />
             </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Login to your account</p>
+            <p className="text-xs text-slate-500 mt-1 font-medium">{t('auth.loginToAccount', 'Login to your account')}</p>
           </div>
 
           {/* Patient vs Caregiver Role Switcher Tabs */}
@@ -302,7 +305,7 @@ export const LoginPage: React.FC = () => {
               }`}
             >
               <User className="w-3.5 h-3.5" />
-              Patient
+              {t('role.patient', 'Patient')}
             </button>
             <button
               type="button"
@@ -314,7 +317,7 @@ export const LoginPage: React.FC = () => {
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              Caregiver
+              {t('role.caregiver', 'Caregiver')}
             </button>
           </div>
 
@@ -338,7 +341,7 @@ export const LoginPage: React.FC = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email Address"
+                  placeholder={t('auth.emailAddress', 'Email Address')}
                   className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:border-transparent transition-all"
                   required
                 />
@@ -355,7 +358,7 @@ export const LoginPage: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
+                  placeholder={t('auth.password', 'Password')}
                   className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:border-transparent transition-all"
                   required
                 />
@@ -378,14 +381,14 @@ export const LoginPage: React.FC = () => {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-4 h-4 rounded border-slate-300 text-[#0284c7] focus:ring-[#0284c7] cursor-pointer"
                 />
-                <span>Remember this device</span>
+                <span>{t('auth.rememberDevice', 'Remember this device')}</span>
               </label>
               <button
                 type="button"
                 onClick={() => setShowForgotModal(true)}
                 className="text-xs text-slate-500 hover:text-[#0284c7] font-medium transition-colors"
               >
-                Forgot Password?
+                {t('auth.forgotPassword', 'Forgot Password?')}
               </button>
             </div>
 
@@ -398,14 +401,14 @@ export const LoginPage: React.FC = () => {
               {isLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Signing In...</span>
+                  <span>{t('auth.signingIn', 'Signing In...')}</span>
                 </>
               ) : (
                 <>
                   <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center">
                     <ArrowRight className="w-3 h-3 text-white" />
                   </div>
-                  <span>Sign In</span>
+                  <span>{t('auth.login', 'Sign In')}</span>
                 </>
               )}
             </button>
@@ -417,7 +420,7 @@ export const LoginPage: React.FC = () => {
               <div className="w-full border-t border-slate-200" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="px-3 bg-white text-slate-400 font-medium">or</span>
+              <span className="px-3 bg-white text-slate-400 font-medium">{t('auth.or', 'or')}</span>
             </div>
           </div>
 
@@ -436,7 +439,7 @@ export const LoginPage: React.FC = () => {
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
               </svg>
-              Continue with Google
+              {t('auth.continueWithGoogle', 'Continue with Google')}
             </button>
 
             {/* Microsoft */}
@@ -452,7 +455,7 @@ export const LoginPage: React.FC = () => {
                 <path fill="#05a6f0" d="M1 12h10v10H1z" />
                 <path fill="#ffba08" d="M12 12h10v10H1z" />
               </svg>
-              Continue with Microsoft
+              {t('auth.continueWithMicrosoft', 'Continue with Microsoft')}
             </button>
           </div>
 
@@ -460,10 +463,10 @@ export const LoginPage: React.FC = () => {
           <div className="mt-6 pt-4 text-center border-t border-slate-100">
             <div className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-600 mb-1">
               <ShieldCheck className="w-3.5 h-3.5 text-[#0284c7]" />
-              Your data is protected with 256-bit encryption
+              {t('auth.encryptedNotice', 'Your data is protected with 256-bit encryption')}
             </div>
             <p className="text-[10px] text-slate-400 flex items-center justify-center gap-1">
-              Not a medical diagnosis. For assistive health monitoring only.
+              {t('auth.medicalDisclaimer', 'Not a medical diagnosis. For assistive health monitoring only.')}
               <Info className="w-3 h-3 text-slate-400 cursor-pointer" />
             </p>
           </div>
@@ -520,7 +523,7 @@ export const LoginPage: React.FC = () => {
             {/* STEP 1: CHOOSE AN ACCOUNT */}
             {socialStep === 'choose_account' && (
               <div className="space-y-3">
-                <p className="text-xs font-semibold text-slate-700">Choose an account</p>
+                <p className="text-xs font-semibold text-slate-700">{t('auth.chooseAccount', 'Choose an account')}</p>
 
                 {/* Account 1: Ramesh Kumar (Patient) */}
                 <button
@@ -538,7 +541,7 @@ export const LoginPage: React.FC = () => {
                     <p className="text-xs font-bold text-slate-800 group-hover:text-cyan-700 truncate">Ramesh Kumar</p>
                     <p className="text-[11px] text-slate-500 truncate">patient@pulseguardian.ai</p>
                   </div>
-                  <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">Patient</span>
+                  <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">{t('role.patient', 'Patient')}</span>
                 </button>
 
                 {/* Account 2: Dr. Sunita Rao (Caregiver) */}
@@ -557,7 +560,7 @@ export const LoginPage: React.FC = () => {
                     <p className="text-xs font-bold text-slate-800 group-hover:text-cyan-700 truncate">Dr. Sunita Rao</p>
                     <p className="text-[11px] text-slate-500 truncate">caregiver@pulseguardian.ai</p>
                   </div>
-                  <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">Caregiver</span>
+                  <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">{t('role.caregiver', 'Caregiver')}</span>
                 </button>
 
                 {/* Custom Email Input Toggle */}
@@ -570,12 +573,12 @@ export const LoginPage: React.FC = () => {
                     <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
                       <Plus className="w-4 h-4" />
                     </div>
-                    <span>Use another {socialModalProvider === 'google' ? 'Google' : 'Microsoft'} account</span>
+                    <span>{t('auth.useAnotherAccount', 'Use another account')}</span>
                   </button>
                 ) : (
                   <form onSubmit={handleConfirmCustomEmail} className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                     <label className="text-[11px] font-semibold text-slate-700 block">
-                      Enter {socialModalProvider === 'google' ? 'Google' : 'Microsoft'} Email:
+                      {socialModalProvider === 'google' ? 'Google' : 'Microsoft'} {t('auth.emailAddress', 'Email Address')}:
                     </label>
                     <input
                       type="email"
@@ -591,13 +594,13 @@ export const LoginPage: React.FC = () => {
                         onClick={() => setShowCustomEmailInput(false)}
                         className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700 cursor-pointer"
                       >
-                        Cancel
+                        {t('auth.cancel', 'Cancel')}
                       </button>
                       <button
                         type="submit"
                         className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold text-xs rounded-lg cursor-pointer"
                       >
-                        Next
+                        {t('auth.verifyAndSignIn', 'Next')}
                       </button>
                     </div>
                   </form>
@@ -626,13 +629,13 @@ export const LoginPage: React.FC = () => {
                     }}
                     className="text-[11px] text-cyan-600 hover:underline font-semibold cursor-pointer"
                   >
-                    Change
+                    {t('auth.change', 'Change')}
                   </button>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Enter password for {selectedSocialAccount.email}
+                    {t('auth.enterPasswordFor', 'Enter password for')} {selectedSocialAccount.email}
                   </label>
                   <div className="relative flex items-center">
                     <div className="absolute left-3 text-slate-400 pointer-events-none">
@@ -642,14 +645,14 @@ export const LoginPage: React.FC = () => {
                       type="password"
                       value={socialPassword}
                       onChange={(e) => setSocialPassword(e.target.value)}
-                      placeholder="Account password (e.g. Patient@123)"
+                      placeholder={t('auth.password', 'Password')}
                       className="w-full pl-9 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500"
                       required
                       autoFocus
                     />
                   </div>
                   <p className="text-[10px] text-slate-400 mt-1">
-                    Demo credentials: <strong className="text-slate-600">Patient@123</strong> (Patient) or <strong className="text-slate-600">Caregiver@123</strong> (Caregiver)
+                    Demo credentials: <strong className="text-slate-600">Patient@123</strong> ({t('role.patient', 'Patient')}) or <strong className="text-slate-600">Caregiver@123</strong> ({t('role.caregiver', 'Caregiver')})
                   </p>
                 </div>
 
@@ -663,7 +666,7 @@ export const LoginPage: React.FC = () => {
                     }}
                     className="text-xs text-slate-500 hover:text-slate-700 font-medium cursor-pointer"
                   >
-                    Back
+                    {t('auth.back', 'Back')}
                   </button>
                   <button
                     type="submit"
@@ -673,11 +676,11 @@ export const LoginPage: React.FC = () => {
                     {isVerifyingSocial ? (
                       <>
                         <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Verifying...
+                        {t('auth.verifying', 'Verifying...')}
                       </>
                     ) : (
                       <>
-                        Verify & Sign In
+                        {t('auth.verifyAndSignIn', 'Verify & Sign In')}
                         <ArrowRight className="w-3.5 h-3.5" />
                       </>
                     )}

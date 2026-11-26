@@ -3,6 +3,7 @@ import { Send, Languages, RefreshCw, MessageSquare } from 'lucide-react';
 import { voiceService } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import { useWebSocket } from '../context/WebSocketContext';
+import { useLanguage } from '../context/LanguageContext';
 import type { VoiceMessage } from '../api/types';
 
 interface ChatItem {
@@ -17,6 +18,7 @@ interface ChatItem {
 }
 
 export const CommunicationPage: React.FC = () => {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const { lastMessage } = useWebSocket();
 
@@ -149,9 +151,9 @@ export const CommunicationPage: React.FC = () => {
     <div className="space-y-6 pb-12 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-800">Multilingual Caregiver Chat</h2>
+          <h2 className="text-2xl font-extrabold text-slate-800">{t('comm.title', 'Multilingual Caregiver Chat')}</h2>
           <p className="text-sm text-slate-500">
-            Real-time translation bridge connecting patients, elders, and bilingual caregivers.
+            {t('comm.subtitle', 'Real-time translation bridge connecting patients, elders, and bilingual caregivers.')}
           </p>
         </div>
 
@@ -239,7 +241,7 @@ export const CommunicationPage: React.FC = () => {
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Type your message in any language..."
+            placeholder={t('comm.typeMessage', 'Type your message in any language...')}
             className="flex-1 bg-slate-50 border border-slate-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-cyan-500"
           />
           <button
@@ -247,7 +249,7 @@ export const CommunicationPage: React.FC = () => {
             disabled={sending || !inputText.trim()}
             className="px-5 py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-sm shadow-md transition-all flex items-center space-x-1.5 disabled:opacity-50"
           >
-            <span>{sending ? 'Translating...' : 'Send'}</span>
+            <span>{sending ? t('comm.translating', 'Translating...') : t('comm.send', 'Send')}</span>
             <Send className="w-4 h-4" />
           </button>
         </form>

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Download, FileText, Calendar, Filter, FileSpreadsheet, Check } from 'lucide-react';
 import { healthService } from '../api/services';
+import { useLanguage } from '../context/LanguageContext';
 
 export const HealthHistoryPage: React.FC = () => {
+  const { t } = useLanguage();
   const [downloading, setDownloading] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -41,9 +43,9 @@ export const HealthHistoryPage: React.FC = () => {
     <div className="space-y-6 pb-12 max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-800">Health History & Medical Records</h2>
+          <h2 className="text-2xl font-extrabold text-slate-800">{t('history.title', 'Health History & Medical Records')}</h2>
           <p className="text-sm text-slate-500">
-            Export structured HIPAA-compliant biomarker logs for physicians and healthcare providers.
+            {t('history.subtitle', 'Export structured HIPAA-compliant biomarker logs for physicians and healthcare providers.')}
           </p>
         </div>
 
@@ -54,7 +56,7 @@ export const HealthHistoryPage: React.FC = () => {
             className="px-4 py-2 bg-white rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center space-x-2"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            <span>Export CSV</span>
+            <span>{t('history.exportCsv', 'Export CSV')}</span>
           </button>
 
           <button
@@ -63,7 +65,7 @@ export const HealthHistoryPage: React.FC = () => {
             className="px-4 py-2 bg-cyan-500 rounded-xl text-xs font-bold text-white hover:bg-cyan-600 shadow-sm flex items-center space-x-2"
           >
             <Download className="w-4 h-4" />
-            <span>Export JSON</span>
+            <span>{t('history.exportJson', 'Export JSON')}</span>
           </button>
         </div>
       </div>
@@ -71,14 +73,14 @@ export const HealthHistoryPage: React.FC = () => {
       {success && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-semibold text-emerald-700 flex items-center space-x-2">
           <Check className="w-4 h-4" />
-          <span>Biometric audit log successfully exported to your downloads folder.</span>
+          <span>{t('history.downloadSuccess', 'Health report exported successfully!')}</span>
         </div>
       )}
 
       {/* Table */}
       <div className="glass-card rounded-3xl border border-slate-100 shadow-sm overflow-hidden bg-white">
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="font-bold text-slate-800 text-sm">Archived Vitals Log</h3>
+          <h3 className="font-bold text-slate-800 text-sm">{t('history.title', 'Archived Vitals Log')}</h3>
           <span className="text-xs text-slate-400">Showing last 4 days</span>
         </div>
 
@@ -86,13 +88,13 @@ export const HealthHistoryPage: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="py-3 px-5">Date</th>
-                <th className="py-3 px-4">Heart Rate</th>
-                <th className="py-3 px-4">SpO2</th>
-                <th className="py-3 px-4">Temperature</th>
-                <th className="py-3 px-4">Blood Pressure</th>
-                <th className="py-3 px-4">Steps</th>
-                <th className="py-3 px-4">Assessment</th>
+                <th className="py-3 px-5">{t('history.date', 'Date')}</th>
+                <th className="py-3 px-4">{t('vital.heartRate', 'Heart Rate')}</th>
+                <th className="py-3 px-4">{t('vital.spo2', 'SpO2')}</th>
+                <th className="py-3 px-4">{t('vital.bodyTemp', 'Temperature')}</th>
+                <th className="py-3 px-4">{t('health.bloodPressure', 'Blood Pressure')}</th>
+                <th className="py-3 px-4">{t('vital.steps', 'Steps')}</th>
+                <th className="py-3 px-4">{t('history.vitalStatus', 'Assessment')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">

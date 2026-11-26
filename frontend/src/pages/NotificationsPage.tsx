@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Bell, CheckCircle2, Clock, AlertTriangle, ShieldCheck, Trash2 } from 'lucide-react';
 import { notificationService } from '../api/services';
+import { useLanguage } from '../context/LanguageContext';
 import type { NotificationItem } from '../api/types';
 
 export const NotificationsPage: React.FC = () => {
+  const { t } = useLanguage();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -72,9 +74,9 @@ export const NotificationsPage: React.FC = () => {
     <div className="space-y-6 pb-12 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-800">Notifications & Alerts</h2>
+          <h2 className="text-2xl font-extrabold text-slate-800">{t('notif.title', 'Notifications & Care Alerts')}</h2>
           <p className="text-sm text-slate-500">
-            System notices, medication reminders, and vital telemetry warning updates.
+            {t('notif.subtitle', 'System alerts, medication reminders, vital threshold warnings, and device sync logs.')}
           </p>
         </div>
 
@@ -82,7 +84,7 @@ export const NotificationsPage: React.FC = () => {
           onClick={fetchNotifs}
           className="text-xs font-semibold text-cyan-600 hover:text-cyan-700 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm"
         >
-          Refresh All
+          {t('notif.markAllRead', 'Mark all as read')}
         </button>
       </div>
 

@@ -3,9 +3,11 @@ import { ShieldAlert, PhoneCall, CheckCircle2, Clock, MapPin, RefreshCw, Check }
 import { emergencyService } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import { useWebSocket } from '../context/WebSocketContext';
+import { useLanguage } from '../context/LanguageContext';
 import type { EmergencyAlert } from '../api/types';
 
 export const EmergencySOSPage: React.FC = () => {
+  const { t } = useLanguage();
   const { role } = useAuth();
   const { lastMessage } = useWebSocket();
 
@@ -124,9 +126,9 @@ export const EmergencySOSPage: React.FC = () => {
     <div className="space-y-6 pb-12 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-800">Emergency Response Command Center</h2>
+          <h2 className="text-2xl font-extrabold text-slate-800">{t('emergency.title', 'Emergency Response Command Center')}</h2>
           <p className="text-sm text-slate-500">
-            Multi-channel emergency broadcast, automated alert escalation, and caregiver coordination.
+            {t('emergency.subtitle', 'Multi-channel emergency broadcast, automated alert escalation, and caregiver coordination.')}
           </p>
         </div>
 
@@ -152,9 +154,9 @@ export const EmergencySOSPage: React.FC = () => {
             <ShieldAlert className="w-12 h-12 text-white" />
           </div>
 
-          <h3 className="text-3xl font-black">Need Urgent Medical Assistance?</h3>
+          <h3 className="text-3xl font-black">{t('emergency.needHelp', 'Need Urgent Medical Assistance?')}</h3>
           <p className="text-sm text-rose-100">
-            Hold the button for 2 seconds to broadcast your live GPS coordinates ({coords.lat}, {coords.lng}) and initiate caregiver notification.
+            {t('emergency.holdInstruction', 'Hold the button for 2 seconds to broadcast your live GPS coordinates and initiate caregiver notification.')}
           </p>
 
           <div className="pt-4 max-w-md mx-auto">
@@ -176,11 +178,11 @@ export const EmergencySOSPage: React.FC = () => {
 
               <span className="relative z-10 flex items-center space-x-2">
                 <PhoneCall className="w-5 h-5 animate-pulse" />
-                {sosStatus === 'transmitting' && <span>Broadcasting SOS...</span>}
-                {sosStatus === 'dispatched' && <span className="text-emerald-700">✓ SOS Dispatched!</span>}
-                {sosStatus === 'error' && <span className="text-rose-700">Dispatch Failed</span>}
+                {sosStatus === 'transmitting' && <span>{t('emergency.broadcasting', 'Broadcasting SOS...')}</span>}
+                {sosStatus === 'dispatched' && <span className="text-emerald-700">{t('emergency.dispatched', '✓ SOS Dispatched!')}</span>}
+                {sosStatus === 'error' && <span className="text-rose-700">{t('emergency.failed', 'Dispatch Failed')}</span>}
                 {sosStatus === 'idle' && (
-                  <span>{holdingSOS ? `Hold (${holdProgress}%)...` : 'Press & Hold to Trigger SOS'}</span>
+                  <span>{holdingSOS ? `${t('sos.holding', 'Hold')} (${holdProgress}%)...` : t('emergency.pressAndHold', 'Press & Hold to Trigger SOS')}</span>
                 )}
               </span>
             </button>
@@ -194,11 +196,11 @@ export const EmergencySOSPage: React.FC = () => {
 
       {/* Active Alerts List */}
       <div className="glass-card rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4 bg-white">
-        <h4 className="text-base font-bold text-slate-800">Recent Emergency Broadcasts</h4>
+        <h4 className="text-base font-bold text-slate-800">{t('emergency.recentBroadcasts', 'Recent Emergency Broadcasts')}</h4>
 
         {alerts.length === 0 ? (
           <div className="text-center py-6 text-xs text-slate-400">
-            No active emergency events. All vital alerts clear.
+            {t('emergency.noAlerts', 'No active emergency alerts recorded.')}
           </div>
         ) : (
           <div className="space-y-3">

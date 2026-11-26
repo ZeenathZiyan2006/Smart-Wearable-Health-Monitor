@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { MapPin, Shield, Navigation, Compass, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { healthService } from '../api/services';
+import { useLanguage } from '../context/LanguageContext';
 
 export const GPSTrackingPage: React.FC = () => {
+  const { t } = useLanguage();
   const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: 12.9716, lng: 77.5946 });
   const [isLiveGps, setIsLiveGps] = useState(false);
   const [geofenceStatus, setGeofenceStatus] = useState<{ isInside: boolean; distance: number; message: string }>({
@@ -64,16 +66,16 @@ export const GPSTrackingPage: React.FC = () => {
     <div className="space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-800">GPS & Geofence Safety Tracking</h2>
+          <h2 className="text-2xl font-extrabold text-slate-800">{t('gps.title', 'GPS & Geofence Safety Tracking')}</h2>
           <p className="text-sm text-slate-500">
-            Real-time outdoor coordinates, safe perimeter boundary enforcement, and fall-location broadcasting.
+            {t('gps.subtitle', 'Real-time outdoor coordinates, safe perimeter boundary enforcement, and fall-location broadcasting.')}
           </p>
         </div>
 
         <div className="flex items-center space-x-3">
           <span className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>{isLiveGps ? 'GNSS Browser Fix: Active' : 'Fallback Residence Coordinates'}</span>
+            <span>{isLiveGps ? t('gps.liveFix', 'GNSS Browser Fix: Active') : t('gps.fallback', 'Fallback Residence Coordinates')}</span>
           </span>
 
           <button
@@ -91,7 +93,7 @@ export const GPSTrackingPage: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <MapPin className="w-5 h-5 text-blue-600" />
-            <h3 className="text-base font-bold text-slate-800">Live Geographic Location</h3>
+            <h3 className="text-base font-bold text-slate-800">{t('gps.liveLocation', 'Live Geographic Location')}</h3>
           </div>
           <div className="flex items-center space-x-2 text-xs">
             <span className="text-slate-500 font-mono">{coords.lat}° N, {coords.lng}° E</span>
