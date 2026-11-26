@@ -289,3 +289,81 @@ export interface MedicalReport {
   created_at: string;
 }
 
+
+
+// Patient Dashboard Module Types
+export interface PatientMedicine {
+  id: number;
+  patient_id: number;
+  medicine_name: string;
+  dosage: string;
+  frequency: string;
+  scheduled_times: string;
+  start_date: string;
+  end_date?: string;
+  expiry_date?: string;
+  total_quantity: number;
+  remaining_quantity: number;
+  medicine_status: string;
+  consumed_quantity: number;
+  is_low_stock: boolean;
+  is_expired: boolean;
+  notes?: string;
+  created_at: string;
+}
+
+export interface PatientReminder {
+  id: number;
+  patient_id: number;
+  title: string;
+  reminder_type: 'medicine' | 'sleep' | 'hydration' | 'appointment';
+  reminder_time: string;
+  is_enabled: boolean;
+  recurring_days: string;
+  alarm_tone: string;
+  volume: number;
+  vibration_enabled: boolean;
+  snooze_interval_minutes: number;
+  created_at: string;
+}
+
+export interface DoctorAppointment {
+  id: number;
+  patient_id: number;
+  doctor_name: string;
+  specialization: string;
+  hospital_name: string;
+  phone_number?: string;
+  appointment_date: string;
+  status: 'confirmed' | 'completed' | 'rescheduled' | 'cancelled';
+  reason?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface MedicalCondition {
+  id: number;
+  patient_id: number;
+  condition_name: string;
+  diagnosed_date?: string;
+  severity: string;
+  status: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface PatientAllergy {
+  id: number;
+  patient_id: number;
+  allergen: string;
+  reaction?: string;
+  severity: string;
+  created_at: string;
+}
+
+export interface HydrationSummary {
+  total_intake_ml: number;
+  target_intake_ml: number;
+  percentage: number;
+  logs_count: number;
+}

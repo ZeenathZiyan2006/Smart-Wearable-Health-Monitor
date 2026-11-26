@@ -383,3 +383,105 @@ export const patientAuthApi = {
   },
 };
 export const patientAuthService = patientAuthApi;
+
+
+// ==========================================
+// 9. Patient Dashboard Modules API
+// ==========================================
+export const patientDashboardApi = {
+  // Medicines
+  getMedicines: async (patientId?: number): Promise<any[]> => {
+    const res = await apiClient.get<any[]>('/patient/dashboard/medicines', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  addMedicine: async (payload: any, patientId?: number): Promise<any> => {
+    const res = await apiClient.post('/patient/dashboard/medicines', payload, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  updateMedicine: async (medicineId: number, payload: any, patientId?: number): Promise<any> => {
+    const res = await apiClient.put(`/patient/dashboard/medicines/${medicineId}`, payload, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  recordMedicineAction: async (medicineId: number, action: { status: 'taken' | 'skipped' | 'missed'; notes?: string }, patientId?: number): Promise<any> => {
+    const res = await apiClient.post(`/patient/dashboard/medicines/${medicineId}/action`, action, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  deleteMedicine: async (medicineId: number, patientId?: number): Promise<any> => {
+    const res = await apiClient.delete(`/patient/dashboard/medicines/${medicineId}`, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  // Reminders
+  getReminders: async (patientId?: number): Promise<any[]> => {
+    const res = await apiClient.get<any[]>('/patient/dashboard/reminders', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  createReminder: async (payload: any, patientId?: number): Promise<any> => {
+    const res = await apiClient.post('/patient/dashboard/reminders', payload, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  updateReminder: async (reminderId: number, payload: any, patientId?: number): Promise<any> => {
+    const res = await apiClient.put(`/patient/dashboard/reminders/${reminderId}`, payload, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  deleteReminder: async (reminderId: number, patientId?: number): Promise<any> => {
+    const res = await apiClient.delete(`/patient/dashboard/reminders/${reminderId}`, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  // Appointments
+  getAppointments: async (patientId?: number): Promise<any[]> => {
+    const res = await apiClient.get<any[]>('/patient/dashboard/appointments', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  createAppointment: async (payload: any, patientId?: number): Promise<any> => {
+    const res = await apiClient.post('/patient/dashboard/appointments', payload, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  updateAppointment: async (appointmentId: number, payload: any, patientId?: number): Promise<any> => {
+    const res = await apiClient.put(`/patient/dashboard/appointments/${appointmentId}`, payload, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  // Conditions & Allergies
+  getConditions: async (patientId?: number): Promise<any[]> => {
+    const res = await apiClient.get<any[]>('/patient/dashboard/conditions', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  addCondition: async (payload: any, patientId?: number): Promise<any> => {
+    const res = await apiClient.post('/patient/dashboard/conditions', payload, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  getAllergies: async (patientId?: number): Promise<any[]> => {
+    const res = await apiClient.get<any[]>('/patient/dashboard/allergies', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  addAllergy: async (payload: any, patientId?: number): Promise<any> => {
+    const res = await apiClient.post('/patient/dashboard/allergies', payload, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  // Hydration
+  getHydration: async (patientId?: number): Promise<{ total_intake_ml: number; target_intake_ml: number; percentage: number; logs_count: number }> => {
+    const res = await apiClient.get('/patient/dashboard/hydration', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  logHydration: async (intakeMl: number, patientId?: number): Promise<{ total_intake_ml: number; target_intake_ml: number; percentage: number; logs_count: number }> => {
+    const res = await apiClient.post('/patient/dashboard/hydration', { intake_ml: intakeMl }, { params: { patient_id: patientId } });
+    return res.data;
+  },
+};
+export const patientDashboardService = patientDashboardApi;

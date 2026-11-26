@@ -40,12 +40,19 @@ def get_current_user(
     if user_id_str is None:
         raise credentials_exception
 
+    user = None
     try:
         user_id = int(user_id_str)
-    except ValueError:
-        raise credentials_exception
+        user = db.query(User).filter(User.id == user_id).first()
+    except (ValueError, TypeError):
+        user = db.query(User).filter(User.email == str(user_id_str)).first()
 
-    user = db.query(User).filter(User.id == user_id).first()
+    if user is None and payload.get("user_id"):
+        try:
+            user = db.query(User).filter(User.id == int(payload["user_id"])).first()
+        except (ValueError, TypeError):
+            pass
+
     if user is None:
         raise credentials_exception
 

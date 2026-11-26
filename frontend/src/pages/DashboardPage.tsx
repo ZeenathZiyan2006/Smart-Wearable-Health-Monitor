@@ -18,6 +18,15 @@ import {
   WifiOff,
   AlertCircle,
   RefreshCw,
+  Plus,
+  Trash2,
+  Check,
+  Clock,
+  Calendar as CalendarIcon,
+  AlertTriangle,
+  Volume2,
+  Bell,
+  CheckCircle,
   FileText,
   KeyRound,
   Radio,
@@ -26,7 +35,8 @@ import {
   Copy,
   X,
 } from 'lucide-react';
-import { healthService, emergencyService, aiService, patientAuthService, deviceService } from '../api/services';
+import { healthService, emergencyService, aiService, patientAuthService, deviceService, patientDashboardService } from '../api/services';
+import type { PatientMedicine, PatientReminder, DoctorAppointment, MedicalCondition, PatientAllergy, HydrationSummary } from '../api/types';
 import type { MedicalReport, FamilyPatient } from '../api/types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -75,6 +85,41 @@ export const DashboardPage: React.FC = () => {
   const [pairingSuccessMsg, setPairingSuccessMsg] = useState<string | null>(null);
   const [copiedPatientId, setCopiedPatientId] = useState(false);
 
+  // MODULE 1, 4, 5, 6, 7 state
+  const [bloodPressure, setBloodPressure] = useState<string>('120/80');
+  const [distanceKm, setDistanceKm] = useState<number>(3.4);
+  const [hydration, setHydration] = useState<HydrationSummary>({ total_intake_ml: 1250, target_intake_ml: 2500, percentage: 50.0, logs_count: 5 });
+  const [medicines, setMedicines] = useState<PatientMedicine[]>([]);
+  const [reminders, setReminders] = useState<PatientReminder[]>([]);
+  const [appointments, setAppointments] = useState<DoctorAppointment[]>([]);
+  const [conditions, setConditions] = useState<MedicalCondition[]>([]);
+  const [allergies, setAllergies] = useState<PatientAllergy[]>([]);
+
+  // Modals
+  const [showAddMedModal, setShowAddMedModal] = useState(false);
+  const [showAddReminderModal, setShowAddReminderModal] = useState(false);
+  const [showAddApptModal, setShowAddApptModal] = useState(false);
+  const [showAddConditionModal, setShowAddConditionModal] = useState(false);
+
+  // Forms
+  const [newMedName, setNewMedName] = useState('');
+  const [newMedDosage, setNewMedDosage] = useState('1 Tablet');
+  const [newMedFreq, setNewMedFreq] = useState('Twice daily');
+  const [newMedTimes, setNewMedTimes] = useState('08:00,20:00');
+  const [newMedQty, setNewMedQty] = useState(30);
+
+  const [newRemTitle, setNewRemTitle] = useState('');
+  const [newRemType, setNewRemType] = useState<'medicine' | 'sleep' | 'hydration' | 'appointment'>('medicine');
+  const [newRemTime, setNewRemTime] = useState('08:00');
+
+  const [newApptDoctor, setNewApptDoctor] = useState('Dr. Sunita Rao');
+  const [newApptSpec, setNewApptSpec] = useState('Cardiologist');
+  const [newApptDate, setNewApptDate] = useState('');
+  const [newApptReason, setNewApptReason] = useState('Regular Cardiovascular Checkup');
+
+  const [newConditionName, setNewConditionName] = useState('');
+  const [newConditionSeverity, setNewConditionSeverity] = useState('mild');
+
   const [holdingSOS, setHoldingSOS] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const [sosStatus, setSosStatus] = useState<'idle' | 'transmitting' | 'dispatched' | 'error'>('idle');
@@ -108,6 +153,9 @@ export const DashboardPage: React.FC = () => {
       if (data) {
         setSummary(data);
         if (data.latest_vitals) {
+          if (data.latest_vitals.blood_pressure_sys && data.latest_vitals.blood_pressure_dia) {
+            setBloodPressure(`${Math.round(data.latest_vitals.blood_pressure_sys)}/${Math.round(data.latest_vitals.blood_pressure_dia)}`);
+          }
           if (data.latest_vitals.heart_rate) setHeartRate(Math.round(data.latest_vitals.heart_rate));
           if (data.latest_vitals.spo2) setSpo2(Math.round(data.latest_vitals.spo2));
           if (data.latest_vitals.temperature) setTemp(Number(data.latest_vitals.temperature.toFixed(1)));
@@ -169,6 +217,14 @@ export const DashboardPage: React.FC = () => {
     patientAuthService.getMedicalReports().then(reps => {
       if (reps) setMedicalReports(reps);
     }).catch(() => {});
+
+    // Fetch Medicines, Reminders, Appointments, Hydration, Conditions
+    patientDashboardService.getMedicines().then(res => { if (res) setMedicines(res); }).catch(() => {});
+    patientDashboardService.getReminders().then(res => { if (res) setReminders(res); }).catch(() => {});
+    patientDashboardService.getAppointments().then(res => { if (res) setAppointments(res); }).catch(() => {});
+    patientDashboardService.getHydration().then(res => { if (res) setHydration(res); }).catch(() => {});
+    patientDashboardService.getConditions().then(res => { if (res) setConditions(res); }).catch(() => {});
+    patientDashboardService.getAllergies().then(res => { if (res) setAllergies(res); }).catch(() => {});
 
     loadDashboardData();
     const interval = setInterval(loadDashboardData, 12000);
@@ -265,6 +321,97 @@ export const DashboardPage: React.FC = () => {
         setShowPairingModal(false);
       }, 2000);
     }
+  };
+
+  const handleMedicineAction = async (medId: number, status: 'taken' | 'skipped' | 'missed') => {
+    try {
+      await patientDashboardService.recordMedicineAction(medId, { status });
+      const updated = await patientDashboardService.getMedicines();
+      setMedicines(updated);
+    } catch {}
+  };
+
+  const handleCreateMedicine = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMedName.trim()) return;
+    try {
+      await patientDashboardService.addMedicine({
+        medicine_name: newMedName.trim(),
+        dosage: newMedDosage,
+        frequency: newMedFreq,
+        scheduled_times: newMedTimes,
+        total_quantity: newMedQty,
+        remaining_quantity: newMedQty,
+        start_date: new Date().toISOString(),
+      });
+      setShowAddMedModal(false);
+      setNewMedName('');
+      const updated = await patientDashboardService.getMedicines();
+      setMedicines(updated);
+    } catch {}
+  };
+
+  const handleLogGlassWater = async () => {
+    try {
+      const updated = await patientDashboardService.logHydration(250);
+      setHydration(updated);
+    } catch {}
+  };
+
+  const handleToggleReminder = async (remId: number, currentVal: boolean) => {
+    try {
+      await patientDashboardService.updateReminder(remId, { is_enabled: !currentVal });
+      const updated = await patientDashboardService.getReminders();
+      setReminders(updated);
+    } catch {}
+  };
+
+  const handleCreateReminder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRemTitle.trim()) return;
+    try {
+      await patientDashboardService.createReminder({
+        title: newRemTitle.trim(),
+        reminder_type: newRemType,
+        reminder_time: newRemTime,
+        is_enabled: true,
+      });
+      setShowAddReminderModal(false);
+      setNewRemTitle('');
+      const updated = await patientDashboardService.getReminders();
+      setReminders(updated);
+    } catch {}
+  };
+
+  const handleCreateAppointment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newApptDoctor.trim() || !newApptDate) return;
+    try {
+      await patientDashboardService.createAppointment({
+        doctor_name: newApptDoctor.trim(),
+        specialization: newApptSpec.trim(),
+        appointment_date: new Date(newApptDate).toISOString(),
+        reason: newApptReason,
+      });
+      setShowAddApptModal(false);
+      const updated = await patientDashboardService.getAppointments();
+      setAppointments(updated);
+    } catch {}
+  };
+
+  const handleCreateCondition = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newConditionName.trim()) return;
+    try {
+      await patientDashboardService.addCondition({
+        condition_name: newConditionName.trim(),
+        severity: newConditionSeverity,
+      });
+      setShowAddConditionModal(false);
+      setNewConditionName('');
+      const updated = await patientDashboardService.getConditions();
+      setConditions(updated);
+    } catch {}
   };
 
   const displayName = user?.full_name?.split(' ')[0] || (role === 'caregiver' ? 'Caregiver' : 'Thrisha');
@@ -389,7 +536,70 @@ export const DashboardPage: React.FC = () => {
       {/* =========================================================================
           ROW 2: FIVE QUICK HEALTH METRIC CARDS MATCHING DESIGN
          ========================================================================= */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      {/* MODULE 1: Live Wearable Telemetry & Health Vitals */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3.5">
+        {/* Blood Pressure Card */}
+        <div
+          onClick={() => navigate('/health')}
+          className="glass-card rounded-2xl p-3.5 cursor-pointer hover:shadow-md transition-all border border-slate-100 flex flex-col justify-between bg-white"
+        >
+          <div className="flex items-center space-x-1.5">
+            <div className="p-1.5 rounded-xl bg-purple-50 text-purple-600">
+              <Heart className="w-4 h-4 text-purple-600" />
+            </div>
+            <span className="text-[11px] font-bold text-slate-700">Blood Pressure</span>
+          </div>
+          <div className="mt-2">
+            <div className="text-xl font-extrabold text-slate-800">
+              {bloodPressure} <span className="text-[10px] font-normal text-slate-400">mmHg</span>
+            </div>
+            <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">Validated Range</div>
+          </div>
+        </div>
+
+        {/* Distance Card */}
+        <div
+          onClick={() => navigate('/sleep-activity')}
+          className="glass-card rounded-2xl p-3.5 cursor-pointer hover:shadow-md transition-all border border-slate-100 flex flex-col justify-between bg-white"
+        >
+          <div className="flex items-center space-x-1.5">
+            <div className="p-1.5 rounded-xl bg-teal-50 text-teal-600">
+              <Navigation className="w-4 h-4 text-teal-600" />
+            </div>
+            <span className="text-[11px] font-bold text-slate-700">Distance</span>
+          </div>
+          <div className="mt-2">
+            <div className="text-xl font-extrabold text-slate-800">
+              {distanceKm} <span className="text-[10px] font-normal text-slate-400">km</span>
+            </div>
+            <div className="text-[10px] text-teal-600 font-semibold mt-0.5">GPS / Steps calc</div>
+          </div>
+        </div>
+
+        {/* Hydration Card */}
+        <div
+          onClick={handleLogGlassWater}
+          className="glass-card rounded-2xl p-3.5 cursor-pointer hover:shadow-md transition-all border border-sky-100 flex flex-col justify-between bg-sky-50/40 group"
+          title="Click to quickly log 1 glass (+250ml)"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1.5">
+              <div className="p-1.5 rounded-xl bg-blue-100 text-blue-600">
+                <Droplets className="w-4 h-4 fill-blue-500" />
+              </div>
+              <span className="text-[11px] font-bold text-slate-700">Hydration</span>
+            </div>
+            <span className="text-[10px] text-blue-600 font-bold group-hover:scale-110 transition-transform">+250ml</span>
+          </div>
+          <div className="mt-2">
+            <div className="text-xl font-extrabold text-slate-800">
+              {hydration.total_intake_ml} <span className="text-[10px] font-normal text-slate-400">/ 2500ml</span>
+            </div>
+            <div className="w-full bg-blue-200/50 rounded-full h-1.5 mt-1 overflow-hidden">
+              <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${Math.min(100, hydration.percentage)}%` }} />
+            </div>
+          </div>
+        </div>
         {/* Heart Rate Card */}
         <div
           onClick={() => navigate('/health')}
@@ -754,6 +964,191 @@ export const DashboardPage: React.FC = () => {
           <VoiceAssistantWidget userName={displayName} className="flex-1" />
         </div>
       </div>
+
+      {/* =========================================================================
+          MODULE 4 & 5: MEDICINE MANAGEMENT & SMART REMINDER SCHEDULES
+         ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* Medicine Management Card */}
+        <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-teal-100 text-teal-600 flex items-center justify-center">
+                <Pill className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Active Prescriptions & Medication Schedule</h3>
+                <p className="text-xs text-slate-500">Track doses, remaining tablet inventory, and consumption</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAddMedModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Medicine
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {medicines.length === 0 ? (
+              <div className="text-center py-6 text-slate-400 text-xs">
+                No active medications prescribed. Click <strong>Add Medicine</strong> to track your schedule.
+              </div>
+            ) : (
+              medicines.map((med) => (
+                <div
+                  key={med.id}
+                  className="p-3.5 rounded-2xl border border-slate-200 hover:border-teal-400 transition-all bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-900">{med.medicine_name}</span>
+                      <span className="text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full">
+                        {med.dosage}
+                      </span>
+                      {med.is_low_stock && (
+                        <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3 text-amber-600" />
+                          Low Stock ({med.remaining_quantity} left)
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 flex items-center gap-3">
+                      <span>Schedule: <strong className="text-slate-700">{med.scheduled_times}</strong> ({med.frequency})</span>
+                      <span>Stock: <strong className="text-slate-700">{med.remaining_quantity} / {med.total_quantity}</strong></span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-center">
+                    <button
+                      type="button"
+                      onClick={() => handleMedicineAction(med.id, 'taken')}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Taken
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMedicineAction(med.id, 'skipped')}
+                      className="px-2.5 py-1.5 border border-slate-300 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Smart Reminders & Doctor Appointments Column */}
+        <div className="lg:col-span-5 space-y-5">
+          {/* Smart Reminders */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                  <Bell className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Smart Health Reminders</h3>
+                  <p className="text-[11px] text-slate-500">Alarms for medication, sleep, and hydration</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddReminderModal(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                New
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {reminders.length === 0 ? (
+                <div className="text-center py-4 text-slate-400 text-xs">
+                  No reminders scheduled.
+                </div>
+              ) : (
+                reminders.map((rem) => (
+                  <div
+                    key={rem.id}
+                    className="p-2.5 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Clock className="w-4 h-4 text-slate-400" />
+                      <div>
+                        <div className="text-xs font-bold text-slate-800">{rem.title}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{rem.reminder_time} â€¢ {rem.recurring_days}</div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleReminder(rem.id, rem.is_enabled)}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
+                        rem.is_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'
+                      }`}
+                    >
+                      {rem.is_enabled ? 'Active' : 'Muted'}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Confirmed Doctor Appointments */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                  <CalendarIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Doctor Consultations</h3>
+                  <p className="text-[11px] text-slate-500">Upcoming clinical appointments & hospital visits</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddApptModal(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                Book
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {appointments.length === 0 ? (
+                <div className="text-center py-4 text-slate-400 text-xs">
+                  No upcoming appointments booked.
+                </div>
+              ) : (
+                appointments.map((appt) => (
+                  <div
+                    key={appt.id}
+                    className="p-3 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">{appt.doctor_name}</div>
+                      <div className="text-[10px] text-indigo-700 font-semibold">{appt.specialization} â€¢ {appt.hospital_name}</div>
+                      <div className="text-[10px] text-slate-400">{new Date(appt.appointment_date).toLocaleDateString()} at {new Date(appt.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                      {appt.status}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
       {/* Medical Reports & Clinical Observations Modal */}
       {showReportsModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -778,6 +1173,39 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto py-4 space-y-4">
+              {/* Chronic Conditions & Allergies Bar */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700">Chronic Conditions & Allergies</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddConditionModal(true)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add Condition
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {conditions.length === 0 && allergies.length === 0 ? (
+                    <span className="text-[11px] text-slate-400">No chronic conditions or allergies recorded.</span>
+                  ) : (
+                    <>
+                      {conditions.map((c) => (
+                        <span key={c.id} className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-medium">
+                          {c.condition_name} ({c.severity})
+                        </span>
+                      ))}
+                      {allergies.map((a) => (
+                        <span key={a.id} className="text-[11px] px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-medium">
+                          Allergy: {a.allergen} ({a.severity})
+                        </span>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+
               {medicalReports.length === 0 ? (
                 <div className="text-center py-8 text-slate-400 text-xs">
                   No medical reports available for this patient yet.
@@ -901,6 +1329,353 @@ export const DashboardPage: React.FC = () => {
                   className="px-5 py-2 bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs font-bold rounded-xl shadow-md cursor-pointer"
                 >
                   Confirm Pairing
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Medicine Modal */}
+      {showAddMedModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-teal-100 text-teal-600 flex items-center justify-center">
+                  <Pill className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Add Medicine Schedule</h3>
+                  <p className="text-xs text-slate-500 font-mono">Patient: {activePatientId}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddMedModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMedicine} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Medicine Name</label>
+                <input
+                  type="text"
+                  value={newMedName}
+                  onChange={(e) => setNewMedName(e.target.value)}
+                  placeholder="e.g. Amlodipine 5mg"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Dosage</label>
+                  <input
+                    type="text"
+                    value={newMedDosage}
+                    onChange={(e) => setNewMedDosage(e.target.value)}
+                    placeholder="e.g. 1 Tablet"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Frequency</label>
+                  <input
+                    type="text"
+                    value={newMedFreq}
+                    onChange={(e) => setNewMedFreq(e.target.value)}
+                    placeholder="e.g. Twice daily"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Scheduled Times</label>
+                  <input
+                    type="text"
+                    value={newMedTimes}
+                    onChange={(e) => setNewMedTimes(e.target.value)}
+                    placeholder="08:00,20:00"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Total Quantity</label>
+                  <input
+                    type="number"
+                    value={newMedQty}
+                    onChange={(e) => setNewMedQty(Number(e.target.value))}
+                    min="1"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddMedModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer"
+                >
+                  Save Schedule
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Reminder Modal */}
+      {showAddReminderModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                  <Bell className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Add Smart Health Reminder</h3>
+                  <p className="text-xs text-slate-500 font-mono">Patient: {activePatientId}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddReminderModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateReminder} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Reminder Title</label>
+                <input
+                  type="text"
+                  value={newRemTitle}
+                  onChange={(e) => setNewRemTitle(e.target.value)}
+                  placeholder="e.g. Afternoon Hydration & Vitals Check"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
+                  <select
+                    value={newRemType}
+                    onChange={(e) => setNewRemType(e.target.value as any)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  >
+                    <option value="medicine">Medicine</option>
+                    <option value="sleep">Sleep & Rest</option>
+                    <option value="hydration">Hydration (Water)</option>
+                    <option value="appointment">Appointment</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Time</label>
+                  <input
+                    type="time"
+                    value={newRemTime}
+                    onChange={(e) => setNewRemTime(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddReminderModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer"
+                >
+                  Set Alarm
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Book Doctor Appointment Modal */}
+      {showAddApptModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                  <CalendarIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Book Doctor Consultation</h3>
+                  <p className="text-xs text-slate-500 font-mono">Patient: {activePatientId}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddApptModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAppointment} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Physician / Specialist</label>
+                <input
+                  type="text"
+                  value={newApptDoctor}
+                  onChange={(e) => setNewApptDoctor(e.target.value)}
+                  placeholder="e.g. Dr. Sunita Rao"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Specialization</label>
+                <input
+                  type="text"
+                  value={newApptSpec}
+                  onChange={(e) => setNewApptSpec(e.target.value)}
+                  placeholder="e.g. Cardiologist"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Appointment Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={newApptDate}
+                  onChange={(e) => setNewApptDate(e.target.value)}
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Reason / Clinical Notes</label>
+                <textarea
+                  value={newApptReason}
+                  onChange={(e) => setNewApptReason(e.target.value)}
+                  rows={2}
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddApptModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer"
+                >
+                  Confirm Appointment
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Condition Modal */}
+      {showAddConditionModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Add Medical Condition</h3>
+                  <p className="text-xs text-slate-500 font-mono">Patient: {activePatientId}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddConditionModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCondition} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Condition Name</label>
+                <input
+                  type="text"
+                  value={newConditionName}
+                  onChange={(e) => setNewConditionName(e.target.value)}
+                  placeholder="e.g. Hypertension (Stage 1) or Asthma"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Severity</label>
+                <select
+                  value={newConditionSeverity}
+                  onChange={(e) => setNewConditionSeverity(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                >
+                  <option value="mild">Mild</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="severe">Severe</option>
+                  <option value="controlled">Controlled</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddConditionModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer"
+                >
+                  Save Condition
                 </button>
               </div>
             </form>

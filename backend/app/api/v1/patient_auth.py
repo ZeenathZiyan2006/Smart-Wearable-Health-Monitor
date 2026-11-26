@@ -248,16 +248,16 @@ def register_patient(
     db.add(welcome_report)
     db.commit()
 
-    token_payload = {
-        "sub": new_user.email,
+    user_role_str = new_user.role.value if hasattr(new_user.role, "value") else str(new_user.role)
+    token_claims = {
+        "email": new_user.email,
         "user_id": new_user.id,
-        "role": new_user.role.value if hasattr(new_user.role, "value") else str(new_user.role),
         "patient_id": generated_patient_id,
         "patient_profile_id": new_profile.id,
         "family_email": family_email_clean
     }
-    access_token = create_access_token(token_payload)
-    refresh_token = create_refresh_token(token_payload)
+    access_token = create_access_token(subject=new_user.id, role=user_role_str, extra_claims=token_claims)
+    refresh_token = create_refresh_token(subject=new_user.id, role=user_role_str)
 
     return {
         "status": "success",
@@ -309,18 +309,18 @@ def login_patient(
     family_email = user.patient_profile.family_email if user.patient_profile else None
     patient_id_val = user.patient_id or (user.patient_profile.patient_id if user.patient_profile else None)
 
-    token_payload = {
-        "sub": user.email,
+    user_role_str = user.role.value if hasattr(user.role, "value") else str(user.role)
+    token_claims = {
+        "email": user.email,
         "user_id": user.id,
-        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
         "patient_id": patient_id_val,
         "patient_profile_id": patient_profile_id,
         "family_email": family_email
     }
 
     return {
-        "access_token": create_access_token(token_payload),
-        "refresh_token": create_refresh_token(token_payload),
+        "access_token": create_access_token(subject=user.id, role=user_role_str, extra_claims=token_claims),
+        "refresh_token": create_refresh_token(subject=user.id, role=user_role_str),
         "token_type": "bearer",
         "expires_in": 3600,
         "role": user.role.value if hasattr(user.role, "value") else str(user.role),

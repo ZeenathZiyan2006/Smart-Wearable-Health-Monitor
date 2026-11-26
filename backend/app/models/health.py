@@ -80,3 +80,116 @@ class MedicalReport(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
     patient = relationship("PatientProfile", back_populates="medical_reports")
+
+
+class PatientMedicine(Base):
+    __tablename__ = "patient_medicines"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    patient_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    medicine_name = Column(String(200), nullable=False)
+    dosage = Column(String(100), nullable=False)              # e.g., '500 mg', '1 tablet'
+    frequency = Column(String(100), nullable=False)           # 'Once daily', 'Twice daily', 'Thrice daily'
+    scheduled_times = Column(String(200), nullable=False)     # JSON/comma-separated: '08:00,20:00'
+    start_date = Column(DateTime(timezone=True), nullable=False)
+    end_date = Column(DateTime(timezone=True), nullable=True)
+    expiry_date = Column(DateTime(timezone=True), nullable=True)
+    total_quantity = Column(Integer, default=30, nullable=False)
+    remaining_quantity = Column(Integer, default=30, nullable=False)
+    medicine_status = Column(String(50), default="active", nullable=False) # 'active', 'discontinued', 'completed'
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    patient = relationship("PatientProfile")
+    intake_logs = relationship("MedicineIntakeLog", back_populates="medicine", cascade="all, delete-orphan")
+
+
+class MedicineIntakeLog(Base):
+    __tablename__ = "medicine_intake_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    medicine_id = Column(Integer, ForeignKey("patient_medicines.id", ondelete="CASCADE"), nullable=False, index=True)
+    patient_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    scheduled_time = Column(DateTime(timezone=True), nullable=False)
+    action_time = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    status = Column(String(50), default="taken", nullable=False)  # 'taken', 'skipped', 'missed'
+    notes = Column(Text, nullable=True)
+
+    medicine = relationship("PatientMedicine", back_populates="intake_logs")
+    patient = relationship("PatientProfile")
+
+
+class PatientReminder(Base):
+    __tablename__ = "patient_reminders"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    patient_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    reminder_type = Column(String(50), default="medicine", nullable=False)  # 'medicine', 'sleep', 'hydration', 'appointment'
+    reminder_time = Column(String(50), nullable=False)        # '08:00' or ISO timestamp
+    is_enabled = Column(Boolean, default=True, nullable=False)
+    recurring_days = Column(String(100), default="Daily", nullable=False)  # 'Daily', 'Mon,Wed,Fri'
+    alarm_tone = Column(String(100), default="chime_gentle", nullable=False)
+    volume = Column(Integer, default=80, nullable=False)       # 0 - 100
+    vibration_enabled = Column(Boolean, default=True, nullable=False)
+    snooze_interval_minutes = Column(Integer, default=10, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    patient = relationship("PatientProfile")
+
+
+class DoctorAppointment(Base):
+    __tablename__ = "doctor_appointments"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    patient_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    doctor_name = Column(String(150), nullable=False)
+    specialization = Column(String(150), default="Cardiologist", nullable=False)
+    hospital_name = Column(String(200), default="PulseGuardian Heart Center", nullable=False)
+    phone_number = Column(String(50), nullable=True)
+    appointment_date = Column(DateTime(timezone=True), nullable=False)
+    status = Column(String(50), default="confirmed", nullable=False)  # 'confirmed', 'completed', 'rescheduled', 'cancelled'
+    reason = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    patient = relationship("PatientProfile")
+
+
+class PatientMedicalCondition(Base):
+    __tablename__ = "patient_medical_conditions"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    patient_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    condition_name = Column(String(200), nullable=False)
+    diagnosed_date = Column(DateTime(timezone=True), nullable=True)
+    severity = Column(String(50), default="moderate", nullable=False)  # 'mild', 'moderate', 'severe'
+    status = Column(String(50), default="active", nullable=False)      # 'active', 'managed', 'resolved'
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    patient = relationship("PatientProfile")
+
+
+class PatientAllergy(Base):
+    __tablename__ = "patient_allergies"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    patient_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    allergen = Column(String(200), nullable=False)            # e.g., 'Penicillin', 'Peanuts', 'Latex'
+    reaction = Column(String(200), nullable=True)             # e.g., 'Rash', 'Anaphylaxis', 'Swelling'
+    severity = Column(String(50), default="moderate", nullable=False) # 'mild', 'moderate', 'severe'
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    patient = relationship("PatientProfile")
+
+
+class PatientHydrationLog(Base):
+    __tablename__ = "patient_hydration_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    patient_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    intake_ml = Column(Integer, default=250, nullable=False)  # Intake in milliliters (e.g. 250ml glass)
+    logged_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    patient = relationship("PatientProfile")

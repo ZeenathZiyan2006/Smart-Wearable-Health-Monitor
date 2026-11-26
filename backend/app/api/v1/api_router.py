@@ -11,6 +11,7 @@ from app.api.v1 import (
     location,
     notifications,
     patient_auth,
+    patient_dashboard,
     users,
     voice,
 )
@@ -29,3 +30,5 @@ api_router.include_router(ai.router, prefix="/ai", tags=["AI Engine & Digital Tw
 api_router.include_router(health_drift.router, prefix="/ai/health-drift", tags=["Health Drift Intelligence"])
 api_router.include_router(voice.router, prefix="/voice", tags=["Multilingual Voice Assistance"])
 api_router.include_router(audit.router, prefix="/audit", tags=["System Audit Logs"])
+
+api_router.include_router(patient_dashboard.router, prefix="/patient/dashboard", tags=["Patient Dashboard Modules"])

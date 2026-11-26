@@ -1,6 +1,6 @@
 from app.core.database import Base
 from app.models.user import User, UserRole, PatientProfile, CaregiverProfile, PatientCaregiverAssociation, PatientRecoveryRequest, FamilyAccount, FamilyPatientRelationship, PatientRecoveryAuditLog
-from app.models.health import HealthTelemetry, MedicalReport
+from app.models.health import HealthTelemetry, MedicalReport, PatientMedicine, MedicineIntakeLog, PatientReminder, DoctorAppointment, PatientMedicalCondition, PatientAllergy, PatientHydrationLog
 from app.models.emergency import EmergencyAlert, EscalationAuditLog
 from app.models.digital_twin import DigitalTwinBaseline, HealthDriftRecord
 from app.models.location import LocationLog
@@ -18,6 +18,13 @@ __all__ = [
     "PatientCaregiverAssociation",
     "HealthTelemetry",
     "MedicalReport",
+    "PatientMedicine",
+    "MedicineIntakeLog",
+    "PatientReminder",
+    "DoctorAppointment",
+    "PatientMedicalCondition",
+    "PatientAllergy",
+    "PatientHydrationLog",
     "EmergencyAlert",
     "EscalationAuditLog",
     "DigitalTwinBaseline",
