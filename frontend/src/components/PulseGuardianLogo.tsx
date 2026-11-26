@@ -6,6 +6,7 @@ interface LogoProps {
   showTagline?: boolean;
   tagline?: string;
   lightText?: boolean;
+  iconOnly?: boolean;
 }
 
 export const PulseGuardianLogo: React.FC<LogoProps> = ({
@@ -14,6 +15,7 @@ export const PulseGuardianLogo: React.FC<LogoProps> = ({
   showTagline = true,
   tagline = 'Care. Protect. Live Better.',
   lightText = false,
+  iconOnly = false,
 }) => {
   const iconSizes = {
     sm: 'w-7 h-7',
@@ -65,19 +67,21 @@ export const PulseGuardianLogo: React.FC<LogoProps> = ({
       </div>
 
       {/* Brand Name & Tagline */}
-      <div className="flex flex-col">
-        <div className="flex items-center gap-1 font-extrabold tracking-tight">
-          <span className={`${titleSizes[size]} ${lightText ? 'text-white' : 'text-slate-900'} font-['Outfit']`}>
-            PulseGuardian
-          </span>
-          <span className={`${titleSizes[size]} text-cyan-500 font-['Outfit']`}>AI</span>
+      {!iconOnly && (
+        <div className="flex flex-col">
+          <div className="flex items-center gap-1 font-extrabold tracking-tight leading-none">
+            <span className={`${titleSizes[size]} ${lightText ? 'text-white' : 'text-slate-900'} font-['Outfit']`}>
+              PulseGuardian
+            </span>
+            <span className={`${titleSizes[size]} text-cyan-500 font-['Outfit']`}>AI</span>
+          </div>
+          {showTagline && (
+            <span className={`text-[11px] font-medium tracking-wide mt-1 ${lightText ? 'text-slate-300' : 'text-slate-500'}`}>
+              {tagline}
+            </span>
+          )}
         </div>
-        {showTagline && (
-          <span className={`text-[11px] font-medium tracking-wide ${lightText ? 'text-slate-300' : 'text-slate-500'}`}>
-            {tagline}
-          </span>
-        )}
-      </div>
+      )}
     </div>
   );
 };

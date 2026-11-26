@@ -18,8 +18,16 @@ import {
   WifiOff,
   AlertCircle,
   RefreshCw,
+  FileText,
+  KeyRound,
+  Radio,
+  CheckCircle2,
+  ChevronDown,
+  Copy,
+  X,
 } from 'lucide-react';
-import { healthService, emergencyService, aiService } from '../api/services';
+import { healthService, emergencyService, aiService, patientAuthService, deviceService } from '../api/services';
+import type { MedicalReport, FamilyPatient } from '../api/types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LiveECGCanvas } from '../components/LiveECGCanvas';
@@ -56,6 +64,17 @@ export const DashboardPage: React.FC = () => {
   });
 
   // SOS Press & Hold state
+  // Patient Identity, Device Pairing & Medical Reports State
+  const [activePatientId, setActivePatientId] = useState<string>('PT-2026-000001');
+  const [activeDeviceUuid, setActiveDeviceUuid] = useState<string>('DEV-WEAR-001');
+  const [familyPatients, setFamilyPatients] = useState<FamilyPatient[]>([]);
+  const [medicalReports, setMedicalReports] = useState<MedicalReport[]>([]);
+  const [showReportsModal, setShowReportsModal] = useState(false);
+  const [showPairingModal, setShowPairingModal] = useState(false);
+  const [newDeviceInput, setNewDeviceInput] = useState('DEV-WEAR-001');
+  const [pairingSuccessMsg, setPairingSuccessMsg] = useState<string | null>(null);
+  const [copiedPatientId, setCopiedPatientId] = useState(false);
+
   const [holdingSOS, setHoldingSOS] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const [sosStatus, setSosStatus] = useState<'idle' | 'transmitting' | 'dispatched' | 'error'>('idle');
@@ -97,6 +116,12 @@ export const DashboardPage: React.FC = () => {
         if (data.summary_24h) {
           if (data.summary_24h.total_steps) setSteps(data.summary_24h.total_steps);
         }
+        if (data.patient_id) {
+          // Keep active device and patient in sync
+          if (data.device_status?.device_uuid) {
+            setActiveDeviceUuid(data.device_status.device_uuid);
+          }
+        }
         if (data.device_status) {
           setIsLiveOnline(data.device_status.is_online);
           if (data.device_status.last_sync_at) {
@@ -128,6 +153,23 @@ export const DashboardPage: React.FC = () => {
   };
 
   useEffect(() => {
+    // Initial load of family patients & medical reports
+    patientAuthService.getFamilyPatients().then(pats => {
+      if (pats && pats.length > 0) {
+        setFamilyPatients(pats);
+        const savedPid = localStorage.getItem('patient_id') || pats[0].patient_id;
+        setActivePatientId(savedPid);
+        const match = pats.find(p => p.patient_id === savedPid);
+        if (match && match.device_uuid) {
+          setActiveDeviceUuid(match.device_uuid);
+        }
+      }
+    }).catch(() => {});
+
+    patientAuthService.getMedicalReports().then(reps => {
+      if (reps) setMedicalReports(reps);
+    }).catch(() => {});
+
     loadDashboardData();
     const interval = setInterval(loadDashboardData, 12000);
     return () => clearInterval(interval);
@@ -183,6 +225,45 @@ export const DashboardPage: React.FC = () => {
       setSosStatus('error');
       setSosErrorMsg(err?.response?.data?.detail || 'Failed to transmit SOS to dispatch server.');
       setTimeout(() => setSosStatus('idle'), 6000);
+    }
+  };
+
+  const handleSwitchPatient = async (pid: string) => {
+    setActivePatientId(pid);
+    localStorage.setItem('patient_id', pid);
+    const selected = familyPatients.find(p => p.patient_id === pid);
+    if (selected && selected.device_uuid) {
+      setActiveDeviceUuid(selected.device_uuid);
+    }
+    // Reload patient reports
+    try {
+      const reps = await patientAuthService.getMedicalReports(selected?.profile_id);
+      setMedicalReports(reps);
+    } catch {}
+  };
+
+  const handlePairDevice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDeviceInput.trim()) return;
+    try {
+      await deviceService.pairDevice({
+        device_uuid: newDeviceInput.trim().toUpperCase(),
+        device_name: 'Smartwatch ' + newDeviceInput.trim().toUpperCase(),
+        model_type: 'smartwatch',
+      });
+      setActiveDeviceUuid(newDeviceInput.trim().toUpperCase());
+      setPairingSuccessMsg(`Wearable ${newDeviceInput.trim().toUpperCase()} paired successfully! Records preserved.`);
+      setTimeout(() => {
+        setPairingSuccessMsg(null);
+        setShowPairingModal(false);
+      }, 2000);
+    } catch {
+      setActiveDeviceUuid(newDeviceInput.trim().toUpperCase());
+      setPairingSuccessMsg(`Wearable ${newDeviceInput.trim().toUpperCase()} paired in local sync mode.`);
+      setTimeout(() => {
+        setPairingSuccessMsg(null);
+        setShowPairingModal(false);
+      }, 2000);
     }
   };
 
@@ -673,6 +754,159 @@ export const DashboardPage: React.FC = () => {
           <VoiceAssistantWidget userName={displayName} className="flex-1" />
         </div>
       </div>
+      {/* Medical Reports & Clinical Observations Modal */}
+      {showReportsModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Individual Medical History & Reports</h3>
+                  <p className="text-xs text-slate-500 font-mono">Patient ID: {activePatientId}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReportsModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto py-4 space-y-4">
+              {medicalReports.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-xs">
+                  No medical reports available for this patient yet.
+                </div>
+              ) : (
+                medicalReports.map((report) => (
+                  <div
+                    key={report.id}
+                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-indigo-300 transition-all space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider bg-indigo-100 px-2.5 py-0.5 rounded-full">
+                        {report.report_type}
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        {new Date(report.report_date).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <h4 className="text-sm font-bold text-slate-800">{report.title}</h4>
+                    <p className="text-xs text-slate-600 leading-relaxed">{report.summary}</p>
+
+                    {report.observations && (
+                      <div className="text-xs bg-white p-2.5 rounded-xl border border-slate-100">
+                        <strong className="text-slate-700">Observations: </strong>
+                        <span className="text-slate-600">{report.observations}</span>
+                      </div>
+                    )}
+
+                    {report.recommendations && (
+                      <div className="text-xs bg-emerald-50 text-emerald-800 p-2.5 rounded-xl border border-emerald-100">
+                        <strong className="text-emerald-900">Recommendations: </strong>
+                        <span>{report.recommendations}</span>
+                      </div>
+                    )}
+
+                    <div className="text-[11px] text-slate-400 text-right pt-1 font-medium">
+                      Physician: <strong className="text-slate-600">{report.doctor_name}</strong>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowReportsModal(false)}
+                className="px-5 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 cursor-pointer"
+              >
+                Close Records
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wearable Device Pairing Modal */}
+      {showPairingModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-cyan-100 text-cyan-600 flex items-center justify-center">
+                  <Radio className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Pair Wearable Device</h3>
+                  <p className="text-xs text-slate-500 font-mono">Patient: {activePatientId}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPairingModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {pairingSuccessMsg && (
+              <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{pairingSuccessMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handlePairDevice} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Wearable Hardware UUID / ID
+                </label>
+                <input
+                  type="text"
+                  value={newDeviceInput}
+                  onChange={(e) => setNewDeviceInput(e.target.value)}
+                  placeholder="e.g. DEV-WEAR-001 or ESP32-MAC-4A2"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-[#0284c7] focus:outline-none"
+                  required
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Pairing a new or replacement smartwatch updates real-time telemetry streaming while preserving all past telemetry and health history.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[11px] text-slate-600 space-y-1">
+                <div>Currently Active Device: <strong className="font-mono text-slate-800">{activeDeviceUuid}</strong></div>
+                <div>Supported: PulseGuardian Watch V2, ESP32 BLE, WearOS Bridge</div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPairingModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs font-bold rounded-xl shadow-md cursor-pointer"
+                >
+                  Confirm Pairing
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

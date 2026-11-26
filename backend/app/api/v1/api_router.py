@@ -10,6 +10,7 @@ from app.api.v1 import (
     health_drift,
     location,
     notifications,
+    patient_auth,
     users,
     voice,
 )
@@ -17,6 +18,7 @@ from app.api.v1 import (
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication & Profile"])
+api_router.include_router(patient_auth.router, prefix="/patient", tags=["Patient Identity & Management"])
 api_router.include_router(users.router, prefix="/users", tags=["Patients, Caregivers & Associations"])
 api_router.include_router(devices.router, prefix="/devices", tags=["Wearable Device Management"])
 api_router.include_router(health.router, prefix="/health", tags=["Wearable Health Ingestion & Telemetry"])

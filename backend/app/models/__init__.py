@@ -1,6 +1,6 @@
 from app.core.database import Base
-from app.models.user import User, UserRole, PatientProfile, CaregiverProfile, PatientCaregiverAssociation
-from app.models.health import HealthTelemetry
+from app.models.user import User, UserRole, PatientProfile, CaregiverProfile, PatientCaregiverAssociation, PatientRecoveryRequest, FamilyAccount, FamilyPatientRelationship, PatientRecoveryAuditLog
+from app.models.health import HealthTelemetry, MedicalReport
 from app.models.emergency import EmergencyAlert, EscalationAuditLog
 from app.models.digital_twin import DigitalTwinBaseline, HealthDriftRecord
 from app.models.location import LocationLog
@@ -17,6 +17,7 @@ __all__ = [
     "CaregiverProfile",
     "PatientCaregiverAssociation",
     "HealthTelemetry",
+    "MedicalReport",
     "EmergencyAlert",
     "EscalationAuditLog",
     "DigitalTwinBaseline",
@@ -29,4 +30,8 @@ __all__ = [
     "DeviceConnectionHistory",
     "InAppNotification",
     "SystemAuditLog",
+    "PatientRecoveryRequest",
+    "FamilyAccount",
+    "FamilyPatientRelationship",
+    "PatientRecoveryAuditLog",
 ]

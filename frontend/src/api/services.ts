@@ -337,3 +337,49 @@ export const emergencyService = emergencyApi;
 export const notificationService = notificationApi;
 export const voiceService = voiceApi;
 export const aiService = aiApi;
+
+// ==========================================
+// 8. Patient Identity, Registration & Reports APIs
+// ==========================================
+export const patientAuthApi = {
+  checkDuplicate: async (payload: { full_name: string; family_email: string; date_of_birth?: string }): Promise<any> => {
+    const res = await apiClient.post('/patient/check-duplicate', payload);
+    return res.data;
+  },
+
+  register: async (payload: any): Promise<any> => {
+    const res = await apiClient.post('/patient/register', payload);
+    return res.data;
+  },
+
+  login: async (credentials: { patient_id: string; password: string }): Promise<AuthResponse> => {
+    const res = await apiClient.post<AuthResponse>('/patient/login', credentials);
+    return res.data;
+  },
+
+  requestForgotIdOtp: async (emailOrPhone: string): Promise<{ message: string; otp_demo?: string; expires_in_minutes: number }> => {
+    const res = await apiClient.post('/patient/forgot-id/request-otp', { email_or_phone: emailOrPhone });
+    return res.data;
+  },
+
+  verifyForgotIdOtp: async (emailOrPhone: string, otpCode: string): Promise<{ status: string; message: string; patients: any[] }> => {
+    const res = await apiClient.post('/patient/forgot-id/verify-otp', { email_or_phone: emailOrPhone, otp_code: otpCode });
+    return res.data;
+  },
+
+  confirmPatientIdSelection: async (email: string, patientId: string): Promise<any> => {
+    const res = await apiClient.post('/patient/forgot-id/confirm-selection', { email, patient_id: patientId });
+    return res.data;
+  },
+
+  getFamilyPatients: async (): Promise<any[]> => {
+    const res = await apiClient.get<any[]>('/patient/family/patients');
+    return res.data;
+  },
+
+  getMedicalReports: async (patientId?: number): Promise<any[]> => {
+    const res = await apiClient.get<any[]>('/patient/reports', { params: { patient_id: patientId } });
+    return res.data;
+  },
+};
+export const patientAuthService = patientAuthApi;

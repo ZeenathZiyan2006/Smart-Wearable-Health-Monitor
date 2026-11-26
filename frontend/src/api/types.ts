@@ -1,4 +1,4 @@
-export type UserRole = 'patient' | 'caregiver' | 'admin';
+﻿export type UserRole = 'patient' | 'caregiver' | 'admin';
 
 export interface User {
   id: number;
@@ -16,6 +16,11 @@ export interface User {
 export interface PatientProfile {
   id: number;
   user_id: number;
+  patient_id?: string;
+  uuid?: string;
+  family_email?: string;
+  contact_number?: string;
+  address?: string;
   date_of_birth?: string;
   gender?: string;
   blood_group?: string;
@@ -187,3 +192,100 @@ export interface DigitalTwinBaseline {
 
 export type HealthTelemetry = TelemetryReading;
 export type NotificationItem = InAppNotification;
+
+// Patient Identity & Management Types
+export interface PatientRegisterPayload {
+  full_name: string;
+  date_of_birth?: string;
+  gender?: string;
+  contact_number: string;
+  individual_email?: string;
+  family_email: string;
+  address?: string;
+  emergency_contact?: string;
+  password: string;
+  confirm_password: string;
+  force_duplicate?: boolean;
+}
+
+export interface PatientRegisterResponse {
+  status: string;
+  message: string;
+  patient_id: string;
+  patient_name: string;
+  registration_date: string;
+  family_email: string;
+  uuid: string;
+  access_token?: string;
+  refresh_token?: string;
+  token_type?: string;
+  user_id?: number;
+}
+
+export interface DuplicateCheckPayload {
+  full_name: string;
+  family_email: string;
+  date_of_birth?: string;
+}
+
+export interface DuplicateCheckResponse {
+  has_duplicate: boolean;
+  message: string;
+  matched_name?: string;
+  matched_patient_id?: string;
+}
+
+export interface RecoveredPatientProfile {
+  patient_id: string;
+  patient_name: string;
+  gender?: string;
+  date_of_birth?: string;
+  masked_contact: string;
+  device_uuid?: string;
+  age?: number;
+  blood_group?: string;
+  relationship_role?: string;
+  authorized_for_recovery?: boolean;
+}
+
+export interface PatientIdConfirmationResponse {
+  status: string;
+  message: string;
+  patient_id: string;
+  patient_name: string;
+  confirmation_timestamp: string;
+}
+
+export interface PatientForgotIdResponse {
+  status: string;
+  message: string;
+  patients: RecoveredPatientProfile[];
+}
+
+export interface FamilyPatient {
+  patient_id: string;
+  profile_id: number;
+  user_id: number;
+  full_name: string;
+  date_of_birth?: string;
+  gender?: string;
+  device_uuid?: string;
+  device_status?: string;
+  family_email?: string;
+  contact_number?: string;
+  last_sync_at?: string;
+}
+
+export interface MedicalReport {
+  id: number;
+  patient_id: number;
+  doctor_name: string;
+  report_type: string;
+  title: string;
+  summary: string;
+  observations?: string;
+  recommendations?: string;
+  report_date: string;
+  created_at: string;
+}
+

@@ -101,8 +101,25 @@ def login(
 ) -> Any:
     """
     Authenticate user and issue JWT access and refresh tokens.
+    Supports login via Email or Unique Patient ID (e.g. PT-2026-000125).
     """
-    user = db.query(User).filter(User.email == login_in.email).first()
+    cred = login_in.email.strip()
+    user = (
+        db.query(User)
+        .filter(
+            (User.email.ilike(cred)) | (User.patient_id.ilike(cred))
+        )
+        .first()
+    )
+    if not user:
+        pat_profile = (
+            db.query(PatientProfile)
+            .filter(PatientProfile.patient_id.ilike(cred))
+            .first()
+        )
+        if pat_profile:
+            user = db.query(User).filter(User.id == pat_profile.user_id).first()
+
     if not user or not verify_password(login_in.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -116,12 +133,22 @@ def login(
             detail="Inactive user account"
         )
 
+    pat_id = user.patient_id or (user.patient_profile.patient_id if user.patient_profile else None)
+    pat_profile_id = user.patient_profile.id if user.patient_profile else None
+    family_email = user.patient_profile.family_email if user.patient_profile else None
+
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         subject=user.id,
         role=user.role,
         expires_delta=access_token_expires,
-        extra_claims={"email": user.email, "name": user.full_name}
+        extra_claims={
+            "email": user.email,
+            "name": user.full_name,
+            "patient_id": pat_id,
+            "patient_profile_id": pat_profile_id,
+            "family_email": family_email
+        }
     )
     refresh_token = create_refresh_token(subject=user.id, role=user.role)
 
@@ -133,7 +160,10 @@ def login(
         "user_id": user.id,
         "email": user.email,
         "role": user.role,
-        "full_name": user.full_name
+        "full_name": user.full_name,
+        "patient_id": pat_id,
+        "patient_profile_id": pat_profile_id,
+        "family_email": family_email
     }
 
 

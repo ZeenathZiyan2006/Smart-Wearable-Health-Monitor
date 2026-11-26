@@ -63,3 +63,20 @@ class HealthTelemetry(Base):
     )
 
     patient = relationship("PatientProfile", back_populates="health_readings")
+
+
+class MedicalReport(Base):
+    __tablename__ = "medical_reports"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    patient_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    doctor_name = Column(String(100), default="Dr. Sunita Rao, MD", nullable=False)
+    report_type = Column(String(100), default="Biometric Health Assessment", nullable=False)
+    title = Column(String(255), nullable=False)
+    summary = Column(Text, nullable=False)
+    observations = Column(Text, nullable=True)
+    recommendations = Column(Text, nullable=True)
+    report_date = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    patient = relationship("PatientProfile", back_populates="medical_reports")

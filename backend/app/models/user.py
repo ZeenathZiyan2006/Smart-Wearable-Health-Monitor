@@ -1,6 +1,7 @@
 from datetime import datetime, date, timezone
 from enum import Enum
 from typing import List, Optional
+import uuid
 from sqlalchemy import (
     Boolean,
     Column,
@@ -27,6 +28,8 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    uuid = Column(String(36), unique=True, index=True, default=lambda: str(uuid.uuid4()), nullable=True)
+    patient_id = Column(String(50), unique=True, index=True, nullable=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=False)
@@ -73,7 +76,12 @@ class PatientProfile(Base):
     __tablename__ = "patient_profiles"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    uuid = Column(String(36), unique=True, index=True, default=lambda: str(uuid.uuid4()), nullable=True)
+    patient_id = Column(String(50), unique=True, index=True, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    family_email = Column(String(255), index=True, nullable=True)
+    contact_number = Column(String(50), nullable=True)
+    address = Column(Text, nullable=True)
     date_of_birth = Column(Date, nullable=True)
     gender = Column(String(20), nullable=True)
     blood_group = Column(String(10), nullable=True)
@@ -101,6 +109,7 @@ class PatientProfile(Base):
     location_logs = relationship("LocationLog", back_populates="patient", cascade="all, delete-orphan")
     digital_twin = relationship("DigitalTwinBaseline", back_populates="patient", uselist=False, cascade="all, delete-orphan")
     drift_records = relationship("HealthDriftRecord", back_populates="patient", cascade="all, delete-orphan")
+    medical_reports = relationship("MedicalReport", back_populates="patient", cascade="all, delete-orphan")
 
 
 
@@ -126,3 +135,57 @@ class CaregiverProfile(Base):
         back_populates="caregiver",
         cascade="all, delete-orphan"
     )
+
+
+class PatientRecoveryRequest(Base):
+    __tablename__ = "patient_recovery_requests"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    email_or_phone = Column(String(255), index=True, nullable=False)
+    otp_code = Column(String(10), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    is_verified = Column(Boolean, default=False, nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class FamilyAccount(Base):
+    __tablename__ = "family_accounts"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    family_email = Column(String(255), unique=True, index=True, nullable=False)
+    account_name = Column(String(255), nullable=True)
+    is_email_verified = Column(Boolean, default=False, nullable=False)
+    verified_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    relationships = relationship("FamilyPatientRelationship", back_populates="family_account", cascade="all, delete-orphan")
+
+
+class FamilyPatientRelationship(Base):
+    __tablename__ = "family_patient_relationships"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    family_account_id = Column(Integer, ForeignKey("family_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    patient_profile_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    relationship_role = Column(String(50), default="guardian", nullable=False)  # 'guardian', 'parent', 'caretaker', 'spouse', 'self'
+    is_authorized = Column(Boolean, default=True, nullable=False)
+    can_view_records = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    family_account = relationship("FamilyAccount", back_populates="relationships")
+    patient = relationship("PatientProfile")
+
+
+class PatientRecoveryAuditLog(Base):
+    __tablename__ = "patient_recovery_audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    identifier_used = Column(String(255), nullable=False, index=True)
+    recovery_type = Column(String(50), default="family_email", nullable=False)  # 'family_email' | 'individual_email' | 'contact_phone'
+    action = Column(String(100), nullable=False)  # 'otp_requested', 'otp_failed', 'otp_verified', 'patient_id_retrieved', 'rate_limited'
+    ip_address = Column(String(100), nullable=True)
+    user_agent = Column(String(255), nullable=True)
+    details = Column(Text, nullable=True)
+    status = Column(String(50), default="success", nullable=False)  # 'success', 'failed', 'blocked'
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)

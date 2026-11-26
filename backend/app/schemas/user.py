@@ -15,6 +15,9 @@ class Token(BaseModel):
     email: str
     role: str
     full_name: str
+    patient_id: Optional[str] = None
+    patient_profile_id: Optional[int] = None
+    family_email: Optional[str] = None
 
 
 class RefreshTokenRequest(BaseModel):
@@ -56,7 +59,7 @@ class UserCreate(UserBase):
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str = Field(..., description="Email address or Unique Patient ID (e.g. PT-2026-000125)")
     password: str
 
 
@@ -81,6 +84,11 @@ class UserOut(UserBase):
 # Patient Profile Schemas
 # -----------------------------------------------------------------------------
 class PatientProfileBase(BaseModel):
+    patient_id: Optional[str] = None
+    uuid: Optional[str] = None
+    family_email: Optional[str] = None
+    contact_number: Optional[str] = None
+    address: Optional[str] = None
     date_of_birth: Optional[date] = None
     gender: Optional[str] = None
     blood_group: Optional[str] = None
@@ -208,4 +216,125 @@ class SocialLoginRequest(BaseModel):
     role: Optional[str] = Field("patient", description="Role if new user is provisioned")
     full_name: Optional[str] = None
     id_token: Optional[str] = None
+
+
+# -----------------------------------------------------------------------------
+# Patient Identity & Registration Schemas
+# -----------------------------------------------------------------------------
+class PatientRegisterRequest(BaseModel):
+    full_name: str = Field(..., min_length=2, max_length=255)
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
+    contact_number: str = Field(..., min_length=5, max_length=50)
+    individual_email: Optional[EmailStr] = None
+    family_email: EmailStr
+    address: Optional[str] = None
+    emergency_contact: Optional[str] = None
+    password: str = Field(..., min_length=6)
+    confirm_password: str = Field(..., min_length=6)
+    force_duplicate: bool = False
+
+
+class PatientRegisterSuccessOut(BaseModel):
+    status: str = "success"
+    message: str = "Patient Registration Successful!"
+    patient_id: str
+    patient_name: str
+    registration_date: str
+    family_email: str
+    uuid: str
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+    token_type: Optional[str] = "bearer"
+    user_id: Optional[int] = None
+
+
+class DuplicateCheckRequest(BaseModel):
+    full_name: str
+    family_email: str
+    date_of_birth: Optional[date] = None
+
+
+class DuplicateCheckResponse(BaseModel):
+    has_duplicate: bool
+    message: str
+    matched_name: Optional[str] = None
+    matched_patient_id: Optional[str] = None
+
+
+class PatientLoginRequest(BaseModel):
+    patient_id: str = Field(..., description="Unique Patient ID (e.g. PT-2026-000125) or registered email")
+    password: str = Field(..., min_length=1)
+
+
+class PatientForgotIdOtpRequest(BaseModel):
+    email_or_phone: str = Field(..., min_length=3)
+
+
+class PatientForgotIdOtpVerify(BaseModel):
+    email_or_phone: str = Field(..., min_length=3)
+    otp_code: str = Field(..., min_length=4, max_length=10)
+
+
+class RecoveredPatientProfile(BaseModel):
+    patient_id: str
+    patient_name: str
+    gender: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    masked_contact: str
+    device_uuid: Optional[str] = None
+    age: Optional[int] = None
+    blood_group: Optional[str] = None
+    relationship_role: Optional[str] = None
+    authorized_for_recovery: bool = True
+
+
+class PatientIdConfirmationRequest(BaseModel):
+    email: str
+    patient_id: str
+    verification_token: Optional[str] = None
+
+
+class PatientIdConfirmationResponse(BaseModel):
+    status: str = "success"
+    message: str
+    patient_id: str
+    patient_name: str
+    confirmation_timestamp: datetime
+
+
+class PatientForgotIdResponse(BaseModel):
+    status: str = "success"
+    message: str
+    patients: List[RecoveredPatientProfile]
+
+
+class MedicalReportOut(BaseModel):
+    id: int
+    patient_id: int
+    doctor_name: str
+    report_type: str
+    title: str
+    summary: str
+    observations: Optional[str] = None
+    recommendations: Optional[str] = None
+    report_date: datetime
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FamilyPatientOut(BaseModel):
+    patient_id: str
+    profile_id: int
+    user_id: int
+    full_name: str
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
+    device_uuid: Optional[str] = None
+    device_status: Optional[str] = "offline"
+    family_email: Optional[str] = None
+    contact_number: Optional[str] = None
+    last_sync_at: Optional[datetime] = None
+
 

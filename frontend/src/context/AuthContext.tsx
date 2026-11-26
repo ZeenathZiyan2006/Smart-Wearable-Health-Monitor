@@ -1,15 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User, UserRole } from '../api/types';
-import { authService } from '../api/services';
+import { authService, patientAuthService } from '../api/services';
 
 interface AuthContextType {
   user: User | null;
   role: UserRole;
   selectedRole: UserRole;
   setSelectedRole: (role: UserRole) => void;
+  patientId: string | null;
+  setPatientId: (id: string | null) => void;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  patientLogin: (patientIdOrEmail: string, password: string) => Promise<void>;
   socialLogin: (provider: 'google' | 'microsoft', targetRole?: UserRole, email?: string, fullName?: string, password?: string) => Promise<void>;
   logout: () => void;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
@@ -21,6 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRoleState] = useState<UserRole>('patient');
+  const [patientId, setPatientId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Initialize auth state from localStorage on load
@@ -29,15 +33,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token = localStorage.getItem('access_token');
       const savedUser = localStorage.getItem('user_info');
       const savedRole = (localStorage.getItem('user_role') as UserRole) || 'patient';
+      const savedPid = localStorage.getItem('patient_id');
 
       if (savedRole) {
         setRoleState(savedRole);
+      }
+      if (savedPid) {
+        setPatientId(savedPid);
       }
 
       if (token) {
         if (savedUser) {
           try {
-            setUser(JSON.parse(savedUser));
+            const parsed = JSON.parse(savedUser);
+            setUser(parsed);
+            if (parsed.patient_profile?.patient_id) {
+              setPatientId(parsed.patient_profile.patient_id);
+            }
           } catch {
             // parse error
           }
@@ -46,6 +58,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const freshUser = await authService.getMe();
           setUser(freshUser);
           setRoleState(freshUser.role);
+          if (freshUser.patient_profile?.patient_id) {
+            setPatientId(freshUser.patient_profile.patient_id);
+            localStorage.setItem('patient_id', freshUser.patient_profile.patient_id);
+          }
           localStorage.setItem('user_info', JSON.stringify(freshUser));
           localStorage.setItem('user_role', freshUser.role);
         } catch {
@@ -63,6 +79,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('access_token', res.access_token);
     localStorage.setItem('refresh_token', res.refresh_token);
     localStorage.setItem('user_role', res.role);
+
+    const pid = (res as any).patient_id || null;
+    if (pid) {
+      setPatientId(pid);
+      localStorage.setItem('patient_id', pid);
+    }
+
+    const userInfo: User = {
+      id: res.user_id,
+      email: res.email,
+      full_name: res.full_name,
+      role: res.role,
+      preferred_language: 'en',
+      is_active: true,
+      created_at: new Date().toISOString(),
+    };
+
+    setUser(userInfo);
+    setRoleState(res.role);
+    localStorage.setItem('user_info', JSON.stringify(userInfo));
+  };
+
+  const patientLogin = async (patientIdOrEmail: string, password: string) => {
+    const res = await patientAuthService.login({ patient_id: patientIdOrEmail, password });
+    localStorage.setItem('access_token', res.access_token);
+    localStorage.setItem('refresh_token', res.refresh_token);
+    localStorage.setItem('user_role', res.role);
+
+    const pid = (res as any).patient_id || patientIdOrEmail;
+    setPatientId(pid);
+    localStorage.setItem('patient_id', pid);
 
     const userInfo: User = {
       id: res.user_id,
@@ -119,7 +166,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_info');
     localStorage.removeItem('user_role');
+    localStorage.removeItem('patient_id');
     setUser(null);
+    setPatientId(null);
     setRoleState('patient');
   };
 
@@ -135,9 +184,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role,
         selectedRole: role,
         setSelectedRole: setRole,
+        patientId,
+        setPatientId,
         isAuthenticated: !!user || !!localStorage.getItem('access_token'),
         isLoading,
         login,
+        patientLogin,
         socialLogin,
         logout,
         setUser,
