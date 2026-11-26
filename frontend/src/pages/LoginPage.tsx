@@ -308,16 +308,11 @@ export const LoginPage: React.FC = () => {
       <div className="w-full max-w-[1240px] bg-white rounded-[32px] shadow-2xl shadow-slate-200/60 border border-slate-100 overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[720px]">
         {/* LEFT COLUMN: BRANDING & HERO IMAGE */}
         <div className="lg:col-span-6 bg-gradient-to-br from-white via-slate-50 to-[#edf4fc] p-6 sm:p-10 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-100 relative overflow-hidden">
-          <div className="flex items-center gap-2.5 z-10">
-            <PulseGuardianLogo iconOnly size="md" className="shrink-0" />
-            <div className="flex flex-col">
-              <span className="text-xl font-black tracking-tight text-[#0f2942] leading-none">
-                PulseGuardian <span className="text-[#0284c7]">AI</span>
-              </span>
-              <span className="text-[10px] text-slate-500 font-semibold tracking-wider uppercase mt-1">
-                {t('brand.tagline', 'Smart Care. Safer Tomorrow.')}
-              </span>
-            </div>
+          <div className="z-10">
+            <PulseGuardianLogo
+              size="md"
+              tagline={t('brand.tagline', 'Smart Care. Safer Tomorrow.')}
+            />
           </div>
 
           <div className="my-6 z-10">

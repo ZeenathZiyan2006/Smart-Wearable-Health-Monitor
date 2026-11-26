@@ -68,15 +68,15 @@ export const PulseGuardianLogo: React.FC<LogoProps> = ({
 
       {/* Brand Name & Tagline */}
       {!iconOnly && (
-        <div className="flex flex-col">
-          <div className="flex items-center gap-1 font-extrabold tracking-tight leading-none">
+        <div className="flex flex-col justify-center min-w-0">
+          <div className="flex items-center gap-1.5 font-extrabold tracking-tight leading-none whitespace-nowrap">
             <span className={`${titleSizes[size]} ${lightText ? 'text-white' : 'text-slate-900'} font-['Outfit']`}>
               PulseGuardian
             </span>
             <span className={`${titleSizes[size]} text-cyan-500 font-['Outfit']`}>AI</span>
           </div>
           {showTagline && (
-            <span className={`text-[11px] font-medium tracking-wide mt-1 ${lightText ? 'text-slate-300' : 'text-slate-500'}`}>
+            <span className={`text-[11px] font-semibold tracking-wide uppercase mt-1.5 whitespace-nowrap ${lightText ? 'text-slate-300' : 'text-slate-500'}`}>
               {tagline}
             </span>
           )}
