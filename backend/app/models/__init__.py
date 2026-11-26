@@ -4,6 +4,7 @@ from app.models.health import HealthTelemetry
 from app.models.emergency import EmergencyAlert, EscalationAuditLog
 from app.models.digital_twin import DigitalTwinBaseline, HealthDriftRecord
 from app.models.location import LocationLog
+from app.models.voice import VoiceConsent, VoiceMessageLog, VoiceAuditLog
 
 __all__ = [
     "Base",
@@ -17,5 +18,9 @@ __all__ = [
     "EscalationAuditLog",
     "DigitalTwinBaseline",
     "HealthDriftRecord",
-    "LocationLog"
+    "LocationLog",
+    "VoiceConsent",
+    "VoiceMessageLog",
+    "VoiceAuditLog",
 ]
+

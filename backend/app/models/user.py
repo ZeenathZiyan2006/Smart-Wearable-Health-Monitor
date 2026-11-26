@@ -45,6 +45,9 @@ class User(Base):
     # One-to-one profiles
     patient_profile = relationship("PatientProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     caregiver_profile = relationship("CaregiverProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    voice_consent = relationship("VoiceConsent", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    sent_voice_messages = relationship("VoiceMessageLog", foreign_keys="[VoiceMessageLog.sender_id]", back_populates="sender", cascade="all, delete-orphan")
+    received_voice_messages = relationship("VoiceMessageLog", foreign_keys="[VoiceMessageLog.recipient_id]", back_populates="recipient", cascade="all, delete-orphan")
 
 
 class PatientCaregiverAssociation(Base):

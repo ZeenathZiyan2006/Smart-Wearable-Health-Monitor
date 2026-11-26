@@ -1350,3 +1350,500 @@ PulseGuardian AI's Health Drift Intelligence module identifies subtle, gradual s
 
 **Response JSON (200 OK):**
 Returns standard `OverallHealthDriftSummary` calculated over the requested 14-day window.
+
+
+---
+
+## 7. Multilingual Voice Assistance Foundation (Phase 7 – Stage 2A)
+
+The Voice Assistance Foundation establishes privacy-conscious, multilingual processing across 7 regional languages (Kannada, English, Hindi, Malayalam, Tamil, Telugu, and Urdu) using pluggable provider adapters and affirmative user consent enforcement.
+
+> [!IMPORTANT]
+> **Safety Notice**: Manual wearable push-button SOS and accelerometer fall detection remain 100% independent of voice recognition, translation, network availability, and AI processing. Voice processing operates in ephemeral memory; raw audio files are not stored on persistent storage without explicit user authorization.
+
+---
+
+### 7.1 Supported Languages Metadata
+* **Endpoint**: `GET /api/v1/voice/languages`
+* **Access**: Authenticated Patient / Caregiver / Admin
+* **Description**: Returns metadata for all 7 supported South Asian languages, native names, scripts, text directions, adapter capabilities, active mock mode status, and privacy consent notices.
+
+**Response JSON (200 OK):**
+```json
+{
+  "languages": [
+    {
+      "code": "kn",
+      "name": "Kannada",
+      "native_name": "ಕನ್ನಡ",
+      "script": "Kannada",
+      "direction": "ltr",
+      "stt_supported": true,
+      "translation_supported": true,
+      "tts_supported": true,
+      "privacy_consent_required": true
+    },
+    {
+      "code": "en",
+      "name": "English",
+      "native_name": "English",
+      "script": "Latin",
+      "direction": "ltr",
+      "stt_supported": true,
+      "translation_supported": true,
+      "tts_supported": true,
+      "privacy_consent_required": true
+    },
+    {
+      "code": "hi",
+      "name": "Hindi",
+      "native_name": "हिन्दी",
+      "script": "Devanagari",
+      "direction": "ltr",
+      "stt_supported": true,
+      "translation_supported": true,
+      "tts_supported": true,
+      "privacy_consent_required": true
+    },
+    {
+      "code": "ml",
+      "name": "Malayalam",
+      "native_name": "മലയാളം",
+      "script": "Malayalam",
+      "direction": "ltr",
+      "stt_supported": true,
+      "translation_supported": true,
+      "tts_supported": true,
+      "privacy_consent_required": true
+    },
+    {
+      "code": "ta",
+      "name": "Tamil",
+      "native_name": "தமிழ்",
+      "script": "Tamil",
+      "direction": "ltr",
+      "stt_supported": true,
+      "translation_supported": true,
+      "tts_supported": true,
+      "privacy_consent_required": true
+    },
+    {
+      "code": "te",
+      "name": "Telugu",
+      "native_name": "తెలుగు",
+      "script": "Telugu",
+      "direction": "ltr",
+      "stt_supported": true,
+      "translation_supported": true,
+      "tts_supported": true,
+      "privacy_consent_required": true
+    },
+    {
+      "code": "ur",
+      "name": "Urdu",
+      "native_name": "اردو",
+      "script": "Perso-Arabic",
+      "direction": "rtl",
+      "stt_supported": true,
+      "translation_supported": true,
+      "tts_supported": true,
+      "privacy_consent_required": true
+    }
+  ],
+  "total_supported": 7,
+  "default_language": "en",
+  "mock_mode_active": true,
+  "privacy_notice": "PulseGuardian AI handles voice interactions in ephemeral memory. Explicit patient consent is mandatory before processing audio data. Raw audio files are not persisted to persistent storage without affirmative authorization."
+}
+```
+
+---
+
+### 7.2 Voice Processing Consent Management
+* **Endpoint**: `GET /api/v1/voice/consent` & `POST /api/v1/voice/consent`
+* **Access**: Authenticated User (Self)
+* **Description**: Checks or updates persistent affirmative authorization for voice interactions and optional audio retention preferences.
+
+**Update Request JSON:**
+```json
+{
+  "consent_granted": true,
+  "audio_retention_permitted": false
+}
+```
+
+**Response JSON (200 OK):**
+```json
+{
+  "user_id": 1,
+  "consent_granted": true,
+  "audio_retention_permitted": false,
+  "privacy_policy_accepted": true,
+  "updated_at": "2026-11-24T09:00:00Z"
+}
+```
+
+---
+
+### 7.3 Speech-to-Text Transcription (Phase 7 – Stage 2B.1: Real & Mock STT)
+* **Endpoint**: `POST /api/v1/voice/transcribe`
+* **Access**: Authenticated User (Patient, Caregiver, or Admin)
+* **Description**: Transcribes base64-encoded audio payloads into text using the configured provider (`local_whisper`, `hosted_whisper`, or `mock_development`). All processing is performed strictly in ephemeral memory (`io.BytesIO`) without persisting raw audio to disk or database. Enforces strict input validation, maximum payload size limits, affirmative consent checks, and calibrated uncertainty handling.
+
+#### Audio Input Validation & Safety Constraints
+* **Supported MIME Types**: `audio/wav`, `audio/x-wav`, `audio/mpeg`, `audio/mp3`, `audio/ogg`, `audio/webm`, `audio/x-m4a`, `audio/flac` (returns `400 Bad Request` if unsupported).
+* **Maximum Audio Size**: 10 MB (`10,485,760` bytes) decoded audio buffer (returns `413 Request Entity Too Large` if exceeded).
+* **Maximum Audio Duration (Pre-flight Validation)**: Configurable via `VOICE_MAX_AUDIO_DURATION_SECONDS` (default 60.0 seconds). Duration is inspected strictly in ephemeral memory from stream headers (WAV, MP3, OGG, FLAC, M4A, WebM). Files exceeding the duration limit are rejected with `HTTP 413 Request Entity Too Large`. Corrupted, unparseable, or missing duration metadata is rejected with `HTTP 400 Bad Request`. Rejection occurs before calling STT adapters.
+* **Base64 Encoding**: Non-empty, strictly validated base64 payload (returns `400 Bad Request` if invalid or empty).
+* **Consent Requirement**: Explicit `consent_confirmed: true` in request OR active user consent preference in database (returns `403 Forbidden` if missing).
+* **Supported Languages for STT & Detection**: Kannada (`kn`), English (`en`), Hindi (`hi`), Malayalam (`ml`), Tamil (`ta`), Telugu (`te`), Urdu (`ur`).
+* **Confidence & Uncertainty Calibration**: Real Whisper models do not output calibrated sentence confidence. In adherence to safety guidelines, `confidence` is returned as `null` (rather than invented scores), and `uncertain_speech` is flagged as `true` if language probability is low, speech is silence/noise, or language is outside the 7 supported languages (`detected_language: "unsupported"`).
+
+**Request JSON:**
+```json
+{
+  "audio_base64": "UklGRi4AAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=",
+  "audio_format": "audio/wav",
+  "language_hint": "kn",
+  "consent_confirmed": true
+}
+```
+
+**Response JSON (Real Provider - Hosted/Local Whisper - 200 OK):**
+```json
+{
+  "transcript": "ನನ್ನ ಎದೆ ಬಡಿತ ವೇಗವಾಗಿದೆ",
+  "detected_language": "kn",
+  "confidence": null,
+  "provider": "hosted_whisper",
+  "is_mock": false,
+  "disclaimer": "REAL STT: Speech recognized using automated acoustic AI models. Non-emergency assistive interaction only. Automated transcripts must not be relied upon for clinical diagnosis or life-critical emergency dispatch.",
+  "uncertain_speech": false
+}
+```
+
+**Response JSON (Uncertain / Unsupported Language - 200 OK):**
+```json
+{
+  "transcript": "Bonjour, comment allez-vous",
+  "detected_language": "unsupported",
+  "confidence": null,
+  "provider": "hosted_whisper",
+  "is_mock": false,
+  "disclaimer": "REAL STT: Speech recognized using automated acoustic AI models. Non-emergency assistive interaction only. Automated transcripts must not be relied upon for clinical diagnosis or life-critical emergency dispatch.",
+  "uncertain_speech": true
+}
+```
+
+**Response JSON (Mock Development Adapter - 200 OK):**
+```json
+{
+  "transcript": "[Simulated Audio Transcription (KN)]: Mock audio payload received (44 bytes, type: audio/wav). No acoustic speech model was executed.",
+  "detected_language": "kn",
+  "confidence": 0.85,
+  "provider": "mock_development",
+  "is_mock": true,
+  "disclaimer": "MOCK TRANSCRIPTION: Simulated placeholder. No actual speech recognition or audio ML was performed on the input payload.",
+  "uncertain_speech": false
+}
+```
+
+---
+
+### 7.4 Multilingual Translation (Phase 7 – Stage 2B.2: Real & Mock Translation)
+* **Endpoint**: `POST /api/v1/voice/translate`
+* **Access**: Authenticated User (Patient, Caregiver, or Admin)
+* **Description**: Translates health text between the 7 supported regional languages (`kn`, `en`, `hi`, `ml`, `ta`, `te`, `ur`) using the configured provider (`hosted_translation`, `local_indictrans`, or `mock_development`). All processing is performed strictly in ephemeral memory. Ephemeral audit logs record only character counts and language codes; raw translation text is never stored or logged.
+
+#### Translation Constraints & Safety Rules
+* **Supported Languages**: Kannada (`kn`), English (`en`), Hindi (`hi`), Malayalam (`ml`), Tamil (`ta`), Telugu (`te`), Urdu (`ur`).
+* **Maximum Text Length**: 5,000 characters (returns `400 Bad Request` if empty, whitespace-only, or exceeding 5,000 chars).
+* **Script Detection**: Best-effort Unicode script analysis when `source_language` is omitted (`None`). Latin script is flagged as uncertain (not automatically assumed English); Devanagari is flagged as uncertain (not automatically assumed Hindi); Perso-Arabic is flagged as uncertain (not automatically assumed Urdu). Ambiguous text sets `uncertain_translation: true`.
+* **Confidence Representation**: NMT models do not produce calibrated posterior sentence probabilities. `confidence` is returned strictly as `null`, avoiding artificial certainty.
+* **Emergency Decoupling**: Text translation never triggers emergency SOS alerts, fall detection, or caregiver escalation ladders.
+* **Error Handling**:
+  - Missing API credentials or uninstalled local models: `503 Service Unavailable`
+  - External provider timeout: `504 Gateway Timeout`
+  - External provider network connection failure: `502 Bad Gateway`
+  - Invalid input, empty text, or unsupported language code: `400 Bad Request`
+  - Missing affirmative consent: `403 Forbidden`
+
+**Request JSON (Explicit Source Language):**
+```json
+{
+  "text": "My blood pressure is high and I feel dizzy.",
+  "source_language": "en",
+  "target_language": "kn",
+  "consent_confirmed": true
+}
+```
+
+**Response JSON (Real Provider - Hosted Translation - 200 OK):**
+```json
+{
+  "original_text": "My blood pressure is high and I feel dizzy.",
+  "translated_text": "ನನ್ನ ರಕ್ತದೊತ್ತಡ ಹೆಚ್ಚಾಗಿದೆ ಮತ್ತು ನನಗೆ ತಲೆತಿರುಗುವಿಕೆ ಅನಿಸುತ್ತಿದೆ.",
+  "source_language": "en",
+  "target_language": "kn",
+  "confidence": null,
+  "provider": "hosted_translation",
+  "is_mock": false,
+  "disclaimer": "REAL TRANSLATION: Translated using automated multilingual neural machine translation models. Non-emergency assistive interaction only. Automated translations must not be treated as verified medical instructions or clinical advice.",
+  "uncertain_translation": false
+}
+```
+
+**Response JSON (Auto-Detected Ambiguous Source Script - 200 OK):**
+```json
+{
+  "original_text": "Severe chest pressure",
+  "translated_text": "ತೀವ್ರ ಎದೆ ಒತ್ತಡ",
+  "source_language": "en",
+  "target_language": "kn",
+  "confidence": null,
+  "provider": "hosted_translation",
+  "is_mock": false,
+  "disclaimer": "REAL TRANSLATION: Translated using automated multilingual neural machine translation models. Non-emergency assistive interaction only. Automated translations must not be treated as verified medical instructions or clinical advice.",
+  "uncertain_translation": true
+}
+```
+
+**Response JSON (Development Mock Adapter - 200 OK):**
+```json
+{
+  "original_text": "My blood pressure is high",
+  "translated_text": "[Simulated KN Translation]: My blood pressure is high",
+  "source_language": "en",
+  "target_language": "kn",
+  "confidence": null,
+  "provider": "mock_development",
+  "is_mock": true,
+  "disclaimer": "MOCK TRANSLATION: Simulated placeholder for interface testing. Does not represent a clinically or linguistically verified translation.",
+  "uncertain_translation": false
+}
+```
+
+---
+
+### 7.5 Speech Synthesis / Text-to-Speech (Phase 7 – Stage 2B.3: Real & Mock TTS)
+* **Endpoint**: `POST /api/v1/voice/synthesize`
+* **Access**: Authenticated User (Bearer JWT)
+* **Description**: Synthesizes assistive patient health communications into acoustic speech for all 7 supported languages (`kn`, `en`, `hi`, `ml`, `ta`, `te`, `ur`). Dispatches to configured adapter: Hosted OpenAI Audio Speech API (`VOICE_TTS_PROVIDER=hosted_tts`), Local offline engine (`VOICE_TTS_PROVIDER=local_tts`), or Development Mock (`VOICE_TTS_PROVIDER=mock_development`).
+* **Audio Processing & Safety**:
+  - Enforces affirmative patient authorization (`consent_confirmed: true` or active database preference; returns `HTTP 403`).
+  - Text length enforced up to `VOICE_MAX_TTS_CHARS = 2000` characters (returns `HTTP 400`).
+  - Returns safe base64-encoded audio payload in memory; raw audio is never stored on disk or in persistent databases.
+  - Ephemeral audit logs capture metadata only (character counts, provider, language code, timestamp); patient health text and audio bytes are never logged.
+
+**Supported Audio Formats (`audio_format`):**
+- `audio/mp3` (default), `audio/mpeg`
+- `audio/wav`, `audio/x-wav`
+- `audio/ogg`, `audio/opus`
+- `audio/aac`
+- `audio/flac`
+
+**Voice Mapping (`voice_gender`):**
+- `neutral`: Balanced neutral profile (`alloy`)
+- `female`: Clear female voice profile (`nova`)
+- `male`: Deep male voice profile (`onyx`)
+- Direct voice overrides: `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`
+
+**Request JSON (Real or Mock):**
+```json
+{
+  "text": "ನಿಮ್ಮ ರಕ್ತದೊತ್ತಡ ಸಾಮಾನ್ಯವಾಗಿದೆ.",
+  "language_code": "kn",
+  "voice_gender": "female",
+  "audio_format": "audio/mp3",
+  "consent_confirmed": true
+}
+```
+
+**Real Response JSON (`VOICE_TTS_PROVIDER=hosted_tts` – 200 OK):**
+```json
+{
+  "language_code": "kn",
+  "audio_payload": "//uQZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAYAA...",
+  "audio_format": "audio/mp3",
+  "is_mock": false,
+  "is_playable": true,
+  "provider": "hosted_tts",
+  "disclaimer": "REAL TTS: Acoustic speech synthesized using automated text-to-speech models. Non-emergency assistive interaction only. Automated speech must not be treated as clinical instructions or medical diagnoses."
+}
+```
+
+**Mock Response JSON (`VOICE_TTS_PROVIDER=mock_development` – 200 OK):**
+```json
+{
+  "language_code": "kn",
+  "audio_payload": "TU9DS19UVFNfQVVESU9fQlVGRkVSX0tOXy4uLg==",
+  "audio_format": "audio/mock-synthesized",
+  "is_mock": true,
+  "is_playable": false,
+  "provider": "mock_development",
+  "disclaimer": "MOCK TTS: Simulated audio payload placeholder. No playable acoustic speech was generated."
+}
+```
+
+**Status & Error Codes:**
+* `200 OK`: Synthesis succeeded; returns base64 audio payload and metadata.
+* `400 Bad Request`: Empty text, text exceeding maximum character limit (2,000 chars), unsupported language code, unsupported audio format, or invalid voice gender.
+* `401 Unauthorized`: Missing, expired, or invalid JWT authentication token.
+* `403 Forbidden`: User consent not granted or not confirmed.
+* `502 Bad Gateway`: Network or provider communication failure when connecting to hosted TTS service.
+* `503 Service Unavailable`: TTS API key not configured or local synthesis engine dependencies missing.
+* `504 Gateway Timeout`: Hosted TTS synthesis request timed out.
+
+---
+
+### 7.6 Patient-Caregiver Multilingual Messaging
+* **Endpoint Base**: `/api/v1/voice`
+* **Access**: Authenticated Patient or Caregiver (Bearer JWT)
+* **Authorization & Privacy Rules**:
+  - Strict relationship validation: A patient can only communicate with assigned caregivers; a caregiver only with assigned patients.
+  - Ownership enforcement: Non-participants cannot view, translate, reply to, or mark messages as read (`HTTP 403`).
+  - Separation of representations: Original text and translated text are permanently preserved as distinct attributes; translations never overwrite original clinical or patient inputs.
+  - Affirmative consent required for AI processing; metadata-only audit logging ensures no private messages or credentials leak into application logs.
+
+#### 7.6.1 List Conversations
+* **Endpoint**: `GET /api/v1/voice/conversations`
+* **Description**: Returns all conversation partner summaries with unread message counts, partner profiles, and last message previews.
+
+#### 7.6.2 Get Conversation Message History
+* **Endpoint**: `GET /api/v1/voice/conversations/{partner_id}?limit=50&offset=0&since=ISO_TIMESTAMP`
+* **Description**: Chronological message thread with full translation metadata, uncertainty flags, and delivery statuses.
+
+#### 7.6.3 Send Multilingual Message
+* **Endpoint**: `POST /api/v1/voice/messages`
+* **Request JSON:**
+```json
+{
+  "recipient_id": 2,
+  "text": "ನನಗೆ ತಲೆನೋವು ಹೆಚ್ಚಾಗಿದೆ",
+  "source_language": "kn",
+  "target_language": "en",
+  "auto_translate": true,
+  "consent_confirmed": true,
+  "reply_to_id": null
+}
+```
+* **Response JSON (201 Created):**
+```json
+{
+  "id": 42,
+  "sender_id": 1,
+  "recipient_id": 2,
+  "source_language": "kn",
+  "target_language": "en",
+  "original_text": "ನನಗೆ ತಲೆನೋವು ಹೆಚ್ಚಾಗಿದೆ",
+  "translated_text": "My headache has increased.",
+  "is_read": false,
+  "read_at": null,
+  "delivery_status": "delivered",
+  "translation_status": "completed",
+  "is_uncertain": false,
+  "reply_to_id": null,
+  "audio_payload": null,
+  "audio_format": null,
+  "consent_confirmed": true,
+  "stt_provider": "none",
+  "translation_provider": "hosted_translation",
+  "tts_provider": "none",
+  "created_at": "2026-11-24T16:35:00Z",
+  "disclaimer": "REAL TRANSLATION: Translated using automated multilingual neural machine translation models. Non-emergency assistive interaction only."
+}
+```
+
+#### 7.6.4 Reply to Message
+* **Endpoint**: `POST /api/v1/voice/messages/{message_id}/reply`
+* **Description**: Threaded reply to an earlier message with reciprocal language translation.
+
+#### 7.6.5 Translate Message On Demand
+* **Endpoint**: `POST /api/v1/voice/messages/{message_id}/translate`
+* **Request JSON:**
+```json
+{
+  "target_language": "hi",
+  "consent_confirmed": true
+}
+```
+
+#### 7.6.6 Synthesize Message Audio On Demand
+* **Endpoint**: `POST /api/v1/voice/messages/{message_id}/synthesize`
+* **Request JSON:**
+```json
+{
+  "language_code": "kn",
+  "voice_gender": "female",
+  "audio_format": "audio/mp3",
+  "consent_confirmed": true
+}
+```
+
+#### 7.6.7 Mark Message as Read
+* **Endpoint**: `PATCH /api/v1/voice/messages/{message_id}/read`
+* **Endpoint**: `POST /api/v1/voice/conversations/{partner_id}/read-all`
+
+---
+
+### 7.7 End-to-End Multilingual Voice Message Workflow
+* **Endpoint**: `POST /api/v1/voice/workflow/dispatch`
+* **Access**: Authenticated Patient or Caregiver (Bearer JWT)
+* **Description**: Orchestrates the complete end-to-end multilingual workflow across speech recognition, language identification, text translation, message persistence, and text-to-speech audio generation.
+
+**Request JSON (Audio Speech Input):**
+```json
+{
+  "recipient_id": 2,
+  "audio_base64": "UklGRi...",
+  "audio_format": "audio/wav",
+  "language_hint": "kn",
+  "target_language": "en",
+  "generate_tts": true,
+  "voice_gender": "female",
+  "tts_audio_format": "audio/mp3",
+  "consent_confirmed": true
+}
+```
+
+**Response JSON (200 OK):**
+```json
+{
+  "message_id": 43,
+  "sender_id": 1,
+  "recipient_id": 2,
+  "stage_statuses": {
+    "audio_validation": "completed",
+    "stt_transcription": "completed",
+    "language_detection": "completed",
+    "translation": "completed",
+    "tts_synthesis": "completed"
+  },
+  "source_language": "kn",
+  "target_language": "en",
+  "original_text": "ನನ್ನ ನಾಡಿಮಿಡಿತ ಸ್ಥಿರವಾಗಿದೆ.",
+  "translated_text": "My pulse is steady.",
+  "uncertain_speech": false,
+  "uncertain_translation": false,
+  "is_uncertain": false,
+  "audio_payload": "//uQZ...",
+  "audio_format": "audio/mp3",
+  "stt_provider": "hosted_whisper",
+  "translation_provider": "hosted_translation",
+  "tts_provider": "hosted_tts",
+  "disclaimers": [
+    "REAL STT: Speech recognized using automated acoustic AI models.",
+    "REAL TRANSLATION: Translated using automated multilingual neural machine translation models.",
+    "REAL TTS: Acoustic speech synthesized using automated text-to-speech models."
+  ],
+  "created_at": "2026-11-24T16:40:00Z"
+}
+```
+
+---
+
+### 7.8 Real-Time Communication WebSocket
+* **Endpoint**: `ws://<host>:<port>/api/v1/voice/ws?token=<jwt_access_token>`
+* **Description**: Authenticated WebSocket connection for receiving instantaneous event dispatches when messages arrive or read receipts are updated. Heartbeat ping/pong supported. Polling-compatible REST endpoints `/conversations` and `/messages/unread-count` serve as robust fallbacks.
+
+```
