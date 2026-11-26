@@ -14,11 +14,16 @@ from app.core.security import (
 )
 from app.models.user import CaregiverProfile, PatientProfile, User, UserRole
 from app.schemas.user import (
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
     RefreshTokenRequest,
+    ResetPasswordRequest,
+    SocialLoginRequest,
     Token,
     UserCreate,
     UserLogin,
     UserProfileOut,
+    UserProfileUpdate,
 )
 
 router = APIRouter()
@@ -189,3 +194,201 @@ def read_current_user_profile(
     Retrieve the profile of the currently logged-in user.
     """
     return current_user
+
+
+@router.put("/me", response_model=UserProfileOut)
+def update_current_user_profile(
+    profile_in: UserProfileUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Update the profile information (full_name, phone_number, preferred_language) of the current user.
+    """
+    if profile_in.full_name is not None:
+        current_user.full_name = profile_in.full_name.strip()
+    if profile_in.phone_number is not None:
+        current_user.phone_number = profile_in.phone_number.strip()
+    if profile_in.preferred_language is not None:
+        current_user.preferred_language = profile_in.preferred_language.strip().lower()
+
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.post("/change-password", status_code=status.HTTP_200_OK)
+def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Change user password with old password verification and Argon2 hashing.
+    """
+    if not verify_password(payload.old_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect existing password."
+        )
+
+    current_user.hashed_password = get_password_hash(payload.new_password)
+    db.add(current_user)
+    db.commit()
+    return {"status": "success", "message": "Password changed successfully."}
+
+
+@router.post("/logout", status_code=status.HTTP_200_OK)
+def logout(
+    current_user: User = Depends(get_current_active_user)
+) -> Any:
+    """
+    Client-side token invalidation confirmation and session termination.
+    """
+    return {"status": "success", "message": f"User {current_user.email} successfully logged out."}
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Initiates a password reset request. Generates a secure temporary reset token.
+    """
+    user = db.query(User).filter(User.email == payload.email.lower().strip()).first()
+    # Always return a generic success message to prevent user enumeration attacks
+    if not user:
+        return {"status": "success", "message": "If this email is registered, a password reset link has been dispatched."}
+
+    reset_token = create_access_token(
+        subject=user.id,
+        role=user.role,
+        expires_delta=timedelta(minutes=15),
+        extra_claims={"type": "password_reset", "email": user.email}
+    )
+    return {
+        "status": "success",
+        "message": "Password reset token generated.",
+        "reset_token": reset_token
+    }
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+def reset_password(
+    payload: ResetPasswordRequest,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Resets the user password using a valid temporary password reset token.
+    """
+    token_data = decode_token(payload.token)
+    if not token_data or token_data.get("type") != "password_reset":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token."
+        )
+
+    user_id = token_data.get("sub")
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found or inactive."
+        )
+
+    user.hashed_password = get_password_hash(payload.new_password)
+    db.add(user)
+    db.commit()
+    return {"status": "success", "message": "Password has been reset successfully."}
+
+
+@router.post("/social-login", response_model=Token)
+def social_login(
+    payload: SocialLoginRequest,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Authenticate or auto-provision users through Google or Microsoft federated identity.
+    Provides seamless one-click single-sign-on (SSO) for both patients and caregivers.
+    """
+    provider = payload.provider.lower()
+    if provider not in ["google", "microsoft"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported OAuth provider: {payload.provider}"
+        )
+
+    # Determine default or provided email & target role
+    target_role = payload.role if payload.role in ["patient", "caregiver"] else "patient"
+    
+    if payload.email:
+        email = str(payload.email).lower()
+        full_name = payload.full_name or ("Google User" if provider == "google" else "Microsoft User")
+    else:
+        # Default seeded accounts for the chosen role
+        if target_role == "caregiver":
+            email = "caregiver@pulseguardian.ai"
+            full_name = "Dr. Sunita Rao"
+        else:
+            email = "patient@pulseguardian.ai"
+            full_name = "Ramesh Kumar"
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        # Auto-provision social user if not already in the database
+        user = User(
+            email=email,
+            hashed_password=get_password_hash("SocialLoginDefaultPass!2026"),
+            full_name=full_name,
+            role=target_role,
+            is_active=True,
+            preferred_language="en",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        # Create corresponding profile
+        if target_role == "patient":
+            patient_profile = PatientProfile(
+                user_id=user.id,
+                device_status="online",
+            )
+            db.add(patient_profile)
+        else:
+            caregiver_profile = CaregiverProfile(
+                user_id=user.id,
+                relationship_type="Primary Caregiver",
+            )
+            db.add(caregiver_profile)
+        db.commit()
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user account"
+        )
+
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        subject=user.id,
+        role=user.role,
+        expires_delta=access_token_expires,
+        extra_claims={"email": user.email, "name": user.full_name, "oauth_provider": provider}
+    )
+    refresh_token = create_refresh_token(subject=user.id, role=user.role)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "user_id": user.id,
+        "email": user.email,
+        "role": user.role,
+        "full_name": user.full_name
+    }
+

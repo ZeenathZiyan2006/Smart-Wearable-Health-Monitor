@@ -27,6 +27,7 @@ from app.schemas.emergency import (
     EscalationAuditLogOut,
 )
 from app.workers.tasks import dispatch_emergency_escalation
+from app.services.voice.emergency_dictionary import get_draft_emergency_phrase
 
 router = APIRouter()
 
@@ -108,6 +109,11 @@ def trigger_manual_or_fall_sos(
     lat, lon, acc = _populate_latest_gps_if_missing(db, patient_id, alert_in.latitude, alert_in.longitude)
 
     now = datetime.now(timezone.utc)
+    patient_rec = db.query(PatientProfile).filter(PatientProfile.id == patient_id).first()
+    pref_lang = (patient_rec.user.preferred_language if patient_rec and patient_rec.user else "en")
+    phrase_key = "FALL_DETECTED" if alert_in.alert_type == "fall_detected" else "EMERGENCY_TRIGGERED"
+    localized_summary = getattr(alert_in, 'translated_summary', None) or get_draft_emergency_phrase(phrase_key, pref_lang)
+
     alert = EmergencyAlert(
         patient_id=patient_id,
         device_uuid=alert_in.device_uuid,
@@ -120,6 +126,8 @@ def trigger_manual_or_fall_sos(
         location_accuracy=alert_in.location_accuracy or acc,
         voice_transcript=alert_in.voice_transcript,
         assistance_message=alert_in.assistance_message,
+        translated_summary=localized_summary,
+        detected_language=pref_lang,
         created_at=now
     )
     db.add(alert)

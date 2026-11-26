@@ -5,6 +5,9 @@ from app.models.emergency import EmergencyAlert, EscalationAuditLog
 from app.models.digital_twin import DigitalTwinBaseline, HealthDriftRecord
 from app.models.location import LocationLog
 from app.models.voice import VoiceConsent, VoiceMessageLog, VoiceAuditLog
+from app.models.device import Device, DeviceConnectionHistory
+from app.models.notification import InAppNotification
+from app.models.audit import SystemAuditLog
 
 __all__ = [
     "Base",
@@ -22,5 +25,8 @@ __all__ = [
     "VoiceConsent",
     "VoiceMessageLog",
     "VoiceAuditLog",
+    "Device",
+    "DeviceConnectionHistory",
+    "InAppNotification",
+    "SystemAuditLog",
 ]
-

@@ -1,0 +1,339 @@
+import { apiClient } from './client';
+import type {
+  AuthResponse,
+  DashboardSummary,
+  Device,
+  DigitalTwinBaseline,
+  EmergencyAlert,
+  InAppNotification,
+  TelemetryReading,
+  User,
+  VoiceMessage,
+} from './types';
+
+// ==========================================
+// 1. Authentication & Profile APIs
+// ==========================================
+export const authApi = {
+  login: async (credentials: { email: string; password: string }): Promise<AuthResponse> => {
+    const res = await apiClient.post<AuthResponse>('/auth/login', credentials);
+    return res.data;
+  },
+
+  socialLogin: async (payload: { provider: 'google' | 'microsoft'; role?: string; email?: string; full_name?: string }): Promise<AuthResponse> => {
+    const res = await apiClient.post<AuthResponse>('/auth/social-login', payload);
+    return res.data;
+  },
+
+  register: async (payload: any): Promise<User> => {
+    const res = await apiClient.post<User>('/auth/register', payload);
+    return res.data;
+  },
+
+  getMe: async (): Promise<User> => {
+    const res = await apiClient.get<User>('/auth/me');
+    return res.data;
+  },
+
+  updateMe: async (updates: { full_name?: string; phone_number?: string; preferred_language?: string }): Promise<User> => {
+    const res = await apiClient.put<User>('/auth/me', updates);
+    return res.data;
+  },
+
+  changePassword: async (passwords: { old_password: string; new_password: string }): Promise<{ message: string }> => {
+    const res = await apiClient.post<{ message: string }>('/auth/change-password', passwords);
+    return res.data;
+  },
+
+  logout: async (): Promise<{ message: string }> => {
+    const res = await apiClient.post<{ message: string }>('/auth/logout');
+    return res.data;
+  },
+
+  forgotPassword: async (email: string): Promise<{ message: string; reset_token?: string }> => {
+    const res = await apiClient.post('/auth/forgot-password', { email });
+    return res.data;
+  },
+
+  resetPassword: async (token: string, new_password: string): Promise<{ message: string }> => {
+    const res = await apiClient.post('/auth/reset-password', { token, new_password });
+    return res.data;
+  },
+};
+
+// ==========================================
+// 2. Health & Telemetry APIs
+// ==========================================
+export const healthApi = {
+  getDashboard: async (patientId?: number): Promise<DashboardSummary> => {
+    const url = patientId ? `/health/patients/${patientId}/dashboard` : '/health/dashboard';
+    const res = await apiClient.get<DashboardSummary>(url);
+    return res.data;
+  },
+
+  getLatest: async (patientId?: number): Promise<TelemetryReading> => {
+    const url = patientId ? `/health/patients/${patientId}/latest` : '/health/latest';
+    const res = await apiClient.get<TelemetryReading>(url);
+    return res.data;
+  },
+
+  getHistory: async (patientId?: number, limit = 50): Promise<TelemetryReading[]> => {
+    const url = patientId ? `/health/patients/${patientId}/history` : '/health/history';
+    const res = await apiClient.get<TelemetryReading[]>(url, { params: { limit } });
+    return res.data;
+  },
+
+  getDailyReport: async (patientId?: number, date?: string): Promise<any> => {
+    const url = patientId ? `/health/patients/${patientId}/reports/daily` : '/health/reports/daily';
+    const res = await apiClient.get(url, { params: { date } });
+    return res.data;
+  },
+
+  getWeeklyReport: async (patientId?: number): Promise<any> => {
+    const url = patientId ? `/health/patients/${patientId}/reports/weekly` : '/health/reports/weekly';
+    const res = await apiClient.get(url);
+    return res.data;
+  },
+
+  getDeviceStatus: async (patientId?: number): Promise<any> => {
+    const res = await apiClient.get('/health/device-status', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  ingestTelemetry: async (telemetry: Partial<TelemetryReading>): Promise<TelemetryReading> => {
+    const res = await apiClient.post<TelemetryReading>('/health/telemetry', telemetry);
+    return res.data;
+  },
+
+  exportRecords: async (patientId?: number, format = 'csv', days = 30): Promise<Blob | any> => {
+    const url = patientId ? `/health/patients/${patientId}/reports/export` : '/health/reports/export';
+    const res = await apiClient.get(url, {
+      params: { format, days },
+      responseType: format === 'csv' ? 'blob' : 'json',
+    });
+    return res.data;
+  },
+
+  checkGeofence: async (params: { latitude: number; longitude: number; center_latitude?: number; center_longitude?: number; radius_meters?: number }): Promise<any> => {
+    const res = await apiClient.post('/health/geofence/check', params);
+    return res.data;
+  },
+};
+
+// ==========================================
+// 3. Wearable Device Management APIs
+// ==========================================
+export const deviceApi = {
+  pairDevice: async (deviceData: { device_uuid: string; device_name?: string; model_type?: string; is_simulator?: boolean; patient_id?: number }): Promise<Device> => {
+    const res = await apiClient.post<Device>('/devices/pair', deviceData);
+    return res.data;
+  },
+
+  listDevices: async (): Promise<Device[]> => {
+    const res = await apiClient.get<Device[]>('/devices');
+    return res.data;
+  },
+
+  getDevice: async (deviceId: number): Promise<Device> => {
+    const res = await apiClient.get<Device>(`/devices/${deviceId}`);
+    return res.data;
+  },
+
+  updateConfig: async (deviceId: number, config: any): Promise<Device> => {
+    const res = await apiClient.put<Device>(`/devices/${deviceId}/config`, config);
+    return res.data;
+  },
+
+  syncDevice: async (deviceId: number): Promise<Device> => {
+    const res = await apiClient.post<Device>(`/devices/${deviceId}/sync`);
+    return res.data;
+  },
+
+  disconnectDevice: async (deviceId: number): Promise<Device> => {
+    const res = await apiClient.post<Device>(`/devices/${deviceId}/disconnect`);
+    return res.data;
+  },
+
+  getHistory: async (deviceId: number): Promise<any[]> => {
+    const res = await apiClient.get<any[]>(`/devices/${deviceId}/history`);
+    return res.data;
+  },
+
+  simulateReading: async (deviceId: number, data: any): Promise<any> => {
+    const res = await apiClient.post(`/devices/${deviceId}/simulate`, data);
+    return res.data;
+  },
+};
+
+// ==========================================
+// 4. Emergency SOS & Escalation APIs
+// ==========================================
+export const emergencyApi = {
+  triggerSOS: async (alertData: { alert_type?: string; severity?: string; latitude?: number; longitude?: number; assistance_message?: string; trigger_source?: string; description?: string }): Promise<EmergencyAlert> => {
+    const res = await apiClient.post<EmergencyAlert>('/emergency/sos', {
+      alert_type: alertData.alert_type || 'manual_sos',
+      severity: alertData.severity || 'critical',
+      latitude: alertData.latitude,
+      longitude: alertData.longitude,
+      assistance_message: alertData.assistance_message || alertData.description,
+    });
+    return res.data;
+  },
+
+  requestAssistance: async (message?: string): Promise<EmergencyAlert> => {
+    const res = await apiClient.post<EmergencyAlert>('/emergency/assistance', { message });
+    return res.data;
+  },
+
+  listAlerts: async (): Promise<EmergencyAlert[]> => {
+    const res = await apiClient.get<EmergencyAlert[]>('/emergency/alerts');
+    return res.data;
+  },
+
+  acknowledgeAlert: async (alertId: number, notes?: string): Promise<EmergencyAlert> => {
+    const res = await apiClient.post<EmergencyAlert>(`/emergency/${alertId}/acknowledge`, { acknowledgment_notes: notes });
+    return res.data;
+  },
+
+  rejectAlert: async (alertId: number, reason: string): Promise<EmergencyAlert> => {
+    const res = await apiClient.post<EmergencyAlert>(`/emergency/${alertId}/reject`, { rejection_reason: reason });
+    return res.data;
+  },
+};
+
+// ==========================================
+// 5. In-App Notifications APIs
+// ==========================================
+export const notificationApi = {
+  list: async (unreadOnly = false): Promise<InAppNotification[]> => {
+    const res = await apiClient.get<InAppNotification[]>('/notifications', { params: { unread_only: unreadOnly } });
+    return res.data;
+  },
+
+  getAll: async (): Promise<InAppNotification[]> => {
+    const res = await apiClient.get<InAppNotification[]>('/notifications');
+    return res.data;
+  },
+
+  getUnreadCount: async (): Promise<{ unread_count: number }> => {
+    const res = await apiClient.get<{ unread_count: number }>('/notifications/unread-count');
+    return res.data;
+  },
+
+  markAsRead: async (id: number | string): Promise<InAppNotification> => {
+    const res = await apiClient.patch<InAppNotification>(`/notifications/${id}/read`);
+    return res.data;
+  },
+
+  markAllAsRead: async (): Promise<{ marked_read_count: number }> => {
+    const res = await apiClient.post<{ marked_read_count: number }>('/notifications/read-all');
+    return res.data;
+  },
+
+  deleteNotification: async (id: number | string): Promise<void> => {
+    await apiClient.delete(`/notifications/${id}`);
+  },
+};
+
+// ==========================================
+// 6. Voice Assistant & Messaging APIs
+// ==========================================
+export const voiceApi = {
+  getSupportedLanguages: async (): Promise<any[]> => {
+    const res = await apiClient.get('/voice/languages');
+    return res.data.languages || [];
+  },
+
+  transcribeText: async (promptText: string, lang = 'en'): Promise<any> => {
+    const res = await apiClient.post('/voice/transcribe-text', {
+      text: promptText,
+      language: lang,
+    });
+    return res.data;
+  },
+
+  transcribeAudio: async (audioBase64: string, format = 'audio/wav', lang = 'en'): Promise<any> => {
+    const res = await apiClient.post('/voice/transcribe', {
+      audio_base64: audioBase64,
+      audio_format: format,
+      language_hint: lang,
+      consent_confirmed: true,
+    });
+    return res.data;
+  },
+
+  translateText: async (data: { text: string; target_language: string; source_language?: string }): Promise<any> => {
+    const res = await apiClient.post('/voice/translate', {
+      text: data.text,
+      target_language: data.target_language,
+      source_language: data.source_language || 'en',
+    });
+    return res.data;
+  },
+
+  synthesizeSpeech: async (text: string, lang = 'en'): Promise<any> => {
+    const res = await apiClient.post('/voice/synthesize', {
+      text,
+      language: lang,
+    });
+    return res.data;
+  },
+
+  getConversations: async (): Promise<any[]> => {
+    const res = await apiClient.get('/voice/conversations');
+    return res.data;
+  },
+
+  getMessages: async (partnerId: number): Promise<VoiceMessage[]> => {
+    const res = await apiClient.get(`/voice/conversations/${partnerId}`);
+    return res.data.messages || [];
+  },
+
+  sendMessage: async (messageData: { recipient_id: number; text: string; source_language?: string; target_language?: string }): Promise<VoiceMessage> => {
+    const res = await apiClient.post<VoiceMessage>('/voice/messages', messageData);
+    return res.data;
+  },
+
+  markConversationRead: async (partnerId: number): Promise<any> => {
+    const res = await apiClient.post(`/voice/conversations/${partnerId}/read-all`);
+    return res.data;
+  },
+};
+
+// ==========================================
+// 7. AI & Digital Twin APIs
+// ==========================================
+export const aiApi = {
+  getDigitalTwinBaseline: async (patientId?: number): Promise<DigitalTwinBaseline> => {
+    const res = await apiClient.get<DigitalTwinBaseline>('/ai/digital-twin/baseline', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  getHealthDriftSummary: async (patientId?: number, windowDays = 7): Promise<any> => {
+    const res = await apiClient.get('/ai/health-drift/summary', { params: { patient_id: patientId, window_days: windowDays } });
+    return res.data;
+  },
+
+  getAIHealthStatus: async (patientId?: number): Promise<any> => {
+    const res = await apiClient.get('/ai/health-status', { params: { patient_id: patientId } });
+    return res.data;
+  },
+};
+
+// Unified aliases
+export const authService = {
+  ...authApi,
+  updateProfile: authApi.updateMe,
+};
+export const healthService = {
+  ...healthApi,
+  exportData: healthApi.exportRecords,
+};
+export const deviceService = {
+  ...deviceApi,
+  getAll: deviceApi.listDevices,
+};
+export const emergencyService = emergencyApi;
+export const notificationService = notificationApi;
+export const voiceService = voiceApi;
+export const aiService = aiApi;

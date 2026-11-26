@@ -25,10 +25,11 @@ import sys
 
 from app.core.database import Base, SessionLocal, engine
 from app.core.security import get_password_hash
-from app.models.ai import DigitalTwinBaseline
+from app.models.digital_twin import DigitalTwinBaseline, HealthDriftRecord
 from app.models.emergency import EmergencyAlert, EscalationAuditLog
 from app.models.health import HealthTelemetry
-from app.models.health_drift import HealthDriftRecord
+from app.services.digital_twin_service import DigitalTwinService
+from app.services.health_drift_service import HealthDriftService
 from app.models.location import LocationLog
 from app.models.user import CaregiverProfile, PatientCaregiverAssociation, PatientProfile, User, UserRole
 from app.models.voice import VoiceConsent, VoiceMessageLog
@@ -82,6 +83,7 @@ def seed_database(clean: bool = False):
                 created_at=now - timedelta(days=30),
             )
             db.add(patient_profile)
+            db.flush()
             logger.info("Created Demo Patient: patient@pulseguardian.ai (Pass: Patient@123)")
         else:
             patient_profile = patient_user.patient_profile
@@ -113,6 +115,7 @@ def seed_database(clean: bool = False):
                 created_at=now - timedelta(days=30),
             )
             db.add(caregiver_profile)
+            db.flush()
             logger.info("Created Demo Primary Caregiver: caregiver@pulseguardian.ai (Pass: Caregiver@123)")
         else:
             caregiver_profile = caregiver_user.caregiver_profile
@@ -144,6 +147,7 @@ def seed_database(clean: bool = False):
                 created_at=now - timedelta(days=30),
             )
             db.add(caregiver2_profile)
+            db.flush()
             logger.info("Created Demo Secondary Caregiver: caregiver2@pulseguardian.ai (Pass: Caregiver@123)")
         else:
             caregiver2_profile = caregiver2_user.caregiver_profile
@@ -260,39 +264,9 @@ def seed_database(clean: bool = False):
         # -------------------------------------------------------------------------
         # 8. Digital Twin Baseline & Health Drift
         # -------------------------------------------------------------------------
-        dt = db.query(DigitalTwinBaseline).filter(DigitalTwinBaseline.patient_id == patient_profile.id).first()
-        if not dt:
-            dt = DigitalTwinBaseline(
-                patient_id=patient_profile.id,
-                learned_from_samples_count=120,
-                resting_hr_mean=70.5,
-                resting_hr_std=4.8,
-                spo2_mean=98.2,
-                spo2_std=0.5,
-                temp_mean=36.55,
-                temp_std=0.25,
-                is_baseline_ready=True,
-                last_calculated_at=now - timedelta(hours=6),
-            )
-            db.add(dt)
-
-        drift = db.query(HealthDriftRecord).filter(HealthDriftRecord.patient_id == patient_profile.id).first()
-        if not drift:
-            drift = HealthDriftRecord(
-                patient_id=patient_profile.id,
-                metric_name="heart_rate",
-                baseline_window_days=14,
-                evaluation_window_days=3,
-                slope=0.08,
-                percent_change=1.2,
-                drift_status="stable",
-                confidence=0.92,
-                message="Heart rate is completely stable relative to learned physiological baseline.",
-                recorded_at=now - timedelta(hours=2),
-                created_at=now - timedelta(hours=2),
-            )
-            db.add(drift)
-            logger.info("Seeded Digital Twin Baseline & Health Drift records.")
+        dt, is_cold = DigitalTwinService.get_or_calculate_baseline(db, patient_profile.id, force_recalculate=True)
+        drift_summary = HealthDriftService.analyze_drift(db, patient_profile.id, window_days=7, persist=True)
+        logger.info(f"Seeded Digital Twin Baseline (samples: {dt.samples_count}) & Health Drift records.")
 
         # -------------------------------------------------------------------------
         # 9. Bilingual Patient-Caregiver Conversation Thread

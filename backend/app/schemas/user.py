@@ -179,3 +179,32 @@ class PatientCaregiverAssociationOut(BaseModel):
 class UserProfileOut(UserOut):
     patient_profile: Optional[PatientProfileOut] = None
     caregiver_profile: Optional[CaregiverProfileOut] = None
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str = Field(..., min_length=6)
+    new_password: str = Field(..., min_length=8)
+
+
+class UserProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    preferred_language: Optional[str] = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8)
+
+
+class SocialLoginRequest(BaseModel):
+    provider: str = Field(..., description="Provider name: google or microsoft")
+    email: Optional[EmailStr] = None
+    role: Optional[str] = Field("patient", description="Role if new user is provisioned")
+    full_name: Optional[str] = None
+    id_token: Optional[str] = None
+

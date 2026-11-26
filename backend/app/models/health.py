@@ -39,6 +39,13 @@ class HealthTelemetry(Base):
     accelerometer_y = Column(Float, nullable=True)             # Y-axis acceleration
     accelerometer_z = Column(Float, nullable=True)             # Z-axis acceleration
     
+        # Extended Vital Signs & Metrics
+    blood_pressure_sys = Column(Float, nullable=True)          # Systolic blood pressure in mmHg
+    blood_pressure_dia = Column(Float, nullable=True)          # Diastolic blood pressure in mmHg
+    respiratory_rate = Column(Float, nullable=True)            # Breaths per minute
+    calories_burned = Column(Float, nullable=True)             # Calories burned
+    sleep_stage = Column(String(50), nullable=True)            # 'deep', 'light', 'rem', 'awake'
+    
     # Hardware Telemetry
     battery_percentage = Column(Float, nullable=True)          # 0 - 100%
     

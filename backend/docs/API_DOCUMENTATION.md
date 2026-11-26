@@ -1847,3 +1847,131 @@ The Voice Assistance Foundation establishes privacy-conscious, multilingual proc
 * **Description**: Authenticated WebSocket connection for receiving instantaneous event dispatches when messages arrive or read receipts are updated. Heartbeat ping/pong supported. Polling-compatible REST endpoints `/conversations` and `/messages/unread-count` serve as robust fallbacks.
 
 ```
+
+
+---
+
+## 10. Wearable Device Management (`/api/v1/devices`)
+
+### 10.1 Pair Device
+* **Endpoint**: `POST /api/v1/devices/pair`
+* **Access**: Authenticated Patient or Authorized Caregiver
+* **Description**: Registers a hardware ESP32 wearable or mock simulator and binds it to a patient profile.
+
+**Request JSON:**
+```json
+{
+  "device_uuid": "PG-ESP32-001",
+  "device_name": "PulseGuardian Smart Band",
+  "model_type": "ESP32-MAX30102-MPU6050",
+  "firmware_version": "1.0.0",
+  "is_simulator": false
+}
+```
+
+**Response JSON (201 Created):**
+```json
+{
+  "id": 1,
+  "device_uuid": "PG-ESP32-001",
+  "device_name": "PulseGuardian Smart Band",
+  "model_type": "ESP32-MAX30102-MPU6050",
+  "firmware_version": "1.0.0",
+  "patient_id": 1,
+  "status": "connected",
+  "battery_level": 100.0,
+  "is_simulator": false,
+  "last_sync_at": "2026-11-26T05:00:00Z",
+  "paired_at": "2026-11-26T05:00:00Z"
+}
+```
+
+### 10.2 Update Device Configuration
+* **Endpoint**: `PUT /api/v1/devices/{device_id}/config`
+* **Access**: Authenticated Patient or Authorized Caregiver
+* **Description**: Updates sampling rate, alert thresholds, and sensor toggles on the device.
+
+**Request JSON:**
+```json
+{
+  "sampling_interval_seconds": 10,
+  "hr_alert_threshold_high": 130.0,
+  "hr_alert_threshold_low": 45.0,
+  "fall_detection_enabled": true
+}
+```
+
+### 10.3 Manual Device Sync
+* **Endpoint**: `POST /api/v1/devices/{device_id}/sync`
+* **Access**: Authenticated User
+* **Description**: Triggers manual synchronization and refreshes connection state.
+
+### 10.4 Disconnect Device
+* **Endpoint**: `POST /api/v1/devices/{device_id}/disconnect`
+* **Access**: Authenticated User
+* **Description**: Marks device as disconnected and updates hardware status.
+
+### 10.5 Device Connection & Sync History
+* **Endpoint**: `GET /api/v1/devices/{device_id}/history`
+* **Access**: Authenticated User
+* **Description**: Retrieves history of pairing, connection, disconnection, and sync events.
+
+### 10.6 Simulate Hardware Reading (Mock Demonstration)
+* **Endpoint**: `POST /api/v1/devices/{device_id}/simulate`
+* **Access**: Authenticated User
+* **Description**: Generates clearly labeled simulated vitals (`is_simulated: true`) for frontend testing without physical hardware.
+
+---
+
+## 11. In-App Notifications (`/api/v1/notifications`)
+
+### 11.1 List In-App Notifications
+* **Endpoint**: `GET /api/v1/notifications?unread_only=false`
+* **Access**: Authenticated User
+* **Description**: Returns notification alerts (vital anomalies, emergency dispatches, hardware connection status, unread messages).
+
+### 11.2 Unread Notification Count
+* **Endpoint**: `GET /api/v1/notifications/unread-count`
+* **Access**: Authenticated User
+* **Description**: Returns count of unread notifications for navigation badges.
+
+### 11.3 Mark Notification as Read
+* **Endpoint**: `PATCH /api/v1/notifications/{notification_id}/read`
+* **Access**: Authenticated User
+
+### 11.4 Mark All Notifications as Read
+* **Endpoint**: `POST /api/v1/notifications/read-all`
+* **Access**: Authenticated User
+
+---
+
+## 12. Health Dashboard & Periodic Reports (`/api/v1/health`)
+
+### 12.1 Unified Health Dashboard
+* **Endpoint**: `GET /api/v1/health/dashboard`
+* **Access**: Authenticated Patient or Caregiver
+* **Description**: Consolidated single-endpoint response containing latest vitals, 24h summary statistics, active alerts, and hardware battery/connection state.
+
+### 12.2 Daily 24-Hour Clinical Report
+* **Endpoint**: `GET /api/v1/health/reports/daily?date=2026-11-26`
+* **Access**: Authenticated Patient or Caregiver
+* **Description**: 24-hour breakdown report with hourly averages of Heart Rate, SpO2, Temperature, and Step activity.
+
+### 12.3 Weekly Aggregated Report
+* **Endpoint**: `GET /api/v1/health/reports/weekly`
+* **Access**: Authenticated Patient or Caregiver
+* **Description**: 7-day day-by-day metrics and overall weekly biomarkers.
+
+### 12.4 Export Health Records (JSON & CSV)
+* **Endpoint**: `GET /api/v1/health/reports/export?format=csv&days=30`
+* **Access**: Authenticated Patient or Caregiver
+* **Description**: Downloadable archive of health readings in CSV or JSON for clinical export.
+
+---
+
+## 13. System Audit Logs (`/api/v1/audit`)
+
+### 13.1 Query Audit Trail
+* **Endpoint**: `GET /api/v1/audit`
+* **Access**: Caregiver or Admin (Patients restricted to their own actions)
+* **Description**: Complete audit trail of authentication events, profile modifications, device pairings, and emergency dispatches.

@@ -1,0 +1,189 @@
+export type UserRole = 'patient' | 'caregiver' | 'admin';
+
+export interface User {
+  id: number;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  phone_number?: string;
+  preferred_language: string;
+  is_active: boolean;
+  created_at: string;
+  patient_profile?: PatientProfile;
+  caregiver_profile?: CaregiverProfile;
+}
+
+export interface PatientProfile {
+  id: number;
+  user_id: number;
+  date_of_birth?: string;
+  gender?: string;
+  blood_group?: string;
+  medical_history?: string;
+  emergency_contact_phone?: string;
+  device_uuid?: string;
+  device_status: string;
+  last_sync_at?: string;
+}
+
+export interface CaregiverProfile {
+  id: number;
+  user_id: number;
+  relationship_type: string;
+  organization?: string;
+  notification_preference: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
+  user_id: number;
+  email: string;
+  role: UserRole;
+  full_name: string;
+}
+
+export interface TelemetryReading {
+  id?: number;
+  patient_id?: number;
+  device_uuid?: string;
+  heart_rate: number | null;
+  spo2: number | null;
+  temperature: number | null;
+  temperature_unit?: string;
+  blood_pressure_sys?: number | null;
+  blood_pressure_dia?: number | null;
+  respiratory_rate?: number | null;
+  step_count?: number;
+  activity_type?: string;
+  calories_burned?: number | null;
+  sleep_stage?: string | null;
+  sleep_duration_minutes?: number | null;
+  fall_detected?: boolean;
+  battery_percentage?: number | null;
+  is_anomalous?: boolean;
+  anomaly_reason?: string | null;
+  recorded_at: string;
+}
+
+export interface DashboardSummary {
+  patient_id: number;
+  patient_name: string;
+  device_status: {
+    patient_id: number;
+    device_uuid?: string;
+    device_status: string;
+    battery_percentage?: number;
+    is_online: boolean;
+    is_stale: boolean;
+    last_sync_at?: string;
+    last_recorded_at?: string;
+    sensor_status?: Record<string, string>;
+  };
+  latest_vitals: {
+    heart_rate: number | null;
+    spo2: number | null;
+    temperature: number | null;
+    temperature_unit: string;
+    blood_pressure_sys?: number | null;
+    blood_pressure_dia?: number | null;
+    respiratory_rate?: number | null;
+    activity_type: string;
+    battery_percentage?: number | null;
+    fall_detected: boolean;
+    recorded_at: string | null;
+  };
+  summary_24h: {
+    avg_heart_rate: number | null;
+    min_heart_rate: number | null;
+    max_heart_rate: number | null;
+    avg_spo2: number | null;
+    min_spo2: number | null;
+    avg_temperature: number | null;
+    total_steps: number;
+    total_calories: number;
+    anomalies_detected: number;
+    falls_detected: number;
+    readings_count: number;
+  };
+  disclaimer: string;
+}
+
+export interface Device {
+  id: number;
+  device_uuid: string;
+  device_name: string;
+  model_type: string;
+  firmware_version: string;
+  patient_id?: number;
+  status: string;
+  battery_level?: number;
+  is_simulator: boolean;
+  config_json?: string;
+  last_sync_at?: string;
+  paired_at: string;
+}
+
+export interface EmergencyAlert {
+  id: number;
+  patient_id: number;
+  device_uuid?: string;
+  alert_type: string;
+  severity: string;
+  status: string;
+  current_escalation_tier: number;
+  latitude?: number;
+  longitude?: number;
+  location_accuracy?: number;
+  assistance_message?: string;
+  voice_transcript?: string;
+  detected_language?: string;
+  translated_summary?: string;
+  created_at: string;
+  acknowledged_at?: string;
+  resolved_at?: string;
+}
+
+export interface InAppNotification {
+  id: number;
+  user_id: number;
+  title: string;
+  body: string;
+  notification_type: string;
+  severity: string;
+  data_json?: string;
+  is_read: boolean;
+  read_at?: string;
+  created_at: string;
+}
+
+export interface VoiceMessage {
+  id: number;
+  sender_id: number;
+  recipient_id: number;
+  source_language: string;
+  target_language: string;
+  original_text: string;
+  translated_text?: string;
+  is_read: boolean;
+  delivery_status: string;
+  created_at: string;
+}
+
+export interface DigitalTwinBaseline {
+  id: number;
+  patient_id: number;
+  baseline_resting_hr: number;
+  hr_min_normal: number;
+  hr_max_normal: number;
+  baseline_spo2: number;
+  spo2_min_normal: number;
+  baseline_temperature: number;
+  samples_count: number;
+  last_calculated_at: string;
+}
+
+export type HealthTelemetry = TelemetryReading;
+export type NotificationItem = InAppNotification;
