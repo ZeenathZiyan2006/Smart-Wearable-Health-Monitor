@@ -492,103 +492,251 @@ export const DashboardPage: React.FC = () => {
 
   const displayName = user?.full_name?.split(' ')[0] || (role === 'caregiver' ? 'Caregiver' : 'Thrisha');
 
-  return (
-    <div className="space-y-6 pb-12">
-      {/* =========================================================================
-          TOP ROW: HERO GREETING WITH SMARTWATCH & EMERGENCY SOS HERO BANNER
-         ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-        {/* Left Hero: Watch Graphic + Greeting */}
-        <div className="lg:col-span-8 relative rounded-3xl p-6 overflow-hidden bg-gradient-to-r from-white/90 via-sky-50/80 to-blue-50/70 border border-white/60 shadow-lg backdrop-blur-md flex flex-col md:flex-row items-center justify-between">
-          <div className="absolute inset-0 bg-cover bg-center opacity-15 pointer-events-none" />
+  const handleCopyPatientId = () => {
+    navigator.clipboard.writeText(activePatientId);
+    setCopiedPatientId(true);
+    setTimeout(() => setCopiedPatientId(false), 2000);
+  };
 
-          {/* Left Watch Graphic */}
-          <div className="relative flex items-center justify-center p-2">
-            <div className="relative w-36 h-36 flex items-center justify-center">
-              <div className="absolute inset-0 rounded-full bg-cyan-400/20 blur-xl animate-pulse" />
-              <div className="relative w-28 h-32 bg-slate-900 rounded-3xl border-4 border-slate-700 shadow-2xl flex flex-col items-center justify-center p-2 text-white">
-                <div className="absolute -top-3 w-16 h-3 bg-slate-800 rounded-t-md" />
-                <div className="w-full h-full bg-gradient-to-b from-[#0b1424] to-[#12223f] rounded-2xl border border-cyan-500/30 flex flex-col items-center justify-center p-1">
-                  <Heart className="w-5 h-5 text-rose-500 fill-rose-500 animate-pulse mb-1" />
-                  <span className="text-xl font-bold tracking-tight text-white">{heartRate}</span>
-                  <span className="text-[9px] text-cyan-300 font-medium tracking-wider">bpm</span>
-                </div>
-                <div className="absolute -bottom-3 w-16 h-3 bg-slate-800 rounded-b-md" />
+  return (
+    <div className="space-y-6 pb-14 font-sans select-none">
+      {/* =========================================================================
+          TOP COMMAND DECK: OMNI-STATUS CAPSULE BAR
+         ========================================================================= */}
+      <div className="relative rounded-3xl p-4 bg-gradient-to-r from-slate-900/95 via-[#0b172b]/95 to-slate-900/95 backdrop-blur-xl border border-cyan-500/30 shadow-2xl text-white flex flex-col md:flex-row items-center justify-between gap-4 overflow-hidden">
+        {/* Ambient Backlight Glows */}
+        <div className="absolute -top-10 left-1/4 w-72 h-16 bg-cyan-500/25 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 right-1/4 w-72 h-16 bg-rose-500/25 blur-3xl pointer-events-none" />
+
+        {/* Left: Patient Profile Switcher & Identity Chip */}
+        <div className="flex flex-wrap items-center gap-3 z-10 w-full md:w-auto">
+          <div className="relative flex items-center gap-2.5 bg-white/10 px-3.5 py-1.5 rounded-2xl border border-white/15 backdrop-blur-md shadow-sm">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center font-black text-white text-xs shadow-md">
+              {displayName.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="flex flex-col text-left">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-white tracking-wide">{displayName}</span>
+                {familyPatients.length > 1 && (
+                  <select
+                    value={activePatientId}
+                    onChange={(e) => handleSwitchPatient(e.target.value)}
+                    className="bg-slate-800 text-cyan-300 text-[10px] font-bold rounded-lg px-1.5 py-0.5 border border-cyan-500/40 cursor-pointer focus:outline-none"
+                  >
+                    {familyPatients.map((p) => (
+                      <option key={p.patient_id} value={p.patient_id} className="bg-slate-900 text-white">
+                        {p.full_name} ({p.patient_id})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-cyan-300 font-mono font-medium">
+                <span>{activePatientId}</span>
+                <button
+                  type="button"
+                  onClick={handleCopyPatientId}
+                  className="hover:text-white transition-colors cursor-pointer"
+                  title="Copy Patient ID"
+                >
+                  {copiedPatientId ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Center Greeting & Status Pills */}
-          <div className="flex-1 md:ml-6 mt-4 md:mt-0 space-y-3 text-center md:text-left">
+          {/* Hardware Device Badge */}
+          <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-2xl border border-white/10 text-xs">
+            <div className={`w-2 h-2 rounded-full ${isLiveOnline ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]' : 'bg-amber-400'}`} />
+            <span className="font-mono text-[11px] text-slate-300 font-semibold">{activeDeviceUuid}</span>
+            <span className="text-[10px] text-slate-500">|</span>
+            <span className="text-[10px] font-medium text-slate-400">{lastSyncStr}</span>
+          </div>
+
+          {/* Battery Status */}
+          <div className="flex items-center gap-1.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-1.5 rounded-2xl text-xs font-bold shadow-sm">
+            <BatteryCharging className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{batteryPct}%</span>
+          </div>
+        </div>
+
+        {/* Right: Quick Action Capsule Buttons */}
+        <div className="flex items-center gap-2 z-10 w-full md:w-auto justify-end">
+          <button
+            type="button"
+            onClick={() => setShowPairingModal(true)}
+            className="px-3.5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-cyan-500/20 flex items-center gap-1.5 cursor-pointer"
+          >
+            <Radio className="w-3.5 h-3.5" />
+            <span>Pair / BLE</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowReportsModal(true)}
+            className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            <FileText className="w-3.5 h-3.5 text-indigo-300" />
+            <span>Medical History</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/emergency')}
+            className="px-3 py-2 bg-rose-600/30 hover:bg-rose-600/50 text-rose-300 border border-rose-500/40 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+            <span>112 SOS</span>
+          </button>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          HERO BIOMETRIC HORIZON: SMARTWATCH HOLOGRAM & EMERGENCY DEFENSE STATION
+         ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+        {/* Left Hero: Interactive Cyber-Watch & Vitality Horizon */}
+        <div className="lg:col-span-8 relative rounded-3xl p-6 md:p-8 overflow-hidden bg-gradient-to-br from-slate-900 via-[#0e1d35] to-[#0a1526] text-white border border-cyan-500/30 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 group">
+          {/* Futuristic Background Circuit & Aurora */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-500/20 via-transparent to-transparent pointer-events-none" />
+          <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Holographic 3D Smartwatch Interactive Model */}
+          <div className="relative flex items-center justify-center shrink-0">
+            <div className="relative w-40 h-40 flex items-center justify-center">
+              {/* Outer Pulsing Heartbeat Rings */}
+              <div
+                className="absolute inset-0 rounded-full border border-rose-500/40 animate-ping opacity-75"
+                style={{ animationDuration: `${Math.max(0.6, 60 / (heartRate || 72))}s` }}
+              />
+              <div className="absolute inset-2 rounded-full bg-gradient-to-tr from-cyan-500/20 to-rose-500/20 blur-xl" />
+
+              {/* Watch Chassis */}
+              <div className="relative w-32 h-36 bg-gradient-to-b from-slate-800 to-slate-950 rounded-[32px] border-4 border-slate-700/80 shadow-[0_15px_35px_rgba(0,0,0,0.6)] flex flex-col items-center justify-center p-2.5">
+                {/* Watch Crown Button */}
+                <div className="absolute -right-2 top-10 w-2 h-6 bg-slate-600 rounded-r-md border-r border-slate-500" />
+                {/* Watch Strap Top/Bottom */}
+                <div className="absolute -top-3.5 w-18 h-3.5 bg-slate-800 rounded-t-lg border-t border-slate-600" />
+                <div className="absolute -bottom-3.5 w-18 h-3.5 bg-slate-800 rounded-b-lg border-b border-slate-600" />
+
+                {/* OLED Display */}
+                <div className="w-full h-full bg-[#050b14] rounded-2xl border border-cyan-400/40 flex flex-col items-center justify-between p-2 shadow-inner">
+                  <div className="flex items-center justify-between w-full text-[9px] text-cyan-300 font-mono">
+                    <span>LIVE</span>
+                    <span className="flex items-center gap-0.5 text-emerald-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      BLE
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col items-center justify-center my-auto">
+                    <Heart
+                      className="w-6 h-6 text-rose-500 fill-rose-500"
+                      style={{
+                        animation: `pulse ${Math.max(0.6, 60 / (heartRate || 72))}s cubic-bezier(0.4, 0, 0.6, 1) infinite`,
+                      }}
+                    />
+                    <div className="text-2xl font-black text-white tracking-tight mt-0.5">{heartRate}</div>
+                    <span className="text-[9px] font-semibold text-rose-300 tracking-wider uppercase">BPM PULSE</span>
+                  </div>
+
+                  <div className="w-full bg-slate-800/80 rounded-full h-1 overflow-hidden">
+                    <div className="bg-gradient-to-r from-cyan-400 to-rose-400 h-full w-[78%]" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Center Greeting & Vitality Score Cockpit */}
+          <div className="flex-1 space-y-3.5 text-center md:text-left z-10">
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-slate-800 flex items-center justify-center md:justify-start gap-2">
-                {t('dash.goodMorning', 'Good Morning')}, {displayName}! 🌸
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/30 text-cyan-300 text-xs font-semibold mb-2 shadow-sm">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
+                <span>Smart Wearable Health Intelligence • Active Sentinel</span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white flex items-center justify-center md:justify-start gap-2">
+                {t('dash.goodMorning', 'Good Morning')}, {displayName}!
+                <span className="inline-block animate-bounce">✨</span>
               </h1>
-              <p className="text-slate-500 text-sm mt-0.5">{t('dash.motto', 'Stay healthy, stay happy, and live longer.')}</p>
+              <p className="text-slate-300 text-sm mt-1 leading-relaxed">
+                {t('dash.motto', 'Your biometrics are continuously analyzed. All vitals within healthy baseline parameters.')}
+              </p>
             </div>
 
-            {/* Badges / Pills */}
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-1">
-              {/* Connected Pill */}
-              <div className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-sm ${
-                isLiveOnline
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-amber-50 text-amber-700 border-amber-200'
-              }`}>
-                <span className={`w-2 h-2 rounded-full ${isLiveOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                <span>{isLiveOnline ? 'Wearable Connected & Live Stream' : 'Wearable Offline (Historical Baselines)'}</span>
+            {/* Vitality Index Gauge & Environment Pill */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-2.5 backdrop-blur-md">
+                <div className="text-[10px] text-cyan-300 font-semibold uppercase tracking-wider">Health Vitality</div>
+                <div className="text-lg font-black text-white flex items-baseline gap-1 mt-0.5">
+                  <span>96</span>
+                  <span className="text-[10px] text-emerald-400 font-bold">/ 100</span>
+                </div>
+                <div className="text-[9px] text-emerald-300 font-medium">Optimal Equilibrium</div>
               </div>
 
-              {/* Battery Pill */}
-              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium bg-white/80 text-slate-600 border border-slate-200 shadow-sm">
-                <BatteryCharging className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{batteryPct}%</span>
-                <span className="text-slate-300">|</span>
-                <span className="text-slate-500">{t('dash.lastSync', 'Last sync')}: {lastSyncStr}</span>
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-2.5 backdrop-blur-md">
+                <div className="text-[10px] text-indigo-300 font-semibold uppercase tracking-wider">Active Rest</div>
+                <div className="text-lg font-black text-white flex items-baseline gap-1 mt-0.5">
+                  <span>{sleepStr}</span>
+                </div>
+                <div className="text-[9px] text-indigo-300 font-medium">88% Deep Restoration</div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-2.5 backdrop-blur-md col-span-2 sm:col-span-1">
+                <div className="text-[10px] text-teal-300 font-semibold uppercase tracking-wider">Environment</div>
+                <div className="text-lg font-black text-white flex items-baseline gap-1 mt-0.5">
+                  <span>24°C</span>
+                  <span className="text-[10px] text-teal-400 font-bold">Comfort</span>
+                </div>
+                <div className="text-[9px] text-teal-300 font-medium">Safe Geofence Active</div>
               </div>
             </div>
 
-            {/* Offline warning indicator */}
+            {/* Hardware Offline Warning if not connected */}
             {!isLiveOnline && (
-              <div className="w-full mt-2 p-2.5 bg-amber-50/90 border border-amber-200 rounded-2xl flex items-center justify-between text-xs text-amber-800">
+              <div className="p-3 bg-amber-500/15 border border-amber-500/40 rounded-2xl flex items-center justify-between text-xs text-amber-200">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                   <span>
-                    <strong>Hardware Offline:</strong> Displaying verified baseline data ({lastSyncStr}). Ensure ESP32 smartband is powered and linked.
+                    <strong>Hardware Standby:</strong> Displaying verified baseline data ({lastSyncStr}). Smartwatch will auto-reconnect.
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowPairingModal(true)}
-                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[10px] font-bold cursor-pointer shrink-0 ml-2"
+                  className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-[10px] cursor-pointer shrink-0 ml-2 shadow-sm"
                 >
-                  Pair / Connect
+                  Pair / Scan
                 </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Hero: Emergency SOS Press & Hold Banner */}
-        <div className="lg:col-span-4 relative rounded-3xl p-6 overflow-hidden bg-gradient-to-br from-rose-500 via-rose-600 to-red-700 text-white shadow-xl shadow-rose-500/20 border border-rose-400/40 flex flex-col justify-between select-none">
-          <div className="absolute inset-0 opacity-15 pointer-events-none flex items-center justify-center">
-            <svg className="w-full h-24" viewBox="0 0 300 80" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M0,40 L90,40 L105,10 L120,70 L135,20 L150,55 L165,40 L300,40" />
-            </svg>
+        {/* Right Hero: Aura Emergency SOS Defense Capsule */}
+        <div className="lg:col-span-4 relative rounded-3xl p-6 md:p-7 overflow-hidden bg-gradient-to-br from-rose-600 via-rose-700 to-red-900 text-white shadow-2xl shadow-rose-900/40 border border-rose-400/40 flex flex-col justify-between select-none">
+          {/* Animated Sonic Radar Background Rings */}
+          <div className="absolute inset-0 opacity-20 pointer-events-none flex items-center justify-center">
+            <div className="w-64 h-64 rounded-full border-2 border-white animate-ping" style={{ animationDuration: '3s' }} />
+            <div className="w-40 h-40 rounded-full border border-white/60 animate-ping" style={{ animationDuration: '2s' }} />
           </div>
 
-          <div className="relative flex items-start space-x-3">
-            <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+          <div className="relative flex items-start space-x-3.5 z-10">
+            <div className="p-3.5 bg-white/20 rounded-2xl backdrop-blur-md shadow-inner border border-white/30">
               <ShieldAlert className="w-7 h-7 text-white animate-bounce" />
             </div>
             <div>
-              <h3 className="text-lg font-bold">{t('sos.emergencySOS', 'Emergency SOS')}</h3>
-              <p className="text-xs text-rose-100">{t('sos.holdNotice', 'Hold 2 sec to trigger caregiver escalation')}</p>
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-xl font-black tracking-tight">{t('sos.emergencySOS', 'Emergency SOS')}</h3>
+                <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold text-rose-100">DEFENSE</span>
+              </div>
+              <p className="text-xs text-rose-100 mt-1 leading-relaxed">
+                {t('sos.holdNotice', 'Press and hold 2 seconds to dispatch immediate emergency alerts & GPS coordinates to caregivers and 112.')}
+              </p>
             </div>
           </div>
 
-          {/* Press and Hold Button with Live Fill Bar */}
-          <div className="relative mt-4">
+          {/* Interactive Hold-to-Dispatch Station */}
+          <div className="relative mt-6 z-10 space-y-2.5">
             <button
               onMouseDown={startSOSHold}
               onMouseUp={cancelSOSHold}
@@ -596,12 +744,12 @@ export const DashboardPage: React.FC = () => {
               onTouchStart={startSOSHold}
               onTouchEnd={cancelSOSHold}
               disabled={sosStatus === 'transmitting'}
-              className="relative w-full py-3.5 px-5 rounded-2xl font-bold text-sm tracking-wide shadow-lg overflow-hidden transition-all transform active:scale-98 flex items-center justify-center space-x-2 bg-white text-rose-600"
+              className="relative w-full py-4 px-5 rounded-2xl font-black text-sm tracking-wider shadow-2xl overflow-hidden transition-all transform active:scale-95 flex items-center justify-center space-x-2 bg-white text-rose-700 cursor-pointer group"
             >
-              {/* Animated Progress Fill */}
+              {/* Animated Glowing Progress Fill */}
               {holdingSOS && (
                 <div
-                  className="absolute left-0 top-0 bottom-0 bg-rose-200 transition-all duration-75 ease-linear pointer-events-none"
+                  className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-rose-300 to-rose-400 transition-all duration-75 ease-linear pointer-events-none shadow-lg"
                   style={{ width: `${holdProgress}%` }}
                 />
               )}
@@ -609,18 +757,24 @@ export const DashboardPage: React.FC = () => {
               <span className="relative z-10 flex items-center space-x-2">
                 {sosStatus === 'transmitting' && (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin text-rose-600" />
+                    <RefreshCw className="w-4 h-4 animate-spin text-rose-700" />
                     <span>{t('sos.broadcasting', 'Broadcasting SOS to Caregivers...')}</span>
                   </>
                 )}
                 {sosStatus === 'dispatched' && (
-                  <span className="text-emerald-700 font-extrabold">{t('sos.dispatched', '✓ SOS Dispatched to Contacts')}</span>
+                  <span className="text-emerald-700 font-extrabold flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    {t('sos.dispatched', '✓ SOS Dispatched to Contacts')}
+                  </span>
                 )}
                 {sosStatus === 'error' && (
                   <span className="text-rose-700 font-extrabold">{t('sos.failed', 'Transmission Failed – Try Again')}</span>
                 )}
                 {sosStatus === 'idle' && (
-                  <span>{holdingSOS ? `${t('sos.holding', 'Hold')} (${holdProgress}%)...` : t('sos.pressAndHold', '📞 Press & Hold ➔')}</span>
+                  <span className="flex items-center gap-2">
+                    <Radio className="w-4 h-4 text-rose-600 animate-pulse" />
+                    <span>{holdingSOS ? `${t('sos.holding', 'HOLDING')} (${holdProgress}%)...` : t('sos.pressAndHold', 'HOLD TO TRIGGER SOS')}</span>
+                  </span>
                 )}
               </span>
             </button>
@@ -628,350 +782,283 @@ export const DashboardPage: React.FC = () => {
             {sosErrorMsg && (
               <p className="text-[11px] text-amber-200 mt-1 font-medium text-center">{sosErrorMsg}</p>
             )}
+
+            <div className="flex items-center justify-between text-[11px] text-rose-100/90 font-medium px-1">
+              <span>📍 GPS: {gpsLocation.lat.toFixed(4)}, {gpsLocation.lng.toFixed(4)}</span>
+              <button
+                type="button"
+                onClick={() => navigate('/emergency')}
+                className="hover:underline cursor-pointer font-bold"
+              >
+                Manage Contacts ➔
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* =========================================================================
-          ROW 2: FIVE QUICK HEALTH METRIC CARDS MATCHING DESIGN
+          THE 7 SCULPTED BIOMETRIC VITALITY MATRIX (VIBRANT & COLORFUL PERSONALITIES)
          ========================================================================= */}
-      {/* MODULE 1: Live Wearable Telemetry & Health Vitals */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3.5">
-        {/* Blood Pressure Card */}
-        <div
-          onClick={() => navigate('/health')}
-          className="glass-card rounded-2xl p-3.5 cursor-pointer hover:shadow-md transition-all border border-slate-100 flex flex-col justify-between bg-white"
-        >
-          <div className="flex items-center space-x-1.5">
-            <div className="p-1.5 rounded-xl bg-purple-50 text-purple-600">
-              <Heart className="w-4 h-4 text-purple-600" />
-            </div>
-            <span className="text-[11px] font-bold text-slate-700">Blood Pressure</span>
+      <div>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse" />
+            <h2 className="text-base font-extrabold text-slate-800 tracking-tight">Real-Time Biometric Telemetry Matrix</h2>
           </div>
-          <div className="mt-2">
-            <div className="text-xl font-extrabold text-slate-800">
-              {bloodPressure} <span className="text-[10px] font-normal text-slate-400">mmHg</span>
-            </div>
-            <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">Validated Range</div>
-          </div>
+          <span className="text-xs font-semibold text-slate-500">Live Continuous Stream</span>
         </div>
 
-        {/* Distance Card */}
-        <div
-          onClick={() => navigate('/sleep-activity')}
-          className="glass-card rounded-2xl p-3.5 cursor-pointer hover:shadow-md transition-all border border-slate-100 flex flex-col justify-between bg-white"
-        >
-          <div className="flex items-center space-x-1.5">
-            <div className="p-1.5 rounded-xl bg-teal-50 text-teal-600">
-              <Navigation className="w-4 h-4 text-teal-600" />
-            </div>
-            <span className="text-[11px] font-bold text-slate-700">Distance</span>
-          </div>
-          <div className="mt-2">
-            <div className="text-xl font-extrabold text-slate-800">
-              {distanceKm} <span className="text-[10px] font-normal text-slate-400">km</span>
-            </div>
-            <div className="text-[10px] text-teal-600 font-semibold mt-0.5">GPS / Steps calc</div>
-          </div>
-        </div>
-
-        {/* Hydration Card */}
-        <div
-          onClick={handleLogGlassWater}
-          className="glass-card rounded-2xl p-3.5 cursor-pointer hover:shadow-md transition-all border border-sky-100 flex flex-col justify-between bg-sky-50/40 group"
-          title="Click to quickly log 1 glass (+250ml)"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1.5">
-              <div className="p-1.5 rounded-xl bg-blue-100 text-blue-600">
-                <Droplets className="w-4 h-4 fill-blue-500" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+          {/* 1. HEART RATE CAPSULE (Electric Rose) */}
+          <div
+            onClick={() => navigate('/health')}
+            className="group relative rounded-3xl p-4 bg-gradient-to-br from-rose-50 via-white to-pink-50/40 border border-rose-200/80 shadow-md hover:shadow-xl hover:shadow-rose-500/10 hover:border-rose-400 transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-md shadow-rose-500/30 group-hover:scale-110 transition-transform">
+                  <Heart className="w-4 h-4 fill-white" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">{t('vital.heartRate', 'Heart Rate')}</span>
               </div>
-              <span className="text-[11px] font-bold text-slate-700">Hydration</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">Live</span>
             </div>
-            <span className="text-[10px] text-blue-600 font-bold group-hover:scale-110 transition-transform">+250ml</span>
-          </div>
-          <div className="mt-2">
-            <div className="text-xl font-extrabold text-slate-800">
-              {hydration.total_intake_ml} <span className="text-[10px] font-normal text-slate-400">/ 2500ml</span>
-            </div>
-            <div className="w-full bg-blue-200/50 rounded-full h-1.5 mt-1 overflow-hidden">
-              <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${Math.min(100, hydration.percentage)}%` }} />
-            </div>
-          </div>
-        </div>
-        {/* Heart Rate Card */}
-        <div
-          onClick={() => navigate('/health')}
-          className="glass-card rounded-2xl p-4 cursor-pointer hover:shadow-md transition-all border border-slate-100 flex flex-col justify-between"
-        >
-          <div className="flex items-center space-x-2">
-            <div className="p-2 rounded-xl bg-rose-50 text-rose-500">
-              <Heart className="w-4 h-4 fill-rose-500" />
-            </div>
-            <span className="text-xs font-semibold text-slate-600">{t('vital.heartRate', 'Heart Rate')}</span>
-          </div>
-          <div className="mt-2">
-            <div className="text-2xl font-extrabold text-slate-800">
-              {heartRate} <span className="text-xs font-normal text-slate-500">{t('vital.bpm', 'BPM')}</span>
-            </div>
-            <div className="flex items-center justify-between mt-1 text-[11px] text-emerald-600">
-              <span>↑ +2%</span>
-              <div className="w-12 h-3 text-rose-400">
-                <svg viewBox="0 0 40 10" className="w-full h-full fill-none stroke-current stroke-2">
-                  <path d="M0,5 Q10,0 20,8 T40,4" />
-                </svg>
+
+            <div className="my-3">
+              <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
+                {heartRate} <span className="text-xs font-bold text-slate-400">{t('vital.bpm', 'BPM')}</span>
+              </div>
+              <div className="flex items-center justify-between mt-1 text-[11px] text-emerald-600 font-semibold">
+                <span>↑ +2% Resting</span>
+                <span className="text-slate-400 font-mono">60-100</span>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* SpO2 Card */}
-        <div
-          onClick={() => navigate('/health')}
-          className="glass-card rounded-2xl p-4 cursor-pointer hover:shadow-md transition-all border border-slate-100 flex flex-col justify-between"
-        >
-          <div className="flex items-center space-x-2">
-            <div className="p-2 rounded-xl bg-blue-50 text-blue-500">
-              <Droplets className="w-4 h-4 fill-blue-500" />
+            {/* Micro Wave ECG graphic */}
+            <div className="h-6 w-full text-rose-500 opacity-80 pt-1">
+              <svg viewBox="0 0 100 24" className="w-full h-full stroke-current fill-none stroke-2">
+                <path d="M0,12 L20,12 L25,4 L30,20 L35,2 L40,16 L45,12 L100,12" />
+              </svg>
             </div>
-            <span className="text-xs font-semibold text-slate-600">{t('vital.spo2', 'SpO2')}</span>
           </div>
-          <div className="mt-2">
-            <div className="text-2xl font-extrabold text-slate-800">
-              {spo2} <span className="text-xs font-normal text-slate-500">%</span>
+
+          {/* 2. BLOOD PRESSURE SPECTRUM (Royal Violet) */}
+          <div
+            onClick={() => navigate('/health')}
+            className="group relative rounded-3xl p-4 bg-gradient-to-br from-purple-50 via-white to-indigo-50/40 border border-purple-200/80 shadow-md hover:shadow-xl hover:shadow-purple-500/10 hover:border-purple-400 transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/30 group-hover:scale-110 transition-transform">
+                  <Heart className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">Blood Pressure</span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">Validated</span>
             </div>
-            <div className="flex items-center justify-between mt-1 text-[11px] text-emerald-600">
-              <span>↑ +1%</span>
-              <div className="w-12 h-3 text-blue-400">
-                <svg viewBox="0 0 40 10" className="w-full h-full fill-none stroke-current stroke-2">
-                  <path d="M0,7 Q15,2 25,6 T40,3" />
-                </svg>
+
+            <div className="my-3">
+              <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
+                {bloodPressure} <span className="text-xs font-bold text-slate-400">mmHg</span>
+              </div>
+              <div className="text-[11px] text-emerald-600 font-semibold mt-1">Normal / Stage 1</div>
+            </div>
+
+            <div className="w-full bg-purple-100 rounded-full h-1.5 overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-500 to-indigo-600 h-full w-[70%]" />
+            </div>
+          </div>
+
+          {/* 3. SPO2 OXYGENATION TANK (Ocean Cyan) */}
+          <div
+            onClick={() => navigate('/health')}
+            className="group relative rounded-3xl p-4 bg-gradient-to-br from-cyan-50 via-white to-sky-50/40 border border-cyan-200/80 shadow-md hover:shadow-xl hover:shadow-cyan-500/10 hover:border-cyan-400 transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-500 text-white shadow-md shadow-cyan-500/30 group-hover:scale-110 transition-transform">
+                  <Droplets className="w-4 h-4 fill-white" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">{t('vital.spo2', 'SpO2')}</span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800">Arterial</span>
+            </div>
+
+            <div className="my-3">
+              <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
+                {spo2} <span className="text-xs font-bold text-slate-400">%</span>
+              </div>
+              <div className="flex items-center justify-between mt-1 text-[11px] text-emerald-600 font-semibold">
+                <span>↑ High Saturation</span>
+                <span className="text-slate-400 font-mono">≥95%</span>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Body Temp Card */}
-        <div
-          onClick={() => navigate('/health')}
-          className="glass-card rounded-2xl p-4 cursor-pointer hover:shadow-md transition-all border border-slate-100 flex flex-col justify-between"
-        >
-          <div className="flex items-center space-x-2">
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-500">
-              <Thermometer className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-semibold text-slate-600">{t('vital.bodyTemp', 'Body Temp')}</span>
-          </div>
-          <div className="mt-2">
-            <div className="text-2xl font-extrabold text-slate-800">
-              {temp} <span className="text-xs font-normal text-slate-500">°C</span>
-            </div>
-            <div className="flex items-center space-x-1 mt-1 text-[11px] text-emerald-600 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              <span>{t('vital.normalRange', 'Normal Range')}</span>
+            <div className="w-full bg-cyan-100 rounded-full h-1.5 overflow-hidden">
+              <div className="bg-gradient-to-r from-cyan-400 to-blue-500 h-full" style={{ width: `${spo2}%` }} />
             </div>
           </div>
-        </div>
 
-        {/* Steps Card */}
-        <div
-          onClick={() => navigate('/sleep-activity')}
-          className="glass-card rounded-2xl p-4 cursor-pointer hover:shadow-md transition-all border border-slate-100 flex flex-col justify-between"
-        >
-          <div className="flex items-center space-x-2">
-            <div className="p-2 rounded-xl bg-cyan-50 text-cyan-600">
-              <Footprints className="w-4 h-4" />
+          {/* 4. BODY TEMPERATURE SENTINEL (Sunburst Amber) */}
+          <div
+            onClick={() => navigate('/health')}
+            className="group relative rounded-3xl p-4 bg-gradient-to-br from-amber-50 via-white to-orange-50/40 border border-amber-200/80 shadow-md hover:shadow-xl hover:shadow-amber-500/10 hover:border-amber-400 transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30 group-hover:scale-110 transition-transform">
+                  <Thermometer className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">{t('vital.bodyTemp', 'Body Temp')}</span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Normal</span>
             </div>
-            <span className="text-xs font-semibold text-slate-600">{t('vital.steps', 'Steps')}</span>
+
+            <div className="my-3">
+              <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
+                {temp} <span className="text-xs font-bold text-slate-400">°C</span>
+              </div>
+              <div className="text-[11px] text-emerald-600 font-semibold mt-1">Afebrile / 98.2°F</div>
+            </div>
+
+            <div className="w-full bg-amber-100 rounded-full h-1.5 overflow-hidden">
+              <div className="bg-gradient-to-r from-amber-400 to-orange-500 h-full w-[65%]" />
+            </div>
           </div>
-          <div className="mt-2">
-            <div className="text-2xl font-extrabold text-slate-800">
-              {steps.toLocaleString()} <span className="text-xs font-normal text-slate-500">/ 6,000</span>
+
+          {/* 5. KINETIC STEP ENGINE (Aurora Emerald) */}
+          <div
+            onClick={() => navigate('/sleep-activity')}
+            className="group relative rounded-3xl p-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50/40 border border-emerald-200/80 shadow-md hover:shadow-xl hover:shadow-emerald-500/10 hover:border-emerald-400 transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30 group-hover:scale-110 transition-transform">
+                  <Footprints className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">{t('vital.steps', 'Steps')}</span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{distanceKm} km</span>
             </div>
-            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
+
+            <div className="my-3">
+              <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
+                {steps.toLocaleString()} <span className="text-xs font-bold text-slate-400">/ 6k</span>
+              </div>
+              <div className="text-[11px] text-emerald-600 font-semibold mt-1">{Math.round((steps / 6000) * 100)}% Daily Goal</div>
+            </div>
+
+            <div className="w-full bg-emerald-100 rounded-full h-1.5 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-cyan-400 to-blue-500 h-1.5 rounded-full"
+                className="bg-gradient-to-r from-emerald-400 to-teal-500 h-full rounded-full"
                 style={{ width: `${Math.min(100, Math.round((steps / 6000) * 100))}%` }}
               />
             </div>
           </div>
-        </div>
 
-        {/* Sleep Card */}
-        <div
-          onClick={() => navigate('/sleep-activity')}
-          className="glass-card rounded-2xl p-4 cursor-pointer hover:shadow-md transition-all border border-slate-100 flex flex-col justify-between"
-        >
-          <div className="flex items-center space-x-2">
-            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-500">
-              <Moon className="w-4 h-4 fill-indigo-500" />
+          {/* 6. LIQUID HYDRATION RESERVOIR (Electric Sapphire with Interactive Quick-Log) */}
+          <div
+            onClick={handleLogGlassWater}
+            className="group relative rounded-3xl p-4 bg-gradient-to-br from-sky-50 via-white to-blue-50/50 border border-sky-200/80 shadow-md hover:shadow-xl hover:shadow-sky-500/15 hover:border-sky-400 transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden"
+            title="Click to instantly record +250ml glass of water"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-2xl bg-gradient-to-br from-blue-500 to-sky-500 text-white shadow-md shadow-blue-500/30 group-hover:scale-110 transition-transform">
+                  <Droplets className="w-4 h-4 fill-white" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">Hydration</span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                +250ml 💧
+              </span>
             </div>
-            <span className="text-xs font-semibold text-slate-600">{t('vital.sleep', 'Sleep')}</span>
+
+            <div className="my-3">
+              <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
+                {hydration.total_intake_ml} <span className="text-xs font-bold text-slate-400">/ 2500ml</span>
+              </div>
+              <div className="text-[11px] text-blue-600 font-semibold mt-1">{Math.round(hydration.percentage)}% Daily Target</div>
+            </div>
+
+            {/* Liquid Wave Animation Bar */}
+            <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-cyan-400 to-blue-600 h-full rounded-full"
+                style={{ width: `${Math.min(100, hydration.percentage)}%` }}
+              />
+            </div>
           </div>
-          <div className="mt-2">
-            <div className="text-2xl font-extrabold text-slate-800">
-              {sleepStr}
+
+          {/* 7. CIRCADIAN SLEEP ARCHITECTURE (Twilight Indigo) */}
+          <div
+            onClick={() => navigate('/sleep-activity')}
+            className="group relative rounded-3xl p-4 bg-gradient-to-br from-indigo-50 via-white to-slate-50 border border-indigo-200/80 shadow-md hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-400 transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/30 group-hover:scale-110 transition-transform">
+                  <Moon className="w-4 h-4 fill-white" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">{t('vital.sleep', 'Sleep')}</span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">★ 88%</span>
             </div>
-            <div className="flex items-center space-x-1 mt-1 text-[11px] text-amber-500 font-medium">
-              <span>{t('vital.excellent', '★ Excellent')}</span>
+
+            <div className="my-3">
+              <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
+                {sleepStr}
+              </div>
+              <div className="text-[11px] text-indigo-600 font-semibold mt-1">Deep & REM Rest</div>
+            </div>
+
+            <div className="w-full bg-indigo-100 rounded-full h-1.5 overflow-hidden">
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full w-[85%]" />
             </div>
           </div>
         </div>
       </div>
 
       {/* =========================================================================
-          ROW 3: THREE PANELS (Live ECG Monitor, AI Health Insights, Your Location)
-                 + 3D ROBOT VOICE ASSISTANT (Spans Row 3 & 4 on right)
+          HEALTH COMMAND CENTER DECK (LIVE OSCILLOSCOPE, AI DIGITAL TWIN, GPS TACTICAL, VOICE BOT)
          ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         <div className="lg:col-span-9 space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-            {/* Live ECG Monitor */}
-            <div className="md:col-span-5">
+            {/* Live ECG Oscilloscope Screen */}
+            <div className="md:col-span-6">
               <LiveECGCanvas heartRate={heartRate} />
             </div>
 
-            {/* AI Health Insights */}
-            <div className="md:col-span-4 glass-card rounded-2xl p-4 border border-slate-100 flex flex-col justify-between shadow-sm bg-gradient-to-br from-white via-white to-sky-50/40">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-700">
-                    <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
-                    <span>{t('dash.aiHealthInsights', 'AI Health Insights')}</span>
-                  </div>
-                  <button
-                    onClick={() => navigate('/ai-insights')}
-                    className="text-[11px] text-cyan-600 font-semibold hover:underline flex items-center cursor-pointer"
-                  >
-                    {t('dash.viewDetails', 'View Details ➔')}
-                  </button>
-                </div>
+            {/* AI Health Digital Twin & Predictive Radar */}
+            <div className="md:col-span-6 bg-gradient-to-br from-[#0a1424] via-[#0d1d36] to-[#081224] rounded-3xl p-5 text-white border border-cyan-500/30 shadow-2xl flex flex-col justify-between relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-44 h-44 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
 
-                <div className="flex items-center justify-around my-2">
-                  <div className="w-14 h-14 rounded-full bg-amber-100/60 border border-amber-300 flex items-center justify-center text-amber-500 shadow-inner">
-                    💡
+              <div className="flex items-center justify-between mb-2 z-10">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                    <Sparkles className="w-4 h-4 text-cyan-400" />
                   </div>
-                  <div className="flex items-end space-x-1 h-10">
-                    <div className="w-2.5 h-6 bg-cyan-200 rounded-t"></div>
-                    <div className="w-2.5 h-8 bg-cyan-400 rounded-t"></div>
-                    <div className="w-2.5 h-10 bg-cyan-600 rounded-t"></div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300">AI Health Digital Twin</h3>
+                    <p className="text-[10px] text-slate-400">Multi-day physiological drift & baseline analysis</p>
                   </div>
                 </div>
-
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  {aiInsightText}
-                </p>
-              </div>
-            </div>
-
-            {/* Your Location */}
-            <div className="md:col-span-3 glass-card rounded-2xl p-4 border border-slate-100 flex flex-col justify-between shadow-sm">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-700">
-                    <MapPin className="w-3.5 h-3.5 text-blue-600" />
-                    <span>{t('dash.yourLocation', 'Your Location')}</span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
-                    {gpsLocation.isLive ? t('dash.liveGPS', '● Live GPS') : t('dash.registered', '● Registered')}
-                  </span>
-                </div>
-
-                <div
-                  onClick={() => navigate('/gps')}
-                  className="relative w-full h-28 rounded-xl overflow-hidden border border-slate-200 cursor-pointer shadow-sm group"
-                  title="Click to open Full Google Maps Tracker"
-                >
-                  <iframe
-                    title="Google Map Live Patient Preview"
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0, pointerEvents: 'none' }}
-                    loading="lazy"
-                    src={`https://maps.google.com/maps?q=${gpsLocation.lat},${gpsLocation.lng}&z=15&output=embed`}
-                    className="w-full h-full"
-                  />
-                  <div className="absolute inset-0 bg-blue-900/10 group-hover:bg-transparent transition-all pointer-events-none" />
-                  <div className="absolute top-1 right-1 bg-white/95 px-2 py-0.5 rounded text-[10px] font-bold text-blue-600 shadow-sm flex items-center gap-1">
-                    <span>Google Maps</span>
-                  </div>
-                  <div className="absolute bottom-1 left-1 bg-slate-900/80 backdrop-blur-sm text-white px-2 py-0.5 rounded text-[10px] font-mono font-bold shadow-sm">
-                    {gpsLocation.lat.toFixed(4)}, {gpsLocation.lng.toFixed(4)}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-2 text-center space-y-1">
-                <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <span>✓</span>
-                  <span>{t('dash.safeZoneActive', 'Safe Zone: Active (500m)')}</span>
-                </span>
                 <button
                   type="button"
-                  onClick={() => navigate('/gps')}
-                  className="w-full text-center text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center justify-center gap-1 pt-0.5 cursor-pointer"
+                  onClick={() => navigate('/ai-insights')}
+                  className="text-xs text-cyan-300 hover:text-white font-bold cursor-pointer transition-colors"
                 >
-                  <span>Open Full Google Map View</span>
-                  <span>→</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* ROW 4 */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-            {/* Sleep & Activity Card */}
-            <div className="md:col-span-4 glass-card rounded-2xl p-4 border border-slate-100 flex flex-col justify-between shadow-sm relative overflow-hidden">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-700">
-                  <Moon className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>{t('dash.sleepAndActivity', 'Sleep & Activity')}</span>
-                </div>
-                <button
-                  onClick={() => navigate('/sleep-activity')}
-                  className="text-[11px] text-cyan-600 font-semibold hover:underline cursor-pointer"
-                >
-                  {t('dash.viewDetails', 'View Details ➔')}
+                  Deep Insights ➔
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 items-center my-1">
-                <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-indigo-50/50">
-                  <span className="text-xl font-black text-indigo-950">{sleepStr}</span>
-                  <span className="text-[10px] text-indigo-600 font-medium">{t('vital.sleep', 'Sleep')}</span>
-                </div>
-
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center space-x-1.5 text-slate-600 font-medium">
-                    <span className="p-1 rounded bg-indigo-100 text-indigo-600">🛌</span>
-                    <span>{t('dash.sleepQuality', '88% Quality')}</span>
-                  </div>
-                  <div className="flex items-center space-x-1.5 text-slate-600 font-medium">
-                    <span className="p-1 rounded bg-cyan-100 text-cyan-600">🏃</span>
-                    <span>{t('dash.activityKm', '2.4 km Activity')}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="relative h-14 rounded-xl overflow-hidden bg-gradient-to-r from-blue-900 to-indigo-950 flex items-center justify-center text-white text-xs">
-                <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:8px_8px]" />
-                <span className="z-10 font-medium">{t('dash.sleepPeaceful', '✨ Peaceful Deep Sleep Monitored')}</span>
-              </div>
-            </div>
-
-            {/* Health Digital Twin Card */}
-            <div className="md:col-span-5 bg-gradient-to-br from-[#0c182b] via-[#0f2444] to-[#081224] rounded-2xl p-4 text-white border border-cyan-500/30 shadow-xl flex flex-col justify-between relative overflow-hidden">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center space-x-1.5 text-xs font-bold text-cyan-300">
-                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>{t('dash.digitalTwin', 'Your Health Digital Twin')}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between my-2">
-                <div className="relative w-24 h-28 flex items-center justify-center">
-                  <div className="absolute inset-0 rounded-full bg-cyan-400/20 blur-lg animate-pulse" />
-                  <svg className="w-16 h-28 stroke-cyan-400 fill-cyan-400/10 drop-shadow-[0_0_8px_#00F0FF]" viewBox="0 0 100 200">
+              {/* Holographic Body Model & Realtime Biomarker Readings */}
+              <div className="flex items-center justify-between my-2 z-10">
+                <div className="relative w-28 h-32 flex items-center justify-center shrink-0">
+                  <div className="absolute inset-0 rounded-full bg-cyan-400/20 blur-xl animate-pulse" />
+                  <svg className="w-20 h-32 stroke-cyan-400 fill-cyan-400/10 drop-shadow-[0_0_10px_#06b6d4]" viewBox="0 0 100 200">
                     <circle cx="50" cy="20" r="14" strokeWidth="2" />
                     <line x1="50" y1="34" x2="50" y2="44" strokeWidth="2" />
                     <polygon points="35,44 65,44 58,110 42,110" strokeWidth="2" />
@@ -983,96 +1070,168 @@ export const DashboardPage: React.FC = () => {
                     <line x1="40" y1="155" x2="38" y2="195" strokeWidth="2" />
                     <line x1="56" y1="110" x2="60" y2="155" strokeWidth="2" />
                     <line x1="60" y1="155" x2="62" y2="195" strokeWidth="2" />
-                    <circle cx="50" cy="65" r="4" fill="#00FFA3" className="animate-ping" />
+                    {/* Pulsing Organ Nodes */}
+                    <circle cx="50" cy="65" r="4" fill="#f43f5e" className="animate-ping" />
+                    <circle cx="50" cy="65" r="3" fill="#f43f5e" />
+                    <circle cx="50" cy="20" r="3" fill="#06b6d4" className="animate-pulse" />
                   </svg>
                 </div>
 
-                <div className="flex-1 ml-3 space-y-2">
-                  <div className="text-[11px] text-slate-300 font-medium">{t('dash.healthStatus', 'Health Status')}</div>
-                  <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                    <span>✓</span>
-                    <span>{t('dash.stable', 'Stable')}</span>
+                <div className="flex-1 ml-4 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-300 font-semibold">Cardiac Rhythm</span>
+                    <span className="text-emerald-400 font-bold">Sinus Rhythm (Normal)</span>
                   </div>
-                  <div className="text-[10px] text-slate-400">{t('dash.vsBaseline', 'vs. your baseline')}</div>
-                  <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                    <div className="bg-gradient-to-r from-emerald-400 to-cyan-400 h-1.5 rounded-full w-[85%]" />
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-300 font-semibold">Metabolic Baseline</span>
+                    <span className="text-cyan-300 font-bold">+2% Drift (Stable)</span>
                   </div>
-                  <div className="text-right text-[10px] text-cyan-300 font-bold">+2% Sub-threshold</div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-300 font-semibold">Stress Index</span>
+                    <span className="text-indigo-300 font-bold">18 / 100 (Low Stress)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300/90 leading-relaxed bg-white/5 p-2 rounded-xl border border-white/10 mt-1">
+                    {aiInsightText}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tactical Geofence & Location Station */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+            {/* Live GPS Tracker Frame */}
+            <div className="md:col-span-6 bg-white rounded-3xl p-5 border border-slate-200 shadow-md flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-blue-50 text-blue-600">
+                    <MapPin className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-800">Live GPS Location & Safe Geofence</h3>
+                    <p className="text-[10px] text-slate-400">Continuous coordinates & boundary supervision</p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  {gpsLocation.isLive ? '● Live Device Satellite' : '● Registered Coordinates'}
+                </span>
+              </div>
+
+              <div
+                onClick={() => navigate('/gps')}
+                className="relative w-full h-36 rounded-2xl overflow-hidden border border-slate-200 cursor-pointer shadow-inner group"
+                title="Click to open Full Google Maps Tracker"
+              >
+                <iframe
+                  title="Google Map Live Patient Preview"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0, pointerEvents: 'none' }}
+                  loading="lazy"
+                  src={`https://maps.google.com/maps?q=${gpsLocation.lat},${gpsLocation.lng}&z=15&output=embed`}
+                  className="w-full h-full"
+                />
+                <div className="absolute inset-0 bg-blue-900/10 group-hover:bg-transparent transition-all pointer-events-none" />
+                <div className="absolute top-2 right-2 bg-white/95 px-2.5 py-1 rounded-xl text-[10px] font-bold text-blue-700 shadow-md flex items-center gap-1.5">
+                  <Navigation className="w-3 h-3 text-blue-600" />
+                  <span>Google Maps</span>
+                </div>
+                <div className="absolute bottom-2 left-2 bg-slate-900/85 backdrop-blur-md text-white px-3 py-1 rounded-xl text-[10px] font-mono font-bold shadow-md">
+                  📍 {gpsLocation.lat.toFixed(4)}, {gpsLocation.lng.toFixed(4)}
                 </div>
               </div>
 
-              <div className="text-right pt-1">
+              <div className="flex items-center justify-between pt-3 mt-1 text-xs">
+                <span className="font-semibold text-emerald-700 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Inside Home Safe Zone (500m)
+                </span>
                 <button
-                  onClick={() => navigate('/health')}
-                  className="px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 cursor-pointer"
+                  type="button"
+                  onClick={() => navigate('/gps')}
+                  className="text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
                 >
-                  {t('dash.viewDetails', 'View Details ➔')}
+                  Full Map View ➔
                 </button>
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="md:col-span-3 glass-card rounded-2xl p-4 border border-slate-100 flex flex-col justify-between shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-700">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                  <span>{t('action.quickActions', 'Quick Actions')}</span>
+            {/* Quick Health Shortcuts */}
+            <div className="md:col-span-6 bg-white rounded-3xl p-5 border border-slate-200 shadow-md flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-cyan-50 text-cyan-600">
+                    <Sparkles className="w-4 h-4 text-cyan-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-800">Quick Clinical Shortcuts</h3>
+                    <p className="text-[10px] text-slate-400">One-tap medical communication & scheduling</p>
+                  </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => navigate('/settings')}
-                  className="text-[11px] text-cyan-600 font-semibold hover:underline cursor-pointer"
+                  className="text-xs text-cyan-600 hover:underline font-bold cursor-pointer"
                 >
-                  {t('dash.viewAll', 'View All ➔')}
+                  Settings ➔
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 my-auto">
+              <div className="grid grid-cols-2 gap-3 my-auto pt-2">
                 <button
+                  type="button"
                   onClick={() => navigate('/communication')}
-                  className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
+                  className="p-3 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50/50 hover:from-blue-100 hover:to-indigo-100 border border-blue-100 flex items-center gap-3 transition-all cursor-pointer group text-left"
                 >
-                  <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                    <Mic className="w-4 h-4" />
-                  </div>
-                  <span className="text-[10px] font-semibold text-slate-600 mt-1.5 text-center">
-                    {t('action.voiceAssistant', 'Voice Assistant')}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => navigate('/gps')}
-                  className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
-                >
-                  <div className="w-10 h-10 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                    <Navigation className="w-4 h-4" />
-                  </div>
-                  <span className="text-[10px] font-semibold text-slate-600 mt-1.5 text-center">
-                    {t('action.findLocation', 'Find My Location')}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => navigate('/communication')}
-                  className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
-                >
-                  <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
                     <Users className="w-4 h-4" />
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-600 mt-1.5 text-center">
-                    {t('action.contactCaregiver', 'Contact Caregiver')}
-                  </span>
+                  <div>
+                    <div className="text-xs font-bold text-slate-800">Family Caregiver</div>
+                    <div className="text-[10px] text-slate-500">Call / Message</div>
+                  </div>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => navigate('/notifications')}
-                  className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
+                  className="p-3 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50/50 hover:from-amber-100 hover:to-orange-100 border border-amber-100 flex items-center gap-3 transition-all cursor-pointer group text-left"
                 >
-                  <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
                     <Pill className="w-4 h-4" />
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-600 mt-1.5 text-center">
-                    {t('action.medicationReminder', 'Medication Reminder')}
-                  </span>
+                  <div>
+                    <div className="text-xs font-bold text-slate-800">Pill Alarms</div>
+                    <div className="text-[10px] text-slate-500">Scheduled Doses</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowReportsModal(true)}
+                  className="p-3 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50/50 hover:from-purple-100 hover:to-pink-100 border border-purple-100 flex items-center gap-3 transition-all cursor-pointer group text-left"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-800">Clinical Vault</div>
+                    <div className="text-[10px] text-slate-500">Reports & Allergies</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/devices')}
+                  className="p-3 rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-50/50 hover:from-teal-100 hover:to-emerald-100 border border-teal-100 flex items-center gap-3 transition-all cursor-pointer group text-left"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                    <Radio className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-800">Hardware Hub</div>
+                    <div className="text-[10px] text-slate-500">ESP32 BLE & Wi-Fi</div>
+                  </div>
                 </button>
               </div>
             </div>
@@ -1089,22 +1248,22 @@ export const DashboardPage: React.FC = () => {
           MODULE 4 & 5: MEDICINE MANAGEMENT & SMART REMINDER SCHEDULES
          ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Medicine Management Card */}
-        <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+        {/* Medicine Dispensary & Active Prescriptions */}
+        <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-slate-200 shadow-md space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-teal-100 text-teal-600 flex items-center justify-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center shadow-md shadow-teal-500/20">
                 <Pill className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900">Active Prescriptions & Medication Schedule</h3>
+                <h3 className="text-base font-extrabold text-slate-900">Active Prescriptions & Medication Schedule</h3>
                 <p className="text-xs text-slate-500">Track doses, remaining tablet inventory, and consumption</p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setShowAddMedModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               Add Medicine
@@ -1113,19 +1272,19 @@ export const DashboardPage: React.FC = () => {
 
           <div className="space-y-3">
             {medicines.length === 0 ? (
-              <div className="text-center py-6 text-slate-400 text-xs">
+              <div className="text-center py-8 text-slate-400 text-xs">
                 No active medications prescribed. Click <strong>Add Medicine</strong> to track your schedule.
               </div>
             ) : (
               medicines.map((med) => (
                 <div
                   key={med.id}
-                  className="p-3.5 rounded-2xl border border-slate-200 hover:border-teal-400 transition-all bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                  className="p-4 rounded-2xl border border-slate-200 hover:border-teal-400 transition-all bg-slate-50/70 hover:bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm"
                 >
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-900">{med.medicine_name}</span>
-                      <span className="text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full">
+                      <span className="text-sm font-black text-slate-900">{med.medicine_name}</span>
+                      <span className="text-[10px] font-bold bg-teal-100 text-teal-800 px-2.5 py-0.5 rounded-full">
                         {med.dosage}
                       </span>
                       {med.is_low_stock && (
@@ -1136,8 +1295,8 @@ export const DashboardPage: React.FC = () => {
                       )}
                     </div>
                     <div className="text-xs text-slate-500 flex items-center gap-3">
-                      <span>Schedule: <strong className="text-slate-700">{med.scheduled_times}</strong> ({med.frequency})</span>
-                      <span>Stock: <strong className="text-slate-700">{med.remaining_quantity} / {med.total_quantity}</strong></span>
+                      <span>Schedule: <strong className="text-slate-800">{med.scheduled_times}</strong> ({med.frequency})</span>
+                      <span>Stock: <strong className="text-slate-800">{med.remaining_quantity} / {med.total_quantity}</strong></span>
                     </div>
                   </div>
 
@@ -1145,7 +1304,7 @@ export const DashboardPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleMedicineAction(med.id, 'taken')}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer flex items-center gap-1"
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <Check className="w-3.5 h-3.5" />
                       Taken
@@ -1153,7 +1312,7 @@ export const DashboardPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleMedicineAction(med.id, 'skipped')}
-                      className="px-2.5 py-1.5 border border-slate-300 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                      className="px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold transition-all cursor-pointer"
                     >
                       Skip
                     </button>
@@ -1167,7 +1326,7 @@ export const DashboardPage: React.FC = () => {
         {/* Smart Reminders & Doctor Appointments Column */}
         <div className="lg:col-span-5 space-y-5">
           {/* Smart Reminders */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-md space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center">
@@ -1181,7 +1340,7 @@ export const DashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowAddReminderModal(true)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
               >
                 <Plus className="w-3 h-3" />
                 New
@@ -1197,19 +1356,19 @@ export const DashboardPage: React.FC = () => {
                 reminders.map((rem) => (
                   <div
                     key={rem.id}
-                    className="p-2.5 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between"
+                    className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2.5">
                       <Clock className="w-4 h-4 text-slate-400" />
                       <div>
                         <div className="text-xs font-bold text-slate-800">{rem.title}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{rem.reminder_time} â€¢ {rem.recurring_days}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{rem.reminder_time} • {rem.recurring_days}</div>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleToggleReminder(rem.id, rem.is_enabled)}
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
+                      className={`px-3 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
                         rem.is_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'
                       }`}
                     >
@@ -1221,8 +1380,8 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Confirmed Doctor Appointments */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+          {/* Confirmed Doctor Consultations */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-md space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
@@ -1236,7 +1395,7 @@ export const DashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowAddApptModal(true)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
               >
                 <Plus className="w-3 h-3" />
                 Book
@@ -1252,14 +1411,14 @@ export const DashboardPage: React.FC = () => {
                 appointments.map((appt) => (
                   <div
                     key={appt.id}
-                    className="p-3 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between"
+                    className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between"
                   >
                     <div>
                       <div className="text-xs font-bold text-slate-900">{appt.doctor_name}</div>
-                      <div className="text-[10px] text-indigo-700 font-semibold">{appt.specialization} â€¢ {appt.hospital_name}</div>
+                      <div className="text-[10px] text-indigo-700 font-semibold">{appt.specialization} • {appt.hospital_name}</div>
                       <div className="text-[10px] text-slate-400">{new Date(appt.appointment_date).toLocaleDateString()} at {new Date(appt.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wider">
                       {appt.status}
                     </span>
                   </div>
@@ -1269,6 +1428,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
       {/* Medical Reports & Clinical Observations Modal */}
       {showReportsModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">

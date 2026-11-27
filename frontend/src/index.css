@@ -57,3 +57,32 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.5);
 }
+
+/* Biometric HUD & Ambient Animations */
+@keyframes hudFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes hudPulseGlow {
+  0%, 100% { opacity: 0.35; transform: scale(0.98); }
+  50% { opacity: 0.75; transform: scale(1.03); }
+}
+
+@keyframes waveMotion {
+  0% { transform: translateX(0) scaleY(1); }
+  50% { transform: translateX(-25%) scaleY(0.9); }
+  100% { transform: translateX(-50%) scaleY(1); }
+}
+
+.animate-hud-float {
+  animation: hudFloat 4s ease-in-out infinite;
+}
+
+.animate-hud-glow {
+  animation: hudPulseGlow 3s ease-in-out infinite;
+}
+
+.animate-wave-motion {
+  animation: waveMotion 8s linear infinite;
+}
