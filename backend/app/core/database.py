@@ -11,11 +11,27 @@ connect_args = {}
 if db_url.startswith("sqlite"):
     connect_args["check_same_thread"] = False
 
-engine = create_engine(
-    db_url,
-    connect_args=connect_args,
-    pool_pre_ping=True
-)
+try:
+    engine = create_engine(
+        db_url,
+        connect_args=connect_args,
+        pool_pre_ping=True
+    )
+    if not db_url.startswith("sqlite"):
+        with engine.connect() as conn:
+            pass
+except Exception as e:
+    import logging
+    logging.getLogger("uvicorn").warning(
+        f"Unable to connect to primary database ({e}). Falling back to portable SQLite database (sqlite:///./pulseguardian.db)."
+    )
+    db_url = "sqlite:///./pulseguardian.db"
+    connect_args = {"check_same_thread": False}
+    engine = create_engine(
+        db_url,
+        connect_args=connect_args,
+        pool_pre_ping=True
+    )
 
 # Enforce foreign key constraints for SQLite
 if db_url.startswith("sqlite"):

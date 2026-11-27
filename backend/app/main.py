@@ -13,6 +13,13 @@ async def lifespan(app: FastAPI):
     # Startup: ensure tables exist if database is accessible
     try:
         Base.metadata.create_all(bind=engine)
+        # Idempotently seed baseline accounts if fresh database (skip during automated test runs)
+        if settings.ENVIRONMENT != "testing":
+            try:
+                from app.scripts.seed_demo_data import seed_database
+                seed_database(clean=False)
+            except Exception:
+                pass
     except Exception:
         # Running in environment where DB is migrated via Alembic or tested separately
         pass

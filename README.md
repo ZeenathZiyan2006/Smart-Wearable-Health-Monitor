@@ -1,104 +1,203 @@
-An AI-powered wearable health and emergency protection system featuring real-time health monitoring, predictive anomaly detection, GPS tracking, multilingual voice assistance, and intelligent caregiver alerts.
+# PulseGuardian AI ❤️
+### Advanced AI-Powered Wearable Healthcare, Emergency Protection & Multilingual Caregiver Ecosystem
 
-Smart Wearable Health Monitor is an IoT-based wearable device designed to monitor and track various health parameters in real time.
-PulseGuardian AI ❤️
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?style=flat&logo=fastapi)](https://fastapi.tiangolo.com)
+[![React 19](https://img.shields.io/badge/React-19.3-61DAFB.svg?style=flat&logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org/)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB.svg?style=flat&logo=python)](https://www.python.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=flat&logo=docker)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-AI-Powered Wearable Health & Emergency Protection System
+PulseGuardian AI is an intelligent, full-stack healthcare ecosystem designed for elderly individuals, chronic care patients, family caregivers, attending physicians, and emergency response teams (EMS).
 
-1. About the Project
+It unites IoT wearable telemetry, an AI personal health digital twin, bi-directional real-time multilingual translation, high-volume emergency alarms, and role-based clinical dashboards into a unified platform.
 
-PulseGuardian AI is an intelligent wearable health-monitoring and emergency protection system designed especially for elderly individuals.
+---
 
-The system combines IoT, Artificial Intelligence, GPS tracking and multilingual voice assistance to monitor health parameters, identify unusual health patterns and provide timely emergency assistance.
+## 🌟 System Architecture
 
-It also enables patients to communicate with caregivers in their preferred regional language.
+```
+                                  +-----------------------------+
+                                  |   ESP32 / Wearable Device   |
+                                  | (Heart Rate, SpO2, GPS, SOS)|
+                                  +--------------+--------------+
+                                                 | (HTTP / BLE / WS)
+                                                 v
++---------------------------------------------------------------------------------------------------+
+|                                  FastAPI Backend Core (Port 8000)                                 |
+|                                                                                                   |
+|  [Security & RBAC]      [AI Digital Twin]      [Multilingual NLP]       [Telemetry & Emergency]   |
+|  - Patient Auth         - Baseline Learning    - IndicTrans2            - Fall Detection (112)    |
+|  - Family Caregiver     - Isolation Forest     - Audio STT / TTS        - Geofence & GPS Tracking |
+|  - Attending Doctor     - Anomaly Detector     - WebSocket Chat Feed    - Medication Scheduler    |
++------------------------------------------------+--------------------------------------------------+
+                                                 |
+         +---------------------------------------+---------------------------------------+
+         v                                                                               v
++-------------------------------+                               +-----------------------------------+
+|      Database Engine          |                               |   React + Vite Frontend (Port 5173)|
+| - Default: SQLite (portable)  |                               |                                   |
+| - Production: PostgreSQL 16   |                               | 1. Patient Self-Care Portal       |
+| - Cache & Broker: Redis 7     |                               | 2. Family Caregiver Dashboard     |
++-------------------------------+                               | 3. Attending Doctor Clinical Hub  |
+                                                                | 4. Emergency Response (EMS) Hub   |
+                                                                +-----------------------------------+
+```
 
-2. Key Features
+---
 
-Smart Health Monitoring
+## 🚀 Quick Start: Run on Any System
 
-- Real-time heart rate monitoring
-- Blood oxygen (SpO2) monitoring
-- Temperature monitoring
-- ECG monitoring (optional)
-- Sleep and activity tracking
+You can run this project on **Windows, macOS, Linux, or via Docker** in minutes.
 
-AI Health Intelligence
+### Option 1: Docker Compose (Recommended - Single Command)
 
-- Personal Health Digital Twin
-- AI-based health anomaly detection
-- Health Drift Intelligence
-- Personalized health baselines
-- Intelligent health notifications
+Pre-requisite: [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
 
-Emergency Protection
+```bash
+# 1. Clone the repository
+git clone https://github.com/ZeenathZiyan2006/Smart-Wearable-Health-Monitor.git
+cd Smart-Wearable-Health-Monitor
 
-- Physical SOS button
-- Touch and voice-based SOS
-- Fall detection
-- Live GPS tracking
-- Automatic caregiver escalation
-- Offline emergency storage and synchronization
+# 2. Build and launch all services (PostgreSQL + Redis + FastAPI Backend + React Nginx Frontend)
+docker compose up --build
+```
 
-PulseGuardian Multilingual AI
+- **Frontend Application**: [http://localhost:5173](http://localhost:5173) (also available on [http://localhost:80](http://localhost:80))
+- **Backend API & Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-- Kannada, English, Hindi and Malayalam
-- Future support for Tamil, Telugu and Urdu
-- Multilingual speech recognition
-- AI-powered language identification
-- Two-way patient-caregiver translation
-- Multilingual text-to-speech
-- Translated emergency notifications
+---
 
-Caregiver Dashboard
+### Option 2: 1-Click Scripts (No Docker Required)
 
-- Real-time patient monitoring
-- Emergency alerts
-- Patient location tracking
-- Health history and reports
-- Caregiver communication
-- Alert management
+Out of the box, PulseGuardian AI automatically uses an embedded portable SQLite database (`pulseguardian.db`) and auto-seeds all demo accounts on first launch—**no PostgreSQL installation or manual database setup required!**
 
-3. Technology Stack
+#### On Windows:
+Double-click `run.bat` or open PowerShell / Command Prompt:
+```cmd
+cd "Smart-Wearable-Health-Monitor"
+.\run.bat
+```
+*(If it is your first time running, `run.bat` will automatically invoke `setup.bat` to configure your virtual environment and install dependencies).*
 
-- ESP32
-- MAX30102
-- MPU6050
-- GPS Module
-- Embedded C/C++
-- Python
-- FastAPI
-- Scikit-learn
-- IndicTrans2
-- Whisper / Indic ASR
-- Flutter
-- React.js
-- Firebase / PostgreSQL
+#### On macOS / Linux:
+Make the launch scripts executable and run:
+```bash
+chmod +x setup.sh run.sh
+./run.sh
+```
 
-4. System Architecture
+---
 
-Wearable Sensors → ESP32 → Backend → AI Engine → Database → Patient Application / Caregiver Dashboard
+### Option 3: Manual Terminal Setup
 
-5. Project Objectives
+#### 1. Backend Setup:
+```bash
+cd backend
 
-- Make health monitoring accessible and convenient.
-- Support elderly individuals through intelligent wearable technology.
-- Identify unusual health patterns.
-- Provide multilingual communication.
-- Improve emergency response and caregiver coordination.
-- Develop an affordable and accessible healthcare solution.
+# Create and activate Python virtual environment
+python3 -m venv .venv
+# On Windows: .venv\Scripts\activate
+# On macOS/Linux: source .venv/bin/activate
 
-6. Target Users
+# Install dependencies
+pip install -r requirements.txt
 
-- Elderly individuals
-- Patients requiring regular health monitoring
-- Family caregivers
-- Healthcare support providers
+# Create environment file from example template
+cp .env.example .env
 
-7. Project Status
+# Launch FastAPI backend server
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-Currently under development.
+#### 2. Frontend Setup:
+In a separate terminal:
+```bash
+cd frontend
 
-8. Disclaimer
+# Copy environment template
+cp .env.example .env
 
-PulseGuardian AI is an educational prototype. Its readings and AI-generated alerts are not a substitute for medical diagnosis, professional medical devices or emergency medical services.
+# Install dependencies
+npm install
+
+# Start Vite development server
+npm run dev -- --host 0.0.0.0 --port 5173
+```
+
+---
+
+## 👥 Demo Login Credentials
+
+The database automatically seeds complete demo profiles for all four system roles upon first launch:
+
+| Role | Email | Password | Access & Dashboard |
+| :--- | :--- | :--- | :--- |
+| **1. Patient** | `monisha@pulseguardian.ai` | `Password@123` | Patient self-care portal, live telemetry, medication alarms, multilingual chat, Nova assistant, QR health pass |
+| **2. Family Caregiver** | `caregiver@pulseguardian.ai` | `Password@123` | Family monitoring view, live GPS tracking, medication logs, real-time translated chat & alert feeds |
+| **3. Attending Doctor** | `dr.sunita@pulseguardian.ai` | `Password@123` | Clinical diagnostic dashboard, EHR, ECG waveforms, active prescriptions management, clinical notes |
+| **4. Emergency Response (EMS)** | `ems.rajesh@pulseguardian.ai` | `Password@123` | Emergency dispatch portal, live SOS coordinates, triage vitals, medical history, turn-by-turn map routing |
+
+> **Default Verified Patient ID**: `PT-2026-000001`  
+> **Default Patient Name**: `Ramesh Kumar` / `monisha`
+
+---
+
+## 🔑 Key Features & Innovations
+
+1. **Role-Separated Dashboards**:
+   - Strictly isolated views for Patient, Family, Doctor, and Emergency Team.
+   - Authorized caregiver verification via Patient ID (`PT-YYYY-XXXXXX`) or QR token scan.
+
+2. **Multilingual Caregiver Communication**:
+   - Real-time bidirectional translation between Patient and Caregivers.
+   - Native audio pronunciation (Kannada, Hindi, Tamil, Telugu, Malayalam, English).
+   - Real-time notification dispatch to caregiver email and dashboard feed.
+
+3. **Active Prescription & Medication Alarm**:
+   - Continuous 100% volume audio alarm at scheduled dosage times.
+   - Atomic **Taken** button that locks until the next alarm cycle and decrements inventory.
+   - Low-stock and out-of-stock emergency alerts sent to caregivers.
+
+4. **Nova Voice Assistant**:
+   - Activated via screen long-press or saying the wake word **"Nova"**.
+   - Direct emergency dialing to verified emergency contacts.
+   - Multilingual voice responses with speech synthesis fallback.
+
+5. **Verified Emergency QR Health Pass**:
+   - Universal scan & verify modal for smartphones and hospital terminals.
+   - Instant emergency medical summary, blood group, allergies, and uploaded PDF health reports.
+
+---
+
+## 🧪 Automated Testing & Verification
+
+Run the full backend test suite (192 unit and integration tests):
+```bash
+cd backend
+python -m pytest tests/ -v
+```
+
+Verify frontend TypeScript compilation and production build:
+```bash
+cd frontend
+npm run build
+```
+
+---
+
+## ⚙️ Environment Variables Reference
+
+### Backend (`backend/.env`):
+- `DATABASE_URL`: Defaults to portable `sqlite:///./pulseguardian.db`. Can be switched to `postgresql+psycopg2://user:pass@host:5432/db` for PostgreSQL.
+- `SECRET_KEY`: JWT authentication signing key.
+- `BACKEND_CORS_ORIGINS`: Allowed client origins (defaults to localhost:5173, localhost:3000, localhost:80).
+- `ENVIRONMENT`: Set to `development`, `testing`, or `production`.
+
+### Frontend (`frontend/.env`):
+- `VITE_API_BASE_URL`: Base URL for the FastAPI backend (`http://localhost:8000/api/v1`).
+
+---
+
+## 📄 License
+This project is open-source under the [MIT License](LICENSE).

@@ -31,7 +31,16 @@ from app.models.health import HealthTelemetry
 from app.services.digital_twin_service import DigitalTwinService
 from app.services.health_drift_service import HealthDriftService
 from app.models.location import LocationLog
-from app.models.user import CaregiverProfile, PatientCaregiverAssociation, PatientProfile, User, UserRole
+from app.models.user import (
+    CaregiverProfile,
+    DoctorPatientAssignment,
+    DoctorProfile,
+    EmergencyTeamProfile,
+    PatientCaregiverAssociation,
+    PatientProfile,
+    User,
+    UserRole,
+)
 from app.models.voice import VoiceConsent, VoiceMessageLog
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -151,6 +160,76 @@ def seed_database(clean: bool = False):
             logger.info("Created Demo Secondary Caregiver: caregiver2@pulseguardian.ai (Pass: Caregiver@123)")
         else:
             caregiver2_profile = caregiver2_user.caregiver_profile
+
+        # -------------------------------------------------------------------------
+        # 3b. Demo Attending Doctor
+        # -------------------------------------------------------------------------
+        doctor_user = db.query(User).filter(User.email == "dr.sunita@pulseguardian.ai").first()
+        if not doctor_user:
+            doctor_user = User(
+                email="dr.sunita@pulseguardian.ai",
+                hashed_password=get_password_hash("Password@123"),
+                full_name="Dr. Sunita Rao",
+                role=UserRole.DOCTOR.value,
+                phone_number="+91 98450 12345",
+                preferred_language="en",
+                is_active=True,
+                created_at=now - timedelta(days=30),
+            )
+            db.add(doctor_user)
+            db.flush()
+
+            doc_profile = DoctorProfile(
+                user_id=doctor_user.id,
+                medical_reg_no="MCI-CARDIO-8849",
+                specialization="Cardiology",
+                hospital_name="PulseGuardian Heart Center",
+                designation="Senior Attending Cardiologist",
+                is_verified=True,
+                verified_at=now,
+            )
+            db.add(doc_profile)
+            db.flush()
+
+            # Assign doctor to patient
+            assignment = DoctorPatientAssignment(
+                doctor_id=doc_profile.id,
+                patient_id=patient_profile.id,
+                status="active",
+                can_prescribe=True,
+                clinical_notes="Baseline cardiac rhythm monitored. Prescribed daily cardiology routine.",
+                assigned_at=now,
+            )
+            db.add(assignment)
+            logger.info("Created Demo Doctor: dr.sunita@pulseguardian.ai (Pass: Password@123)")
+
+        # -------------------------------------------------------------------------
+        # 3c. Demo Emergency Response Officer
+        # -------------------------------------------------------------------------
+        ems_user = db.query(User).filter(User.email == "ems.rajesh@pulseguardian.ai").first()
+        if not ems_user:
+            ems_user = User(
+                email="ems.rajesh@pulseguardian.ai",
+                hashed_password=get_password_hash("Password@123"),
+                full_name="Officer Rajesh Kumar",
+                role=UserRole.EMERGENCY.value,
+                phone_number="+91 91100 11223",
+                preferred_language="en",
+                is_active=True,
+                created_at=now - timedelta(days=30),
+            )
+            db.add(ems_user)
+            db.flush()
+
+            ems_profile = EmergencyTeamProfile(
+                user_id=ems_user.id,
+                organization_name="Metropolitan Emergency Trauma & EMS",
+                responder_id="EMS-BLR-402",
+                designation="Certified Lead Paramedic",
+                is_verified=True,
+            )
+            db.add(ems_profile)
+            logger.info("Created Demo Emergency Responder: ems.rajesh@pulseguardian.ai (Pass: Password@123)")
 
         # -------------------------------------------------------------------------
         # 4. Patient-Caregiver Associations

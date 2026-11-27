@@ -105,10 +105,16 @@ class Settings(BaseSettings):
     def get_database_url(self) -> str:
         if self.DATABASE_URL:
             return self.DATABASE_URL
-        return (
-            f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
-            f"{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
+        # If explicitly opted into PostgreSQL or running in Docker container network
+        if os.getenv("USE_POSTGRES", "false").lower() in ("true", "1", "yes") or (
+            os.getenv("POSTGRES_SERVER") and os.getenv("POSTGRES_SERVER") not in ("localhost", "127.0.0.1")
+        ):
+            return (
+                f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
+                f"{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            )
+        # Default zero-configuration portable SQLite database
+        return "sqlite:///./pulseguardian.db"
 
 
 settings = Settings()
