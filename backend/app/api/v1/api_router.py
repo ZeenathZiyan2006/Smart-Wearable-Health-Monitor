@@ -14,6 +14,7 @@ from app.api.v1 import (
     patient_dashboard,
     users,
     voice,
+    caregiver_portal,
 )
 
 api_router = APIRouter()
@@ -32,3 +33,5 @@ api_router.include_router(voice.router, prefix="/voice", tags=["Multilingual Voi
 api_router.include_router(audit.router, prefix="/audit", tags=["System Audit Logs"])
 
 api_router.include_router(patient_dashboard.router, prefix="/patient/dashboard", tags=["Patient Dashboard Modules"])
+
+api_router.include_router(caregiver_portal.router, prefix="/caregiver-portal", tags=["Caregiver, Doctor & Emergency Portal"])

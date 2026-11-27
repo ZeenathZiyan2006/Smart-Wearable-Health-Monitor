@@ -263,27 +263,24 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
     }).catch(() => {});
   }, []);
 
-  // Native Speech Synthesis with 100% volume and Indian Accent / Regional Engine Selection
-  const speakText = (text: string, category: string = 'general') => {
+  // Natural Indic Speech Engine with 100% volume and Native Language pronunciation
+  const speakWithWebSpeech = (text: string, langTag: string, langCode: string, category: string) => {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
 
     const voices = window.speechSynthesis.getVoices();
-    const langCode = selectedLang || 'kn';
-    const langPrefix = langCode === 'kn' ? 'kn' : langCode === 'hi' ? 'hi' : langCode === 'ta' ? 'ta' : langCode === 'te' ? 'te' : langCode === 'ml' ? 'ml' : 'en';
+    const langPrefix = langCode;
 
-    // 1. Check for exact native regional voice (e.g. kn-IN, hi-IN, Google Kannada, etc.)
     const matchedVoice = voices.find(
       (v) =>
-        v.lang.toLowerCase().startsWith(langPrefix) ||
+        v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix) ||
         v.name.toLowerCase().includes(langPrefix) ||
-        (langCode === 'kn' && v.name.toLowerCase().includes('kannada')) ||
-        (langCode === 'hi' && v.name.toLowerCase().includes('hindi')) ||
-        (langCode === 'ta' && v.name.toLowerCase().includes('tamil')) ||
-        (langCode === 'te' && v.name.toLowerCase().includes('telugu'))
+        (langCode === 'kn' && (v.name.toLowerCase().includes('kannada') || v.lang.includes('kn'))) ||
+        (langCode === 'hi' && (v.name.toLowerCase().includes('hindi') || v.lang.includes('hi'))) ||
+        (langCode === 'ta' && (v.name.toLowerCase().includes('tamil') || v.lang.includes('ta'))) ||
+        (langCode === 'te' && (v.name.toLowerCase().includes('telugu') || v.lang.includes('te')))
     );
 
-    // 2. Check for Indian accent voice (en-IN, hi-IN)
     const indianVoice = voices.find(
       (v) => v.lang.toLowerCase().includes('in') || v.name.toLowerCase().includes('india')
     );
@@ -291,28 +288,39 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
     const utterance = new SpeechSynthesisUtterance();
 
     if (matchedVoice) {
-      // System has native Indic voice: speak native Unicode text directly
       utterance.voice = matchedVoice;
       utterance.lang = matchedVoice.lang;
       utterance.text = text;
     } else {
-      // System lacks regional voice (e.g. standard Windows without Kannada voicepack):
-      // Use Indian English or general voice and speak phonetically accurate native words!
-      if (indianVoice) {
-        utterance.voice = indianVoice;
-        utterance.lang = indianVoice.lang;
-      } else {
-        utterance.lang = 'en-IN';
-      }
+      utterance.lang = langTag;
+      if (indianVoice) utterance.voice = indianVoice;
       const phoneticText = PHONETIC_RESPONSES[category]?.[langCode] || text;
       utterance.text = phoneticText;
     }
 
-    utterance.volume = 1.0; // 100% loud volume
-    utterance.rate = 0.88;  // Clear, natural medical assistant tempo
+    utterance.volume = 1.0;
+    utterance.rate = 0.9;
     utterance.pitch = 1.0;
 
     window.speechSynthesis.speak(utterance);
+  };
+
+  const speakText = (text: string, category: string = 'general') => {
+    const langCode = selectedLang || 'kn';
+    const langTag = langCode === 'kn' ? 'kn-IN' : langCode === 'hi' ? 'hi-IN' : langCode === 'ta' ? 'ta-IN' : langCode === 'te' ? 'te-IN' : langCode === 'ml' ? 'ml-IN' : 'en-IN';
+
+    // Play high-fidelity native audio with 100% volume
+    try {
+      const cleanSnippet = text.slice(0, 160);
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langCode}&client=tw-ob&q=${encodeURIComponent(cleanSnippet)}`;
+      const audio = new Audio(ttsUrl);
+      audio.volume = 1.0;
+      audio.play().catch(() => {
+        speakWithWebSpeech(text, langTag, langCode, category);
+      });
+    } catch {
+      speakWithWebSpeech(text, langTag, langCode, category);
+    }
   };
 
   // Web Speech API / Recognition initialization

@@ -1,5 +1,5 @@
 from app.core.database import Base
-from app.models.user import User, UserRole, PatientProfile, CaregiverProfile, PatientCaregiverAssociation, PatientRecoveryRequest, FamilyAccount, FamilyPatientRelationship, PatientRecoveryAuditLog
+from app.models.user import User, UserRole, PatientProfile, CaregiverProfile, PatientCaregiverAssociation, PatientRecoveryRequest, FamilyAccount, FamilyPatientRelationship, PatientRecoveryAuditLog, DoctorProfile, DoctorPatientAssignment, EmergencyTeamProfile, EmergencyAccessAuditLog, PatientAccessRequest
 from app.models.health import (
     HealthTelemetry,
     MedicalReport,
@@ -18,6 +18,7 @@ from app.models.health import (
     EmergencyQRProfile,
     QRAccessAuditLog,
     DigitalMedicalDocument,
+    PatientMoodLog,
 )
 from app.models.emergency import EmergencyAlert, EscalationAuditLog
 from app.models.digital_twin import DigitalTwinBaseline, HealthDriftRecord
@@ -67,4 +68,10 @@ __all__ = [
     "FamilyAccount",
     "FamilyPatientRelationship",
     "PatientRecoveryAuditLog",
+    "DoctorProfile",
+    "DoctorPatientAssignment",
+    "EmergencyTeamProfile",
+    "EmergencyAccessAuditLog",
+    "PatientAccessRequest",
+    "PatientMoodLog",
 ]

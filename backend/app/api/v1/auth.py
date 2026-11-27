@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -12,7 +12,7 @@ from app.core.security import (
     get_password_hash,
     verify_password,
 )
-from app.models.user import CaregiverProfile, PatientProfile, User, UserRole
+from app.models.user import CaregiverProfile, DoctorProfile, EmergencyTeamProfile, PatientProfile, User, UserRole
 from app.schemas.user import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
@@ -80,14 +80,34 @@ def register(
             device_status="offline"
         )
         db.add(patient_profile)
-    elif role_str == UserRole.CAREGIVER.value:
+    elif role_str in [UserRole.CAREGIVER.value, UserRole.FAMILY.value, "family", "caregiver"]:
         caregiver_profile = CaregiverProfile(
             user_id=user.id,
             relationship_type=user_in.relationship_type or "Family",
-            organization=user_in.organization,
+            organization=user_in.organization or "Family Caregiver",
             notification_preference=user_in.notification_preference or "all"
         )
         db.add(caregiver_profile)
+    elif role_str in [UserRole.DOCTOR.value, "doctor"]:
+        doctor_profile = DoctorProfile(
+            user_id=user.id,
+            medical_reg_no=getattr(user_in, "medical_reg_no", None) or f"MED-REG-{user.id:04d}",
+            specialization=getattr(user_in, "specialization", "Cardiology") or "Cardiology",
+            hospital_name=getattr(user_in, "hospital_name", "PulseGuardian Heart Center") or "PulseGuardian Heart Center",
+            designation=getattr(user_in, "designation", "Attending Physician") or "Attending Physician",
+            is_verified=True,
+            verified_at=datetime.now(timezone.utc)
+        )
+        db.add(doctor_profile)
+    elif role_str in [UserRole.EMERGENCY.value, "emergency"]:
+        emergency_profile = EmergencyTeamProfile(
+            user_id=user.id,
+            organization_name=getattr(user_in, "organization", "Metropolitan Emergency Response") or "Metropolitan Emergency Response",
+            responder_id=getattr(user_in, "responder_id", None) or f"EMS-UNIT-{user.id:04d}",
+            designation=getattr(user_in, "designation", "Emergency Medical Responder") or "Emergency Medical Responder",
+            is_verified=True
+        )
+        db.add(emergency_profile)
 
     db.commit()
     db.refresh(user)

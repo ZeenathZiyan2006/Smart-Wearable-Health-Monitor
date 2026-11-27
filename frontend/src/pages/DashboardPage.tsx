@@ -57,6 +57,10 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LiveECGCanvas } from '../components/LiveECGCanvas';
 import type { DashboardSummary } from '../api/types';
+import { FamilyDashboardView } from '../components/dashboards/FamilyDashboardView';
+import { DoctorDashboardView } from '../components/dashboards/DoctorDashboardView';
+import { EmergencyDashboardView } from '../components/dashboards/EmergencyDashboardView';
+import { QRScannerModal } from '../components/QRScannerModal';
 
 // Web Audio API Ringtone Synthesizer
 function playRingtonePreview(tone: string): () => void {
@@ -306,7 +310,14 @@ export const DashboardPage: React.FC = () => {
   const [medicines, setMedicines] = useState<PatientMedicine[]>([]);
   const [activeAlarmMed, setActiveAlarmMed] = useState<PatientMedicine | null>(null);
   const [activeAlarmSlot, setActiveAlarmSlot] = useState<string>('');
-  const [acknowledgedDoses, setAcknowledgedDoses] = useState<Record<string, { status: 'taken' | 'skipped' | 'missed'; time: string }>>({});
+  const [acknowledgedDoses, setAcknowledgedDoses] = useState<Record<string, { status: 'taken' | 'skipped' | 'missed'; time: string }>>(() => {
+    try {
+      const saved = localStorage.getItem('pulseguardian_acknowledged_doses');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [doseTakenPopup, setDoseTakenPopup] = useState<{ medName: string; dosage: string; time: string; stockRemaining: number; nextTime?: string } | null>(null);
   const [scannedPatientToken, setScannedPatientToken] = useState<string>('');
   const [scannedPatientData, setScannedPatientData] = useState<any | null>(null);
@@ -838,11 +849,17 @@ export const DashboardPage: React.FC = () => {
     const doseKey = `${medId}_${todayDate}_${currentSlot}`;
 
     // Lock dose so button cannot be clicked again for this window
-    setAcknowledgedDoses((prev) => ({
-      ...prev,
-      [doseKey]: { status, time: nowTimeStr },
-      [`${medId}_${todayDate}`]: { status, time: nowTimeStr }
-    }));
+    setAcknowledgedDoses((prev) => {
+      const next = {
+        ...prev,
+        [doseKey]: { status, time: nowTimeStr },
+        [`${medId}_${todayDate}`]: { status, time: nowTimeStr },
+      };
+      try {
+        localStorage.setItem('pulseguardian_acknowledged_doses', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
     // 1. Optimistic UI update for instant feedback
     setMedicines((prev) =>
       prev.map((m) => {
@@ -1107,6 +1124,22 @@ export const DashboardPage: React.FC = () => {
     setCopiedPatientId(true);
     setTimeout(() => setCopiedPatientId(false), 2000);
   };
+
+  // Dedicated Role-Based Dashboard Routing
+  if (role === 'doctor') {
+    return <DoctorDashboardView onNavigateToEcg={() => navigate('/ecg')} />;
+  }
+  if (role === 'emergency') {
+    return <EmergencyDashboardView />;
+  }
+  if (role === 'family' || (role === 'caregiver' && (user as any)?.caregiver_profile?.relationship_type !== 'doctor')) {
+    return (
+      <FamilyDashboardView
+        onNavigateToComm={() => navigate('/communication')}
+        onNavigateToGps={() => navigate('/gps')}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6 pb-14 font-sans select-none">
@@ -1969,12 +2002,18 @@ export const DashboardPage: React.FC = () => {
           )}
 
           <div className="space-y-3">
-            {medicines.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-xs">
-                No active medications prescribed. Click <strong>Add Medicine</strong> to track your schedule.
-              </div>
-            ) : (
-              medicines.map((med) => (
+            {(() => {
+              const uniqueMedicines = Array.from(
+                new Map(medicines.map((m) => [m.id || `${m.medicine_name}_${m.scheduled_times}`, m])).values()
+              );
+              if (uniqueMedicines.length === 0) {
+                return (
+                  <div className="text-center py-8 text-slate-400 text-xs">
+                    No active medications prescribed. Click <strong>Add Medicine</strong> to track your schedule.
+                  </div>
+                );
+              }
+              return uniqueMedicines.map((med) => (
                 <div
                   key={med.id}
                   className="p-4 rounded-2xl border border-slate-200 hover:border-teal-400 transition-all bg-slate-50/70 hover:bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm"
@@ -2026,11 +2065,16 @@ export const DashboardPage: React.FC = () => {
                         <>
                           <button
                             type="button"
+                            disabled={med.remaining_quantity === 0}
                             onClick={() => handleMedicineAction(med.id, 'taken')}
-                            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer flex items-center gap-1.5"
+                            className={`px-3.5 py-2 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1.5 ${
+                              med.remaining_quantity === 0
+                                ? 'bg-slate-400 opacity-60 cursor-not-allowed'
+                                : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20 cursor-pointer'
+                            }`}
                           >
                             <Check className="w-3.5 h-3.5" />
-                            Taken
+                            {med.remaining_quantity === 0 ? 'Out of Stock' : 'Taken'}
                           </button>
                           <button
                             type="button"
@@ -2048,14 +2092,15 @@ export const DashboardPage: React.FC = () => {
                       type="button"
                       onClick={() => handleDeleteMedicine(med.id, med.medicine_name)}
                       title="Remove medicine schedule"
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border border-transparent hover:border-rose-200"
+                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border border-transparent hover:border-rose-200 flex items-center gap-1"
                     >
                       <Trash2 className="w-4 h-4" />
+                      <span className="text-[11px] font-bold hidden sm:inline text-rose-500">Remove</span>
                     </button>
                   </div>
                 </div>
-              ))
-            )}
+              ));
+            })()}
           </div>
         </div>
 

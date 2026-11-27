@@ -588,3 +588,79 @@ export const locationApi = {
   },
 };
 export const locationService = locationApi;
+
+export const caregiverPortalService = {
+  verifyPatientId: async (patientId: string): Promise<{
+    exists: boolean;
+    patient_id: string;
+    masked_name: string;
+    blood_group?: string;
+    requires_link_approval: boolean;
+    is_already_linked: boolean;
+    gender?: string;
+  }> => {
+    const res = await apiClient.post('/caregiver-portal/verify-patient-id', { patient_id: patientId });
+    return res.data;
+  },
+
+  requestLink: async (patientId: string, relationshipOrRole: string, notes?: string): Promise<{
+    message: string;
+    status: string;
+    access_scope: string;
+  }> => {
+    const res = await apiClient.post('/caregiver-portal/request-link', {
+      patient_id: patientId,
+      relationship_or_role: relationshipOrRole,
+      notes,
+    });
+    return res.data;
+  },
+
+  getMyLinkedPatients: async (): Promise<any[]> => {
+    const res = await apiClient.get('/caregiver-portal/my-linked-patients');
+    return res.data;
+  },
+
+  getFamilyDashboard: async (patientId: string): Promise<any> => {
+    const res = await apiClient.get('/caregiver-portal/family/dashboard', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  getDoctorDashboard: async (patientId: string): Promise<any> => {
+    const res = await apiClient.get('/caregiver-portal/doctor/dashboard', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  addDoctorPrescription: async (payload: {
+    patient_id: string;
+    medicine_name: string;
+    dosage: string;
+    frequency: string;
+    scheduled_times: string;
+    instructions?: string;
+    total_quantity?: number;
+  }): Promise<any> => {
+    const res = await apiClient.post('/caregiver-portal/doctor/prescriptions', payload);
+    return res.data;
+  },
+
+  saveDoctorClinicalNote: async (payload: { patient_id: string; notes: string }): Promise<any> => {
+    const res = await apiClient.post('/caregiver-portal/doctor/clinical-notes', payload);
+    return res.data;
+  },
+
+  getEmergencyIncidents: async (): Promise<any[]> => {
+    const res = await apiClient.get('/caregiver-portal/emergency/incidents');
+    return res.data;
+  },
+
+  getEmergencyPatientTriage: async (patientId: string, accessReason: string, incidentId?: string): Promise<any> => {
+    const res = await apiClient.post('/caregiver-portal/emergency/patient-triage', {
+      patient_id: patientId,
+      access_reason: accessReason,
+      incident_id: incidentId,
+    });
+    return res.data;
+  },
+};
+

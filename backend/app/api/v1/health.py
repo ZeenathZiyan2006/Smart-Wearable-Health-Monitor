@@ -68,13 +68,14 @@ def _resolve_patient_id(
                 if assoc:
                     return assoc.patient_id
 
-    # 4. Fallback to active registered patient profile
-    fallback = db.query(PatientProfile).first()
-    if fallback:
-        return fallback.id
+    # 4. Fallback to active registered patient profile for admin only
+    if current_user and getattr(current_user, "role", None) in [UserRole.ADMIN.value, "admin"]:
+        fallback = db.query(PatientProfile).first()
+        if fallback:
+            return fallback.id
 
     raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
+        status_code=status.HTTP_403_FORBIDDEN if current_user else status.HTTP_400_BAD_REQUEST,
         detail="Unable to resolve patient. Provide valid device_uuid, patient_id, or patient authentication."
     )
 

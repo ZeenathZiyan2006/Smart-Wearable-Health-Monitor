@@ -21,6 +21,9 @@ from app.core.database import Base
 class UserRole(str, Enum):
     PATIENT = "patient"
     CAREGIVER = "caregiver"
+    FAMILY = "family"
+    DOCTOR = "doctor"
+    EMERGENCY = "emergency"
     ADMIN = "admin"
 
 
@@ -189,3 +192,85 @@ class PatientRecoveryAuditLog(Base):
     details = Column(Text, nullable=True)
     status = Column(String(50), default="success", nullable=False)  # 'success', 'failed', 'blocked'
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+# =========================================================================
+# REBUILT CAREGIVER ECOSYSTEM: Doctor, Emergency & Access Requests
+# =========================================================================
+class DoctorProfile(Base):
+    __tablename__ = "doctor_profiles"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    medical_reg_no = Column(String(100), unique=True, index=True, nullable=False)
+    specialization = Column(String(150), default="Cardiology", nullable=False)
+    hospital_name = Column(String(200), default="PulseGuardian Heart Center", nullable=False)
+    designation = Column(String(150), default="Senior Attending Physician", nullable=False)
+    is_verified = Column(Boolean, default=True, nullable=False)
+    verified_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = relationship("User")
+    patient_assignments = relationship("DoctorPatientAssignment", back_populates="doctor", cascade="all, delete-orphan")
+
+
+class DoctorPatientAssignment(Base):
+    __tablename__ = "doctor_patient_assignments"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    doctor_id = Column(Integer, ForeignKey("doctor_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    patient_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String(50), default="approved", nullable=False)  # 'pending', 'approved', 'revoked', 'rejected'
+    can_prescribe = Column(Boolean, default=True, nullable=False)
+    clinical_notes = Column(Text, nullable=True)
+    assigned_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    doctor = relationship("DoctorProfile", back_populates="patient_assignments")
+    patient = relationship("PatientProfile")
+
+
+class EmergencyTeamProfile(Base):
+    __tablename__ = "emergency_team_profiles"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    organization_name = Column(String(200), default="Metropolitan EMS & Emergency Response", nullable=False)
+    responder_id = Column(String(100), unique=True, index=True, nullable=False)
+    designation = Column(String(150), default="Emergency Response Coordinator / Paramedic", nullable=False)
+    is_verified = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = relationship("User")
+
+
+class EmergencyAccessAuditLog(Base):
+    __tablename__ = "emergency_access_audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    responder_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    patient_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    incident_id = Column(String(100), nullable=True)
+    access_reason = Column(Text, nullable=False)
+    data_scope_accessed = Column(String(255), default="vitals,allergies,contacts,location", nullable=False)
+    accessed_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    responder = relationship("User")
+    patient = relationship("PatientProfile")
+
+
+class PatientAccessRequest(Base):
+    __tablename__ = "patient_access_requests"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    requester_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    patient_profile_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    role_type = Column(String(50), nullable=False)  # 'family', 'doctor'
+    relationship_or_designation = Column(String(150), nullable=False)  # 'Daughter', 'Son', 'Spouse', 'Cardiologist'
+    notes = Column(Text, nullable=True)
+    status = Column(String(50), default="approved", nullable=False)  # 'pending', 'approved', 'rejected'
+    requested_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+
+    requester = relationship("User")
+    patient = relationship("PatientProfile")

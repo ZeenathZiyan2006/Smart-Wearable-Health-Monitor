@@ -52,10 +52,19 @@ class UserCreate(UserBase):
     emergency_contact_phone: Optional[str] = None
     device_uuid: Optional[str] = None
     
-    # Optional caregiver-specific registration fields
+    # Optional caregiver/family-specific registration fields
     relationship_type: Optional[str] = "Family"
     organization: Optional[str] = None
     notification_preference: Optional[str] = "all"
+    
+    # Optional doctor-specific registration fields
+    medical_reg_no: Optional[str] = None
+    specialization: Optional[str] = "Cardiology"
+    hospital_name: Optional[str] = "PulseGuardian Heart Center"
+    designation: Optional[str] = "Attending Physician"
+    
+    # Optional emergency-team registration fields
+    responder_id: Optional[str] = None
 
 
 class UserLogin(BaseModel):

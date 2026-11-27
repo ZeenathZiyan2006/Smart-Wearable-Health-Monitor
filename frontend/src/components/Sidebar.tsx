@@ -20,23 +20,61 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
 export const Sidebar: React.FC = () => {
-  const { logout, user } = useAuth();
+  const { logout, user, role } = useAuth();
   const { t } = useLanguage();
 
-  const navItems = [
-    { to: '/', label: t('nav.dashboard', 'Dashboard'), icon: LayoutDashboard },
-    { to: '/health', label: t('nav.health', 'Health Monitor'), icon: Activity },
-    { to: '/ecg', label: t('nav.ecg', 'ECG Monitor'), icon: HeartPulse },
-    { to: '/sleep-activity', label: t('nav.sleepActivity', 'Sleep & Activity'), icon: Moon },
-    { to: '/ai-insights', label: t('nav.aiInsights', 'AI Insights'), icon: Sparkles },
-    { to: '/gps', label: t('nav.gps', 'GPS Tracking'), icon: MapPin },
-    { to: '/emergency', label: t('nav.emergency', 'Emergency SOS'), icon: AlertTriangle, badge: '1', badgeColor: 'bg-rose-500' },
-    { to: '/notifications', label: t('nav.notifications', 'Notifications'), icon: Bell, badge: '3', badgeColor: 'bg-rose-500' },
-    { to: '/communication', label: t('nav.communication', 'Communication'), icon: MessageSquare },
-    { to: '/history', label: t('nav.history', 'Health History'), icon: History },
-    { to: '/devices', label: t('nav.devices', 'Devices'), icon: Activity },
-    { to: '/settings', label: t('nav.settings', 'Settings'), icon: Settings },
-  ];
+  const getNavItems = () => {
+    if (role === 'doctor') {
+      return [
+        { to: '/', label: 'Doctor Telemetry', icon: LayoutDashboard },
+        { to: '/ecg', label: 'ECG Telemetry', icon: HeartPulse },
+        { to: '/health', label: 'Patient Vitals', icon: Activity },
+        { to: '/history', label: 'Clinical History', icon: History },
+        { to: '/ai-insights', label: 'Diagnostic AI', icon: Sparkles },
+        { to: '/notifications', label: 'Clinical Alerts', icon: Bell, badge: '2', badgeColor: 'bg-blue-500' },
+        { to: '/communication', label: 'Doctor Chat', icon: MessageSquare },
+        { to: '/settings', label: 'Settings', icon: Settings },
+      ];
+    }
+    if (role === 'emergency') {
+      return [
+        { to: '/', label: '112 EMS Triage', icon: LayoutDashboard },
+        { to: '/gps', label: 'Patient GPS Live', icon: MapPin },
+        { to: '/emergency', label: 'Active SOS Broadcasts', icon: AlertTriangle, badge: '1', badgeColor: 'bg-rose-500' },
+        { to: '/notifications', label: 'Emergency Alerts', icon: Bell, badge: '3', badgeColor: 'bg-rose-500' },
+        { to: '/settings', label: 'Settings', icon: Settings },
+      ];
+    }
+    if (role === 'family' || (role === 'caregiver' && (user as any)?.caregiver_profile?.relationship_type !== 'doctor')) {
+      return [
+        { to: '/', label: 'Family Dashboard', icon: LayoutDashboard },
+        { to: '/health', label: 'Vitals Monitor', icon: Activity },
+        { to: '/gps', label: 'GPS Tracking', icon: MapPin },
+        { to: '/emergency', label: 'Emergency SOS', icon: AlertTriangle, badge: '1', badgeColor: 'bg-rose-500' },
+        { to: '/notifications', label: 'Care Alerts', icon: Bell, badge: '3', badgeColor: 'bg-rose-500' },
+        { to: '/communication', label: 'Caregiver Chat', icon: MessageSquare },
+        { to: '/history', label: 'Health History', icon: History },
+        { to: '/settings', label: 'Settings', icon: Settings },
+      ];
+    }
+    // Patient default
+    return [
+      { to: '/', label: t('nav.dashboard', 'Dashboard'), icon: LayoutDashboard },
+      { to: '/health', label: t('nav.health', 'Health Monitor'), icon: Activity },
+      { to: '/ecg', label: t('nav.ecg', 'ECG Monitor'), icon: HeartPulse },
+      { to: '/sleep-activity', label: t('nav.sleepActivity', 'Sleep & Activity'), icon: Moon },
+      { to: '/ai-insights', label: t('nav.aiInsights', 'AI Insights'), icon: Sparkles },
+      { to: '/gps', label: t('nav.gps', 'GPS Tracking'), icon: MapPin },
+      { to: '/emergency', label: t('nav.emergency', 'Emergency SOS'), icon: AlertTriangle, badge: '1', badgeColor: 'bg-rose-500' },
+      { to: '/notifications', label: t('nav.notifications', 'Notifications'), icon: Bell, badge: '3', badgeColor: 'bg-rose-500' },
+      { to: '/communication', label: t('nav.communication', 'Communication'), icon: MessageSquare },
+      { to: '/history', label: t('nav.history', 'Health History'), icon: History },
+      { to: '/devices', label: t('nav.devices', 'Devices'), icon: Activity },
+      { to: '/settings', label: t('nav.settings', 'Settings'), icon: Settings },
+    ];
+  };
+
+  const navItems = getNavItems();
 
   return (
     <aside className="w-64 bg-[#0a1526] text-slate-300 flex flex-col justify-between p-4 flex-shrink-0 min-h-screen border-r border-slate-800/80 select-none">

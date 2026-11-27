@@ -25,13 +25,15 @@ import {
   Home,
   CheckCircle2,
   AlertTriangle,
+  Stethoscope,
+  ShieldAlert,
 } from 'lucide-react';
+import type { UserRole, RecoveredPatientProfile, PatientRegisterResponse } from '../api/types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { SupportedLanguage } from '../i18n/translations';
 import { PulseGuardianLogo } from '../components/PulseGuardianLogo';
 import { patientAuthService } from '../api/services';
-import type { RecoveredPatientProfile, PatientRegisterResponse } from '../api/types';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -92,13 +94,19 @@ export const LoginPage: React.FC = () => {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
 
-  const handleRoleSelect = (role: 'patient' | 'caregiver') => {
+  const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
     setErrorMessage(null);
     if (role === 'patient') {
       setEmail('PT-2026-000001');
       setPatientIdInput('PT-2026-000001');
       setPassword('Patient@123');
+    } else if (role === 'doctor') {
+      setEmail('dr.sunita@pulseguardian.ai');
+      setPassword('Password@123');
+    } else if (role === 'emergency') {
+      setEmail('ems.rajesh@pulseguardian.ai');
+      setPassword('Password@123');
     } else {
       setEmail('caregiver@pulseguardian.ai');
       setPassword('Caregiver@123');
@@ -430,30 +438,54 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {/* Role Pill Switcher */}
-          <div className="bg-[#edf2f7] p-1 rounded-full flex max-w-md mx-auto w-full my-3">
+          <div className="bg-[#edf2f7] p-1 rounded-2xl grid grid-cols-2 sm:grid-cols-4 gap-1 max-w-md mx-auto w-full my-3">
             <button
               type="button"
               onClick={() => handleRoleSelect('patient')}
-              className={`flex-1 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 selectedRole === 'patient'
                   ? 'bg-[#1864ab] text-white shadow-md'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
               }`}
             >
               <User className="w-3.5 h-3.5" />
-              {t('role.patient', 'Patient')}
+              <span>{t('role.patient', 'Patient')}</span>
             </button>
             <button
               type="button"
-              onClick={() => handleRoleSelect('caregiver')}
-              className={`flex-1 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                selectedRole === 'caregiver'
-                  ? 'bg-[#1864ab] text-white shadow-md'
-                  : 'text-slate-600 hover:text-slate-900'
+              onClick={() => handleRoleSelect('family')}
+              className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                selectedRole === 'family' || selectedRole === 'caregiver'
+                  ? 'bg-emerald-700 text-white shadow-md'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              {t('role.caregiver', 'Caregiver')}
+              <span>Family</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRoleSelect('doctor')}
+              className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                selectedRole === 'doctor'
+                  ? 'bg-blue-700 text-white shadow-md'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+            >
+              <Stethoscope className="w-3.5 h-3.5" />
+              <span>Doctor</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRoleSelect('emergency')}
+              className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                selectedRole === 'emergency'
+                  ? 'bg-rose-700 text-white shadow-md'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span>Emergency</span>
             </button>
           </div>
 

@@ -107,12 +107,16 @@ def resolve_patient_profile(current_user: User, patient_id: Optional[int], db: S
     if fam_rel and fam_rel.patient_profile:
         return fam_rel.patient_profile
 
-    # Fallback to demo patient if user has no assigned profile
-    fallback_patient = db.query(PatientProfile).first()
-    if fallback_patient:
-        return fallback_patient
+    # Only admin may fall back to the first patient when no patient_id is provided
+    if user_role_str == "admin":
+        fallback_patient = db.query(PatientProfile).first()
+        if fallback_patient:
+            return fallback_patient
 
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient identification required.")
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="No patient linked to this account. Please enter and verify the Patient ID to request access."
+    )
 
 
 # ==========================================
@@ -942,10 +946,34 @@ def get_public_emergency_qr_view(
     and physicians scanning the patient's Emergency QR Code.
     Audits the scan access and provides vital medical data plus uploaded reports with AI insights.
     """
+    qr_clean = qr_token.strip()
     qr_profile = db.query(EmergencyQRProfile).filter(
-        EmergencyQRProfile.qr_token == qr_token,
+        (EmergencyQRProfile.qr_token == qr_clean) | (EmergencyQRProfile.qr_token.ilike(f"%{qr_clean}%")),
         EmergencyQRProfile.is_active == True
     ).first()
+
+    if not qr_profile:
+        # Check if qr_token matches a PatientProfile.patient_id directly
+        patient_match = db.query(PatientProfile).filter(
+            (PatientProfile.patient_id.ilike(qr_clean)) | (PatientProfile.patient_id.ilike(f"%{qr_clean}%"))
+        ).first()
+
+        if patient_match:
+            qr_profile = db.query(EmergencyQRProfile).filter(
+                EmergencyQRProfile.patient_id == patient_match.id
+            ).first()
+            if not qr_profile:
+                import uuid
+                qr_profile = EmergencyQRProfile(
+                    patient_id=patient_match.id,
+                    qr_token=f"PT-QR-{patient_match.patient_id}-{uuid.uuid4().hex[:8].upper()}",
+                    blood_group=patient_match.blood_group or "O+",
+                    emergency_instructions="Diabetic patient. Carry fast-acting glucose tablets.",
+                    is_active=True
+                )
+                db.add(qr_profile)
+                db.commit()
+                db.refresh(qr_profile)
 
     if not qr_profile:
         raise HTTPException(

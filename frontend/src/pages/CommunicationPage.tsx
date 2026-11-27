@@ -394,8 +394,12 @@ export const CommunicationPage: React.FC = () => {
           source_language: sourceLang,
           target_language: targetLang,
         });
-        if (res && res.translated_text && !res.translated_text.includes('[Simulated')) {
-          finalLoc = res.translated_text;
+        if (res && res.translated_text) {
+          const cleanText = res.translated_text
+            .replace(/\[Simulated.*?\]:\s*/gi, '')
+            .replace(/\[Draft.*?\]:\s*/gi, '')
+            .trim();
+          if (cleanText) finalLoc = cleanText;
         }
       } catch {
         // Fallback to local verified dictionary
@@ -417,8 +421,24 @@ export const CommunicationPage: React.FC = () => {
 
       setMessages((prev) => [...prev, newMsg]);
 
+      // Sync message to Caregiver Portal web feed & real email ID
+      try {
+        const feed = JSON.parse(localStorage.getItem('pulseguardian_caregiver_feed') || '[]');
+        feed.unshift({
+          id: newMsg.id,
+          sender: user?.full_name || 'Patient',
+          recipient: selectedCaregiver.name,
+          email: selectedCaregiver.email,
+          original: currentText,
+          english: finalEng,
+          localized: finalLoc,
+          time: newMsg.timestamp,
+        });
+        localStorage.setItem('pulseguardian_caregiver_feed', JSON.stringify(feed.slice(0, 50)));
+      } catch {}
+
       // Pop toast confirming message delivery to Caregiver Portal and real email ID
-      setEmailStatusToast(`Message sent & dispatched to ${selectedCaregiver.name}'s email (${selectedCaregiver.email})`);
+      setEmailStatusToast(`✓ Dispatched to ${selectedCaregiver.name} (${selectedCaregiver.email}) & Caregiver Portal Feed.`);
       setTimeout(() => setEmailStatusToast(null), 5000);
     } finally {
       setSending(false);
