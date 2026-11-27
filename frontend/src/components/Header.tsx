@@ -55,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, isMobileMenu
             >
               {languages.map((l) => (
                 <option key={l.code} value={l.code}>
-                  {l.nativeName}
+                  {l.code === 'en' ? 'English' : `${l.nativeName} (${l.name})`}
                 </option>
               ))}
             </select>

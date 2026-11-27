@@ -383,3 +383,46 @@ export interface DigitalDocument {
   ai_clinical_suggestions?: string;
   ai_confidence_score: number;
 }
+
+export interface EmergencyQRProfile {
+  id: number;
+  patient_id: number;
+  qr_token: string;
+  qr_code_url: string;
+  is_active: boolean;
+  blood_group: string;
+  display_blood_group: boolean;
+  display_allergies: boolean;
+  display_conditions: boolean;
+  display_medicines: boolean;
+  display_emergency_contacts: boolean;
+  emergency_instructions?: string;
+  doctor_contact_details?: string;
+  regenerated_at: string;
+  created_at: string;
+}
+
+export interface EmergencyQRPublicView {
+  patient_name: string;
+  patient_id_readable: string;
+  blood_group?: string;
+  allergies: string[];
+  medical_conditions: string[];
+  active_medicines: string[];
+  emergency_contacts: Array<{ name: string; relation: string; phone: string }>;
+  emergency_instructions?: string;
+  doctor_contact?: string;
+  uploaded_documents: Array<{
+    id: number;
+    document_name: string;
+    document_type: string;
+    uploaded_at: string;
+    ai_summary: string;
+    ai_detected_conditions: string;
+    ai_key_biomarkers: string;
+    ai_clinical_suggestions: string;
+    ai_confidence_score: number;
+  }>;
+  is_verified: boolean;
+  notice: string;
+}

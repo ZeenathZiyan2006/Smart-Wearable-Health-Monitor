@@ -10,6 +10,8 @@ import type {
   User,
   VoiceMessage,
   DigitalDocument,
+  EmergencyQRProfile,
+  EmergencyQRPublicView,
 } from './types';
 
 // ==========================================
@@ -503,6 +505,16 @@ export const patientDashboardApi = {
 
   deleteDigitalDocument: async (documentId: number, patientId?: number): Promise<void> => {
     await apiClient.delete(`/patient/dashboard/documents/${documentId}`, { params: { patient_id: patientId } });
+  },
+
+  getEmergencyQRProfile: async (patientId?: number): Promise<EmergencyQRProfile> => {
+    const res = await apiClient.get<EmergencyQRProfile>('/patient/dashboard/emergency-qr', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  getPublicEmergencyQRProfile: async (qrToken: string): Promise<EmergencyQRPublicView> => {
+    const res = await apiClient.get<EmergencyQRPublicView>(`/patient/dashboard/emergency-qr/public/${qrToken}`);
+    return res.data;
   },
 };
 export const patientDashboardService = patientDashboardApi;

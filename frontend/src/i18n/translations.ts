@@ -8,11 +8,11 @@ export interface LanguageOption {
 
 export const SUPPORTED_LANGUAGES: LanguageOption[] = [
   { code: 'en', name: 'English', nativeName: 'English' },
-  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ (Kannada)' },
-  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी (Hindi)' },
-  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ் (Tamil)' },
-  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు (Telugu)' },
-  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം (Malayalam)' },
+  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்' },
+  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు' },
+  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം' },
 ];
 
 export const translations: Record<SupportedLanguage, Record<string, string>> = {

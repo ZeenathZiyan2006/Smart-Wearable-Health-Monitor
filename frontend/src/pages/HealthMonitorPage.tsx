@@ -118,55 +118,55 @@ export const HealthMonitorPage: React.FC = () => {
 
       {/* 4 Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="glass-card rounded-2xl p-5 border border-slate-100 flex items-center space-x-4">
-          <div className="p-3 rounded-2xl bg-rose-50 text-rose-500">
+        <div className="glass-card rounded-2xl p-5 border border-slate-100 flex items-center space-x-4 overflow-hidden">
+          <div className="p-3 rounded-2xl bg-rose-50 text-rose-500 shrink-0">
             <Heart className="w-6 h-6 fill-rose-500" />
           </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">{t('health.restingHR', 'Resting Heart Rate')}</div>
-            <div className="text-2xl font-bold text-slate-800">
-              {latest.heart_rate} <span className="text-xs font-normal text-slate-400">BPM</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold text-slate-500 truncate">{t('health.restingHR', 'Resting Heart Rate')}</div>
+            <div className="text-2xl font-bold text-slate-800 truncate">
+              {Math.round(Number(latest.heart_rate || 72))} <span className="text-xs font-normal text-slate-400">BPM</span>
             </div>
-            <div className="text-[11px] text-emerald-600 font-medium">{t('health.optimalRhythm', 'Optimal Rhythm')}</div>
+            <div className="text-[11px] text-emerald-600 font-medium truncate">{t('health.optimalRhythm', 'Optimal Rhythm')}</div>
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl p-5 border border-slate-100 flex items-center space-x-4">
-          <div className="p-3 rounded-2xl bg-blue-50 text-blue-500">
+        <div className="glass-card rounded-2xl p-5 border border-slate-100 flex items-center space-x-4 overflow-hidden">
+          <div className="p-3 rounded-2xl bg-blue-50 text-blue-500 shrink-0">
             <Droplets className="w-6 h-6 fill-blue-500" />
           </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">{t('health.oxygenSaturation', 'Oxygen Saturation')}</div>
-            <div className="text-2xl font-bold text-slate-800">
-              {latest.spo2} <span className="text-xs font-normal text-slate-400">%</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold text-slate-500 truncate">{t('health.oxygenSaturation', 'Oxygen Saturation')}</div>
+            <div className="text-2xl font-bold text-slate-800 truncate">
+              {Math.round(Number(latest.spo2 || 98))} <span className="text-xs font-normal text-slate-400">%</span>
             </div>
-            <div className="text-[11px] text-emerald-600 font-medium">{t('health.normalBloodOxygen', 'Normal Blood Oxygen')}</div>
+            <div className="text-[11px] text-emerald-600 font-medium truncate">{t('health.normalBloodOxygen', 'Normal Blood Oxygen')}</div>
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl p-5 border border-slate-100 flex items-center space-x-4">
-          <div className="p-3 rounded-2xl bg-amber-50 text-amber-500">
+        <div className="glass-card rounded-2xl p-5 border border-slate-100 flex items-center space-x-4 overflow-hidden">
+          <div className="p-3 rounded-2xl bg-amber-50 text-amber-500 shrink-0">
             <Thermometer className="w-6 h-6" />
           </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">{t('health.skinTemp', 'Skin Temperature')}</div>
-            <div className="text-2xl font-bold text-slate-800">
-              {latest.temperature} <span className="text-xs font-normal text-slate-400">°C</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold text-slate-500 truncate">{t('health.skinTemp', 'Skin Temperature')}</div>
+            <div className="text-2xl font-bold text-slate-800 truncate">
+              {Number(latest.temperature || 36.8).toFixed(1)} <span className="text-xs font-normal text-slate-400">°C</span>
             </div>
-            <div className="text-[11px] text-emerald-600 font-medium">{t('health.afebrileBaseline', 'Afebrile Baseline')}</div>
+            <div className="text-[11px] text-emerald-600 font-medium truncate">{t('health.afebrileBaseline', 'Afebrile Baseline')}</div>
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl p-5 border border-slate-100 flex items-center space-x-4">
-          <div className="p-3 rounded-2xl bg-purple-50 text-purple-500">
+        <div className="glass-card rounded-2xl p-5 border border-slate-100 flex items-center space-x-4 overflow-hidden">
+          <div className="p-3 rounded-2xl bg-purple-50 text-purple-500 shrink-0">
             <Activity className="w-6 h-6" />
           </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500">{t('health.bloodPressure', 'Blood Pressure')}</div>
-            <div className="text-2xl font-bold text-slate-800">
-              {latest.blood_pressure_sys || 120} / {latest.blood_pressure_dia || 80}
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold text-slate-500 truncate">{t('health.bloodPressure', 'Blood Pressure')}</div>
+            <div className="text-2xl font-bold text-slate-800 truncate">
+              {Math.round(Number(latest.blood_pressure_sys || 120))} / {Math.round(Number(latest.blood_pressure_dia || 80))}
             </div>
-            <div className="text-[11px] text-emerald-600 font-medium">{t('health.standardNormotensive', 'Standard Normotensive')}</div>
+            <div className="text-[11px] text-emerald-600 font-medium truncate">{t('health.standardNormotensive', 'Standard Normotensive')}</div>
           </div>
         </div>
       </div>

@@ -448,6 +448,7 @@ class EmergencyQRPublicView(BaseModel):
     emergency_contacts: List[dict] = []
     emergency_instructions: Optional[str] = None
     doctor_contact: Optional[str] = None
+    uploaded_documents: List[dict] = []
     is_verified: bool = True
     notice: str = "Confidential Emergency Profile. Authorized for emergency medical personnel and first responders."
 

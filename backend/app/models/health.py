@@ -322,6 +322,10 @@ class EmergencyQRProfile(Base):
     patient = relationship("PatientProfile")
     access_logs = relationship("QRAccessAuditLog", back_populates="qr_profile", cascade="all, delete-orphan")
 
+    @property
+    def qr_code_url(self) -> str:
+        return f"/api/v1/patient/dashboard/emergency-qr/public/{self.qr_token}"
+
 
 class QRAccessAuditLog(Base):
     __tablename__ = "qr_access_audit_logs"

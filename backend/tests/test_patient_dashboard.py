@@ -222,3 +222,39 @@ def test_digital_medical_documents_and_ai_analysis(client):
     # 4. Delete digital document
     del_res = client.delete(f"/api/v1/patient/dashboard/documents/{new_doc['id']}", headers=headers)
     assert del_res.status_code == status.HTTP_204_NO_CONTENT
+
+
+def test_emergency_qr_profile_and_public_access(client):
+    """Test emergency QR generation and unauthenticated public scan access for doctors/first responders."""
+    p_data = {
+        "full_name": "Divya Rao",
+        "date_of_birth": "1994-04-12",
+        "gender": "female",
+        "contact_number": "+91 9777766666",
+        "family_email": "divya.family@example.com",
+        "password": "Password@123",
+        "confirm_password": "Password@123"
+    }
+    reg_res = client.post("/api/v1/patient/register", json=p_data)
+    assert reg_res.status_code == status.HTTP_201_CREATED
+    token = reg_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Fetch or create Emergency QR Profile
+    qr_res = client.get("/api/v1/patient/dashboard/emergency-qr", headers=headers)
+    assert qr_res.status_code == status.HTTP_200_OK
+    qr_profile = qr_res.json()
+    assert qr_profile["is_active"] is True
+    assert qr_profile["blood_group"] == "O+"
+    assert qr_profile["qr_token"].startswith("PT-QR-")
+    qr_token = qr_profile["qr_token"]
+
+    # 2. Public Scan by first responder (no authorization header required)
+    public_scan = client.get(f"/api/v1/patient/dashboard/emergency-qr/public/{qr_token}")
+    assert public_scan.status_code == status.HTTP_200_OK
+    public_data = public_scan.json()
+    assert public_data["patient_name"] == "Divya Rao"
+    assert public_data["is_verified"] is True
+    assert len(public_data["uploaded_documents"]) >= 1
+    assert "Lipid" in public_data["uploaded_documents"][0]["document_name"]
+    assert public_data["uploaded_documents"][0]["ai_summary"] is not None

@@ -83,7 +83,7 @@ export const SettingsPage: React.FC = () => {
             >
               <div>
                 <div className="text-xs font-bold">{l.nativeName}</div>
-                <div className="text-[10px] text-slate-400">{l.name}</div>
+                {l.code !== 'en' && <div className="text-[10px] text-slate-400">{l.name}</div>}
               </div>
               {language === l.code && <Check className="w-4 h-4 text-cyan-600" />}
             </button>

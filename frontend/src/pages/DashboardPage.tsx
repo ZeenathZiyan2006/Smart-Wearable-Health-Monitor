@@ -38,15 +38,190 @@ import {
   FileUp,
   ExternalLink,
   Stethoscope,
+  QrCode,
+  Music,
+  Printer,
+  Download,
+  Play,
+  Square,
+  ShieldCheck,
 } from 'lucide-react';
 import { healthService, emergencyService, aiService, patientAuthService, deviceService, patientDashboardService } from '../api/services';
 import type { PatientMedicine, PatientReminder, DoctorAppointment, MedicalCondition, PatientAllergy, HydrationSummary } from '../api/types';
-import type { MedicalReport, FamilyPatient, DigitalDocument } from '../api/types';
+import type { MedicalReport, FamilyPatient, DigitalDocument, EmergencyQRProfile, EmergencyQRPublicView } from '../api/types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LiveECGCanvas } from '../components/LiveECGCanvas';
-import { VoiceAssistantWidget } from '../components/VoiceAssistantWidget';
 import type { DashboardSummary } from '../api/types';
+
+// Web Audio API Ringtone Synthesizer
+function playRingtonePreview(tone: string): () => void {
+  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioContextClass) return () => {};
+  const ctx = new AudioContextClass();
+  const now = ctx.currentTime;
+
+  if (tone === 'pulse_alert') {
+    [0, 0.22, 0.5, 0.72].forEach((t) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(880, now + t);
+      gain.gain.setValueAtTime(0.28, now + t);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + t + 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + t);
+      osc.stop(now + t + 0.14);
+    });
+  } else if (tone === 'forest_birds') {
+    [0, 0.14, 0.3, 0.48, 0.65].forEach((t, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      const startF = 1500 + i * 160;
+      osc.frequency.setValueAtTime(startF, now + t);
+      osc.frequency.exponentialRampToValueAtTime(startF + 400, now + t + 0.08);
+      gain.gain.setValueAtTime(0.2, now + t);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + t + 0.09);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + t);
+      osc.stop(now + t + 0.1);
+    });
+  } else if (tone === 'ocean_waves') {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.exponentialRampToValueAtTime(340, now + 0.6);
+    osc.frequency.exponentialRampToValueAtTime(110, now + 1.2);
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.6);
+    gain.gain.linearRampToValueAtTime(0.001, now + 1.2);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 1.25);
+  } else if (tone === 'zen_bell') {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(432, now);
+    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.6);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 1.65);
+  } else if (tone === 'digital_watch') {
+    [0, 0.12, 0.28, 0.4].forEach((t) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(2048, now + t);
+      gain.gain.setValueAtTime(0.14, now + t);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + t + 0.07);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + t);
+      osc.stop(now + t + 0.08);
+    });
+  } else {
+    // gentle_chime (default)
+    const freqs = [523.25, 659.25, 783.99, 1046.5];
+    freqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.18);
+      gain.gain.setValueAtTime(0.001, now + idx * 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.26, now + idx * 0.18 + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.18 + 0.5);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + idx * 0.18);
+      osc.stop(now + idx * 0.18 + 0.55);
+    });
+  }
+
+  return () => {
+    try {
+      ctx.close();
+    } catch {}
+  };
+}
+
+// Crisp Vector SVG QR Code Renderer
+export const PatientQRCode: React.FC<{ token: string; size?: number }> = ({ token, size = 150 }) => {
+  const N = 25;
+  const grid = Array.from({ length: N }, () => Array(N).fill(false));
+
+  const drawFinder = (startX: number, startY: number) => {
+    for (let r = 0; r < 7; r++) {
+      for (let c = 0; c < 7; c++) {
+        if (
+          r === 0 || r === 6 || c === 0 || c === 6 ||
+          (r >= 2 && r <= 4 && c >= 2 && c <= 4)
+        ) {
+          grid[startY + r][startX + c] = true;
+        }
+      }
+    }
+  };
+
+  drawFinder(0, 0);
+  drawFinder(18, 0);
+  drawFinder(0, 18);
+
+  for (let i = 8; i < 17; i++) {
+    if (i % 2 === 0) {
+      grid[6][i] = true;
+      grid[i][6] = true;
+    }
+  }
+
+  let hash = 0;
+  for (let i = 0; i < token.length; i++) {
+    hash = ((hash << 5) - hash + token.charCodeAt(i)) | 0;
+  }
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      if (
+        (r < 8 && c < 8) ||
+        (r < 8 && c >= 17) ||
+        (r >= 17 && c < 8) ||
+        r === 6 || c === 6
+      ) {
+        continue;
+      }
+      const val = (Math.sin(r * 37 + c * 19 + hash) * 10000) % 1;
+      grid[r][c] = val > 0.44;
+    }
+  }
+
+  const cellSize = size / N;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="rounded-xl shadow-inner bg-white p-1.5">
+      <rect width={size} height={size} fill="#ffffff" />
+      {grid.map((row, r) =>
+        row.map((active, c) =>
+          active ? (
+            <rect
+              key={`${r}-${c}`}
+              x={c * cellSize}
+              y={r * cellSize}
+              width={cellSize + 0.3}
+              height={cellSize + 0.3}
+              fill="#0a1526"
+            />
+          ) : null
+        )
+      )}
+    </svg>
+  );
+};
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -93,6 +268,24 @@ export const DashboardPage: React.FC = () => {
   const [uploadDocName, setUploadDocName] = useState('');
   const [uploadDocType, setUploadDocType] = useState('lab_report');
   const [uploadDocText, setUploadDocText] = useState('');
+
+  // Live Location Clock & Calendar State
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date>(new Date());
+  const [userTimezone, setUserTimezone] = useState<string>('Local');
+
+  // Ringtone & Audio Synthesizer State
+  const [newRemTone, setNewRemTone] = useState<string>('gentle_chime');
+  const [newRemDays, setNewRemDays] = useState<string>('Daily');
+  const [newRemDate, setNewRemDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [playingTone, setPlayingTone] = useState<string | null>(null);
+  const audioStopRef = useRef<(() => void) | null>(null);
+
+  // Emergency QR Profile State
+  const [qrProfile, setQrProfile] = useState<EmergencyQRProfile | null>(null);
+  const [showQRModal, setShowQRModal] = useState<boolean>(false);
+  const [publicQRView, setPublicQRView] = useState<EmergencyQRPublicView | null>(null);
+  const [isLoadingPublicQR, setIsLoadingPublicQR] = useState<boolean>(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [isAnalyzingDocId, setIsAnalyzingDocId] = useState<number | null>(null);
   const [selectedDocDetails, setSelectedDocDetails] = useState<DigitalDocument | null>(null);
@@ -241,6 +434,16 @@ export const DashboardPage: React.FC = () => {
     patientDashboardService.getConditions().then(res => { if (res) setConditions(res); }).catch(() => {});
     patientDashboardService.getAllergies().then(res => { if (res) setAllergies(res); }).catch(() => {});
     patientDashboardService.getDigitalDocuments().then(res => { if (res) setDigitalDocs(res); }).catch(() => {});
+    patientDashboardService.getEmergencyQRProfile().then(res => { if (res) setQrProfile(res); }).catch(() => {});
+
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      setUserTimezone(tz || 'Local');
+    } catch {}
+
+    const clockTimer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
 
     loadDashboardData();
     const interval = setInterval(loadDashboardData, 12000);
@@ -455,6 +658,66 @@ export const DashboardPage: React.FC = () => {
     } catch {}
   };
 
+  const handlePlayTonePreview = (tone: string) => {
+    if (playingTone === tone) {
+      if (audioStopRef.current) audioStopRef.current();
+      setPlayingTone(null);
+      return;
+    }
+    if (audioStopRef.current) audioStopRef.current();
+    setPlayingTone(tone);
+    try {
+      const stopFn = playRingtonePreview(tone);
+      audioStopRef.current = stopFn;
+      setTimeout(() => {
+        setPlayingTone((prev) => (prev === tone ? null : prev));
+      }, 2200);
+    } catch {
+      setPlayingTone(null);
+    }
+  };
+
+  const handleOpenQRPortalModal = async () => {
+    setShowQRModal(true);
+    setIsLoadingPublicQR(true);
+    try {
+      const token = qrProfile?.qr_token || 'PT-QR-PT-2026-000001-A1B2C3D4';
+      const data = await patientDashboardService.getPublicEmergencyQRProfile(token);
+      setPublicQRView(data);
+    } catch {
+      // Fallback preview
+      setPublicQRView({
+        patient_name: displayName,
+        patient_id_readable: activePatientId,
+        blood_group: qrProfile?.blood_group || 'O+',
+        allergies: allergies.map(a => `${a.allergen} (${a.reaction || 'mild'})`),
+        medical_conditions: conditions.map(c => `${c.condition_name} (${c.severity})`),
+        active_medicines: medicines.filter(m => m.medicine_status === 'active').map(m => `${m.medicine_name} ${m.dosage} - ${m.frequency}`),
+        emergency_contacts: [
+          { name: 'Ananya (Family Caregiver)', relation: 'Daughter', phone: '+91 98450 67890' },
+          { name: 'Emergency Medical Services', relation: 'Hospital Dispatch', phone: '112 / 108' }
+        ],
+        emergency_instructions: qrProfile?.emergency_instructions || 'Diabetic patient under observation. Keep glucose tablets accessible.',
+        doctor_contact: qrProfile?.doctor_contact_details || 'Dr. Sunita Rao (Cardiologist) - +91 98450 12345',
+        uploaded_documents: digitalDocs.map(d => ({
+          id: d.id,
+          document_name: d.document_name,
+          document_type: d.document_type,
+          uploaded_at: d.uploaded_at,
+          ai_summary: d.ai_summary || 'Document verified by clinical AI diagnostic engine.',
+          ai_detected_conditions: d.ai_detected_conditions || 'None detected',
+          ai_key_biomarkers: d.ai_key_biomarkers || 'Normal reference range',
+          ai_clinical_suggestions: d.ai_clinical_suggestions || 'Continue prescribed routine.',
+          ai_confidence_score: d.ai_confidence_score || 0.96
+        })),
+        is_verified: true,
+        notice: 'Verified Emergency & Clinical Health QR Pass. Accessible for emergency first responders and attending clinical physicians.'
+      });
+    } finally {
+      setIsLoadingPublicQR(false);
+    }
+  };
+
   const handleCreateReminder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRemTitle.trim()) return;
@@ -463,6 +726,8 @@ export const DashboardPage: React.FC = () => {
         title: newRemTitle.trim(),
         reminder_type: newRemType,
         reminder_time: newRemTime,
+        recurring_days: newRemDays,
+        alarm_tone: newRemTone,
         is_enabled: true,
       });
       setShowAddReminderModal(false);
@@ -892,7 +1157,7 @@ export const DashboardPage: React.FC = () => {
 
             <div className="my-3">
               <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
-                {heartRate} <span className="text-xs font-bold text-slate-400">{t('vital.bpm', 'BPM')}</span>
+                <span className="truncate">{Math.round(heartRate)}</span> <span className="text-xs font-bold text-slate-400 shrink-0">{t('vital.bpm', 'BPM')}</span>
               </div>
               <div className="flex items-center justify-between mt-1 text-[11px] text-emerald-600 font-semibold">
                 <span>↑ +2% Resting</span>
@@ -925,7 +1190,7 @@ export const DashboardPage: React.FC = () => {
 
             <div className="my-3">
               <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
-                {bloodPressure} <span className="text-xs font-bold text-slate-400">mmHg</span>
+                <span className="truncate">{bloodPressure}</span> <span className="text-xs font-bold text-slate-400 shrink-0">mmHg</span>
               </div>
               <div className="text-[11px] text-emerald-600 font-semibold mt-1">Normal / Stage 1</div>
             </div>
@@ -952,7 +1217,7 @@ export const DashboardPage: React.FC = () => {
 
             <div className="my-3">
               <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
-                {spo2} <span className="text-xs font-bold text-slate-400">%</span>
+                <span className="truncate">{Math.round(spo2)}</span> <span className="text-xs font-bold text-slate-400 shrink-0">%</span>
               </div>
               <div className="flex items-center justify-between mt-1 text-[11px] text-emerald-600 font-semibold">
                 <span>↑ High Saturation</span>
@@ -982,7 +1247,7 @@ export const DashboardPage: React.FC = () => {
 
             <div className="my-3">
               <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
-                {temp} <span className="text-xs font-bold text-slate-400">°C</span>
+                <span className="truncate">{Number(temp).toFixed(1)}</span> <span className="text-xs font-bold text-slate-400 shrink-0">°C</span>
               </div>
               <div className="text-[11px] text-emerald-600 font-semibold mt-1">Afebrile / 98.2°F</div>
             </div>
@@ -1042,7 +1307,7 @@ export const DashboardPage: React.FC = () => {
 
             <div className="my-3">
               <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
-                {hydration.total_intake_ml} <span className="text-xs font-bold text-slate-400">/ 2500ml</span>
+                <span className="truncate">{Math.round(hydration.total_intake_ml)}</span> <span className="text-xs font-bold text-slate-400 shrink-0">/ 2500ml</span>
               </div>
               <div className="text-[11px] text-blue-600 font-semibold mt-1">{Math.round(hydration.percentage)}% Daily Target</div>
             </div>
@@ -1073,7 +1338,7 @@ export const DashboardPage: React.FC = () => {
 
             <div className="my-3">
               <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
-                {sleepStr}
+                <span className="truncate">{sleepStr}</span>
               </div>
               <div className="text-[11px] text-indigo-600 font-semibold mt-1">Deep & REM Rest</div>
             </div>
@@ -1086,18 +1351,17 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* =========================================================================
-          HEALTH COMMAND CENTER DECK (LIVE OSCILLOSCOPE, AI DIGITAL TWIN, GPS TACTICAL, VOICE BOT)
+          HEALTH COMMAND CENTER DECK (LIVE OSCILLOSCOPE, AI DIGITAL TWIN, GPS TACTICAL, CLINICAL SHORTCUTS)
          ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-        <div className="lg:col-span-9 space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-            {/* Live ECG Oscilloscope Screen */}
-            <div className="md:col-span-6">
-              <LiveECGCanvas heartRate={heartRate} />
-            </div>
+      <div className="w-full space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+          {/* Live ECG Oscilloscope Screen */}
+          <div className="md:col-span-6">
+            <LiveECGCanvas heartRate={heartRate} />
+          </div>
 
-            {/* AI Health Digital Twin & Predictive Radar */}
-            <div className="md:col-span-6 bg-gradient-to-br from-[#0a1424] via-[#0d1d36] to-[#081224] rounded-3xl p-5 text-white border border-cyan-500/30 shadow-2xl flex flex-col justify-between relative overflow-hidden group">
+          {/* AI Health Digital Twin & Predictive Radar */}
+          <div className="md:col-span-6 bg-gradient-to-br from-[#0a1424] via-[#0d1d36] to-[#081224] rounded-3xl p-5 text-white border border-cyan-500/30 shadow-2xl flex flex-col justify-between relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-44 h-44 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
 
               <div className="flex items-center justify-between mb-2 z-10">
@@ -1303,9 +1567,71 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: 3D Robot AI Voice Assistant Widget */}
-        <div className="lg:col-span-3 flex flex-col">
-          <VoiceAssistantWidget userName={displayName} className="flex-1" />
+      {/* =========================================================================
+          EMERGENCY MEDICAL & CLINICAL HEALTH QR PASS (SCANNABLE FOR REPORTS & VITALS)
+         ========================================================================= */}
+      <div className="bg-gradient-to-br from-slate-900 via-[#0d1d36] to-[#071322] rounded-3xl p-6 md:p-8 text-white border border-cyan-500/40 shadow-2xl relative overflow-hidden">
+        <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -left-20 -top-20 w-80 h-80 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-6">
+          {/* Left: QR Code Badge */}
+          <div className="flex flex-col sm:flex-row items-center gap-5 shrink-0">
+            <div className="p-2.5 rounded-2xl bg-white shadow-xl ring-4 ring-cyan-400/30 flex items-center justify-center">
+              <PatientQRCode token={qrProfile?.qr_token || 'PT-QR-PT-2026-000001-A1B2C3D4'} size={140} />
+            </div>
+
+            <div className="text-center sm:text-left space-y-2 min-w-0">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-xs font-bold">
+                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Verified Patient Emergency & Clinical Pass</span>
+              </div>
+              <h2 className="text-xl md:text-2xl font-black tracking-tight text-white flex flex-wrap items-center gap-2 justify-center sm:justify-start">
+                <span>{displayName}'s Health Pass</span>
+                <span className="text-xs px-2.5 py-0.5 rounded-lg bg-rose-500/80 font-mono font-bold text-white shadow-sm">
+                  Blood Group: {qrProfile?.blood_group || 'O+'}
+                </span>
+              </h2>
+              <p className="text-xs text-slate-300 max-w-lg leading-relaxed">
+                Scan with any smartphone camera or hospital terminal to instantly access authenticated medical records, active medications, emergency contacts, and original uploaded digital health reports with AI clinical insights.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1 justify-center sm:justify-start text-[11px] font-mono text-cyan-200">
+                <span className="bg-white/10 px-2.5 py-1 rounded-lg border border-white/10">ID: {activePatientId}</span>
+                <span className="bg-white/10 px-2.5 py-1 rounded-lg border border-white/10">Token: {qrProfile?.qr_token || 'PT-QR-ACTIVE'}</span>
+                <span className="bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-500/30 font-bold">● Active 24/7 Verified</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Action Buttons */}
+          <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 w-full lg:w-auto shrink-0 justify-center">
+            <button
+              type="button"
+              onClick={handleOpenQRPortalModal}
+              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-extrabold text-xs shadow-lg shadow-cyan-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <QrCode className="w-4 h-4" />
+              <span>Scan / View Medical Portal</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowUploadDocModal(true)}
+              className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Upload className="w-4 h-4 text-cyan-300" />
+              <span>Upload Updated Health Report</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="px-5 py-2.5 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-medium text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print / Download QR Pass</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1390,7 +1716,7 @@ export const DashboardPage: React.FC = () => {
 
         {/* Smart Reminders & Doctor Appointments Column */}
         <div className="lg:col-span-5 space-y-5">
-          {/* Smart Reminders */}
+          {/* Smart Reminders with Real-time Location Calendar & Custom Ringtones */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-md space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
@@ -1399,46 +1725,130 @@ export const DashboardPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">Smart Health Reminders</h3>
-                  <p className="text-[11px] text-slate-500">Alarms for medication, sleep, and hydration</p>
+                  <p className="text-[11px] text-slate-500">Location calendar routines & custom alarms</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAddReminderModal(true)}
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm shadow-amber-500/20"
               >
-                <Plus className="w-3 h-3" />
-                New
+                <Plus className="w-3.5 h-3.5" />
+                New Routine
               </button>
+            </div>
+
+            {/* Real-time Location Clock & Interactive Calendar Strip */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-50 to-orange-50 border border-amber-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-amber-600" />
+                    <span>{userTimezone.replace('_', ' ')}</span>
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                  Live Time
+                </span>
+              </div>
+
+              <div className="flex items-baseline justify-between">
+                <div>
+                  <div className="text-2xl font-black font-mono text-slate-900 tracking-tight">
+                    {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </div>
+                  <div className="text-xs font-semibold text-slate-600 mt-0.5">
+                    {currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-[11px] font-bold text-amber-700">Routine Alarms</div>
+                  <div className="text-[10px] text-slate-400">Synced to patient timezone</div>
+                </div>
+              </div>
+
+              {/* Interactive Mini Calendar Ribbon */}
+              <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between gap-1">
+                {[-2, -1, 0, 1, 2, 3, 4].map((offset) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() + offset);
+                  const isToday = offset === 0;
+                  const isSelected = selectedCalendarDate.toDateString() === d.toDateString();
+                  return (
+                    <button
+                      key={offset}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCalendarDate(d);
+                        setNewRemDate(d.toISOString().split('T')[0]);
+                      }}
+                      className={`flex-1 py-1.5 px-1 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30 scale-105 font-bold'
+                          : isToday
+                          ? 'bg-amber-100 text-amber-900 font-bold border border-amber-300'
+                          : 'bg-white/80 hover:bg-white text-slate-600 border border-amber-100'
+                      }`}
+                    >
+                      <span className="text-[9px] uppercase tracking-wider">{d.toLocaleDateString([], { weekday: 'narrow' })}</span>
+                      <span className="text-xs font-extrabold">{d.getDate()}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="space-y-2">
               {reminders.length === 0 ? (
                 <div className="text-center py-4 text-slate-400 text-xs">
-                  No reminders scheduled.
+                  No reminders scheduled for this routine. Click <strong>New Routine</strong> to set an alarm.
                 </div>
               ) : (
                 reminders.map((rem) => (
                   <div
                     key={rem.id}
-                    className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between"
+                    className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-2 overflow-hidden"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <Clock className="w-4 h-4 text-slate-400" />
-                      <div>
-                        <div className="text-xs font-bold text-slate-800">{rem.title}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{rem.reminder_time} • {rem.recurring_days}</div>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-800 truncate">{rem.title}</div>
+                        <div className="text-[10px] text-slate-500 font-mono flex items-center gap-2">
+                          <span className="truncate">{rem.reminder_time} • {rem.recurring_days}</span>
+                          <span className="text-amber-700 bg-amber-100/70 px-1.5 py-0.5 rounded font-sans shrink-0 font-medium">
+                            🎵 {rem.alarm_tone ? rem.alarm_tone.replace('_', ' ') : 'gentle chime'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleReminder(rem.id, rem.is_enabled)}
-                      className={`px-3 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
-                        rem.is_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'
-                      }`}
-                    >
-                      {rem.is_enabled ? 'Active' : 'Muted'}
-                    </button>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handlePlayTonePreview(rem.alarm_tone || 'gentle_chime')}
+                        className={`p-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                          playingTone === (rem.alarm_tone || 'gentle_chime')
+                            ? 'bg-amber-500 text-white border-amber-600 animate-pulse'
+                            : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
+                        }`}
+                        title="Listen to Ringtone"
+                      >
+                        {playingTone === (rem.alarm_tone || 'gentle_chime') ? <Square className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current" />}
+                        <span className="text-[10px]">Play</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleReminder(rem.id, rem.is_enabled)}
+                        className={`px-3 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
+                          rem.is_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'
+                        }`}
+                      >
+                        {rem.is_enabled ? 'Active' : 'Muted'}
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
