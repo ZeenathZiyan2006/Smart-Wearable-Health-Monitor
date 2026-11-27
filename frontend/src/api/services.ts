@@ -493,7 +493,7 @@ export const patientDashboardApi = {
     return res.data;
   },
 
-  uploadDigitalDocument: async (payload: { document_name: string; document_type: string; file_text_content?: string }, patientId?: number): Promise<DigitalDocument> => {
+  uploadDigitalDocument: async (payload: { document_name: string; document_type: string; file_url?: string; file_text_content?: string }, patientId?: number): Promise<DigitalDocument> => {
     const res = await apiClient.post<DigitalDocument>('/patient/dashboard/documents', payload, { params: { patient_id: patientId } });
     return res.data;
   },

@@ -19,6 +19,7 @@ const CommunicationPage = lazy(() => import('./pages/CommunicationPage').then(m 
 const HealthHistoryPage = lazy(() => import('./pages/HealthHistoryPage').then(m => ({ default: m.HealthHistoryPage })));
 const DevicesPage = lazy(() => import('./pages/DevicesPage').then(m => ({ default: m.DevicesPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const EmergencyQRPage = lazy(() => import('./pages/EmergencyQRPage').then(m => ({ default: m.EmergencyQRPage })));
 
 // Page Loading Fallback Spinner
 const PageFallback: React.FC = () => (
@@ -62,6 +63,10 @@ export const App: React.FC = () => {
               <Routes>
                 {/* Public Authentication Route */}
                 <Route path="/login" element={<LoginPage />} />
+
+                {/* Public Emergency QR Pass Scan Routes (No Login Required) */}
+                <Route path="/emergency-qr/public/:qrToken" element={<EmergencyQRPage />} />
+                <Route path="/emergency-qr/:qrToken" element={<EmergencyQRPage />} />
 
                 {/* Protected Application Routes */}
                 <Route

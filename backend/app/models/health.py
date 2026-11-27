@@ -349,7 +349,7 @@ class DigitalMedicalDocument(Base):
     patient_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
     document_name = Column(String(255), nullable=False)
     document_type = Column(String(100), default="lab_report", nullable=False)  # 'lab_report', 'prescription', 'ecg_strip', 'discharge_summary', 'radiology'
-    file_url = Column(String(500), nullable=True)
+    file_url = Column(Text, nullable=True)
     file_text_content = Column(Text, nullable=True)
     uploaded_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     ai_analysis_status = Column(String(50), default="completed", nullable=False)  # 'pending', 'completed', 'failed'

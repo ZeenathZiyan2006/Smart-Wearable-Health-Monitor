@@ -1,3 +1,4 @@
+import QRCode from 'qrcode';
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -152,74 +153,40 @@ function playRingtonePreview(tone: string): () => void {
   };
 }
 
-// Crisp Vector SVG QR Code Renderer
+// Standard ISO-Compliant Scannable QR Code Renderer
 export const PatientQRCode: React.FC<{ token: string; size?: number }> = ({ token, size = 150 }) => {
-  const N = 25;
-  const grid = Array.from({ length: N }, () => Array(N).fill(false));
+  const [qrSrc, setQrSrc] = useState<string>('');
 
-  const drawFinder = (startX: number, startY: number) => {
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
-        if (
-          r === 0 || r === 6 || c === 0 || c === 6 ||
-          (r >= 2 && r <= 4 && c >= 2 && c <= 4)
-        ) {
-          grid[startY + r][startX + c] = true;
-        }
-      }
-    }
-  };
+  useEffect(() => {
+    const url = `${window.location.origin}/emergency-qr/public/${token}`;
+    QRCode.toDataURL(url, {
+      width: size * 2,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: '#0a1526',
+        light: '#ffffff',
+      },
+    })
+      .then((dataUri) => setQrSrc(dataUri))
+      .catch((err) => console.error('QR code generation failed', err));
+  }, [token, size]);
 
-  drawFinder(0, 0);
-  drawFinder(18, 0);
-  drawFinder(0, 18);
-
-  for (let i = 8; i < 17; i++) {
-    if (i % 2 === 0) {
-      grid[6][i] = true;
-      grid[i][6] = true;
-    }
+  if (!qrSrc) {
+    return (
+      <div style={{ width: size, height: size }} className="rounded-xl bg-white flex items-center justify-center p-2 shadow-inner">
+        <div className="w-6 h-6 border-2 border-slate-300 border-t-cyan-500 rounded-full animate-spin" />
+      </div>
+    );
   }
-
-  let hash = 0;
-  for (let i = 0; i < token.length; i++) {
-    hash = ((hash << 5) - hash + token.charCodeAt(i)) | 0;
-  }
-  for (let r = 0; r < N; r++) {
-    for (let c = 0; c < N; c++) {
-      if (
-        (r < 8 && c < 8) ||
-        (r < 8 && c >= 17) ||
-        (r >= 17 && c < 8) ||
-        r === 6 || c === 6
-      ) {
-        continue;
-      }
-      const val = (Math.sin(r * 37 + c * 19 + hash) * 10000) % 1;
-      grid[r][c] = val > 0.44;
-    }
-  }
-
-  const cellSize = size / N;
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="rounded-xl shadow-inner bg-white p-1.5">
-      <rect width={size} height={size} fill="#ffffff" />
-      {grid.map((row, r) =>
-        row.map((active, c) =>
-          active ? (
-            <rect
-              key={`${r}-${c}`}
-              x={c * cellSize}
-              y={r * cellSize}
-              width={cellSize + 0.3}
-              height={cellSize + 0.3}
-              fill="#0a1526"
-            />
-          ) : null
-        )
-      )}
-    </svg>
+    <img
+      src={qrSrc}
+      alt={`Emergency QR Code for ${token}`}
+      style={{ width: size, height: size }}
+      className="rounded-xl shadow-inner bg-white p-1.5"
+    />
   );
 };
 
@@ -268,6 +235,42 @@ export const DashboardPage: React.FC = () => {
   const [uploadDocName, setUploadDocName] = useState('');
   const [uploadDocType, setUploadDocType] = useState('lab_report');
   const [uploadDocText, setUploadDocText] = useState('');
+  const [selectedPdfFile, setSelectedPdfFile] = useState<File | null>(null);
+  const [pdfDataUrl, setPdfDataUrl] = useState<string>('');
+  const [selectedDocPreviewModal, setSelectedDocPreviewModal] = useState<any | null>(null);
+
+  const handlePdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedPdfFile(file);
+      if (!uploadDocName.trim() || uploadDocName === 'New Clinical Report.pdf') {
+        setUploadDocName(file.name);
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPdfDataUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleOpenReportPdf = (doc: any) => {
+    if (doc.file_url && doc.file_url.startsWith('data:application/pdf')) {
+      const win = window.open();
+      if (win) {
+        win.document.write(
+          `<iframe src="${doc.file_url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
+        );
+      } else {
+        const a = document.createElement('a');
+        a.href = doc.file_url;
+        a.download = doc.document_name.endsWith('.pdf') ? doc.document_name : `${doc.document_name}.pdf`;
+        a.click();
+      }
+    } else {
+      setSelectedDocPreviewModal(doc);
+    }
+  };
 
   // Live Location Clock & Calendar State
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
@@ -761,7 +764,8 @@ export const DashboardPage: React.FC = () => {
       const newDoc = await patientDashboardService.uploadDigitalDocument({
         document_name: uploadDocName.trim(),
         document_type: uploadDocType,
-        file_text_content: uploadDocText.trim() || `Clinical notes for ${uploadDocName.trim()}`,
+        file_url: pdfDataUrl || `/documents/${uploadDocName.trim().replace(/\s+/g, '_').toLowerCase()}.pdf`,
+        file_text_content: uploadDocText.trim() || (selectedPdfFile ? `Uploaded PDF file: ${selectedPdfFile.name} (${Math.round(selectedPdfFile.size / 1024)} KB)` : `Clinical notes for ${uploadDocName.trim()}`),
       });
       const updated = await patientDashboardService.getDigitalDocuments();
       setDigitalDocs(updated);
@@ -769,6 +773,8 @@ export const DashboardPage: React.FC = () => {
       setShowUploadDocModal(false);
       setUploadDocName('');
       setUploadDocText('');
+      setSelectedPdfFile(null);
+      setPdfDataUrl('');
     } catch (err: any) {
       alert(err?.response?.data?.detail || 'Failed to upload document.');
     } finally {
@@ -1614,19 +1620,29 @@ export const DashboardPage: React.FC = () => {
               <span>Scan / View Medical Portal</span>
             </button>
 
+            <a
+              href={`/emergency-qr/public/${qrProfile?.qr_token || 'PT-QR-PT-2026-000001-A1B2C3D4'}`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-5 py-2.5 rounded-2xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/30 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Open Public Scan URL</span>
+            </a>
+
             <button
               type="button"
               onClick={() => setShowUploadDocModal(true)}
-              className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Upload className="w-4 h-4 text-cyan-300" />
-              <span>Upload Updated Health Report</span>
+              <span>Upload PDF Health Report</span>
             </button>
 
             <button
               type="button"
               onClick={() => window.print()}
-              className="px-5 py-2.5 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-medium text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="px-5 py-2 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-medium text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Print / Download QR Pass</span>
@@ -2032,6 +2048,14 @@ export const DashboardPage: React.FC = () => {
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
+                      onClick={() => handleOpenReportPdf(doc)}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-200 rounded-xl font-bold text-xs cursor-pointer transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-cyan-600" />
+                      <span>Open PDF</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setSelectedDocDetails(doc)}
                       className="text-slate-600 hover:text-slate-900 font-bold cursor-pointer"
                     >
@@ -2076,6 +2100,35 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleUploadDocument} className="space-y-4">
+              {/* PDF File Upload Dropzone */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <FileUp className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Attach PDF Health Report</span>
+                </label>
+                <div className="border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/40 rounded-2xl p-4 text-center transition-all cursor-pointer relative">
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    onChange={handlePdfFileChange}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                  {selectedPdfFile ? (
+                    <div className="flex items-center justify-center gap-2 text-indigo-900 font-bold text-xs">
+                      <FileText className="w-5 h-5 text-indigo-600" />
+                      <span>{selectedPdfFile.name} ({Math.round(selectedPdfFile.size / 1024)} KB)</span>
+                      <span className="text-emerald-600 font-extrabold text-[11px]">✓ PDF Ready</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <FileUp className="w-7 h-7 text-indigo-500 mx-auto" />
+                      <p className="text-xs font-bold text-indigo-900">Click or Drag & Drop PDF Report here</p>
+                      <p className="text-[10px] text-slate-400">Supports hospital lab test PDFs, ECG diagnostic strips, discharge summaries</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Document File / Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Report / Document Title</label>

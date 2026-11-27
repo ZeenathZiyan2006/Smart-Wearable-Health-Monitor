@@ -416,6 +416,8 @@ export interface EmergencyQRPublicView {
     id: number;
     document_name: string;
     document_type: string;
+    file_url?: string;
+    file_text_content?: string;
     uploaded_at: string;
     ai_summary: string;
     ai_detected_conditions: string;

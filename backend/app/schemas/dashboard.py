@@ -459,6 +459,7 @@ class EmergencyQRPublicView(BaseModel):
 class DigitalDocumentUpload(BaseModel):
     document_name: str = Field(..., min_length=1, max_length=255)
     document_type: str = Field(default="lab_report")  # 'lab_report', 'prescription', 'ecg_strip', 'discharge_summary', 'radiology'
+    file_url: Optional[str] = Field(None, description="Data URL or link to view/download the original PDF report")
     file_text_content: Optional[str] = Field(None, description="Extracted OCR text or clinical summary")
 
 
@@ -468,6 +469,7 @@ class DigitalDocumentOut(BaseModel):
     document_name: str
     document_type: str
     file_url: Optional[str] = None
+    file_text_content: Optional[str] = None
     uploaded_at: datetime
     ai_analysis_status: str
     ai_summary: Optional[str] = None
