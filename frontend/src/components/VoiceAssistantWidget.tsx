@@ -40,6 +40,18 @@ export const VoiceAssistantWidget: React.FC<VoiceAssistantWidgetProps> = ({
     setLoading(true);
     setLastResponse(null);
     setStatusNote(null);
+
+    // Direct phone dialer if "Call Caregiver" is clicked
+    if (promptText.toLowerCase().includes('call') || promptText.toLowerCase().includes('phone') || promptText.toLowerCase().includes('ಕರೆ') || promptText.toLowerCase().includes('कॉल')) {
+      const dialMsg = selectedLang === 'kn' ? 'ನಿಮ್ಮ ಪ್ರಾಥಮಿಕ ಆರೈಕೆದಾರರಿಗೆ ನೇರ ಕರೆ ಸಂಪರ್ಕಿಸಲಾಗುತ್ತಿದೆ (+91 98765 43220)...' : selectedLang === 'hi' ? 'देखभालकर्ता को सीधे कॉल मिलाया जा रहा है (+91 98765 43220)...' : 'Connecting direct call to your primary caregiver (+91 98765 43220)...';
+      setLastResponse(dialMsg);
+      setTimeout(() => {
+        window.location.href = 'tel:+919876543220';
+      }, 1200);
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await voiceService.transcribeText(promptText, selectedLang);
       const reply = res.response_text || 'Your vital metrics are recorded and within normal ranges.';
@@ -177,11 +189,11 @@ export const VoiceAssistantWidget: React.FC<VoiceAssistantWidgetProps> = ({
           </div>
         )}
 
-        {/* Dynamic AI Response bubble */}
+        {/* Dynamic AI Response bubble with high contrast */}
         {lastResponse && (
-          <div className="mb-4 p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-xs text-cyan-100 flex items-start space-x-2 animate-fadeIn">
+          <div className="mb-4 p-3.5 rounded-2xl bg-slate-900/95 border border-cyan-400/60 text-xs text-white flex items-start space-x-2.5 animate-fadeIn shadow-xl shadow-cyan-950/50">
             <Bot className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
+            <div className="flex-1 font-medium text-slate-100 leading-relaxed">
               <p>{lastResponse}</p>
             </div>
           </div>
@@ -194,7 +206,7 @@ export const VoiceAssistantWidget: React.FC<VoiceAssistantWidgetProps> = ({
               key={idx}
               onClick={() => handlePromptClick(p.text)}
               disabled={loading}
-              className="w-full text-left px-3.5 py-2 rounded-xl text-xs font-medium text-slate-200 bg-slate-800/60 hover:bg-cyan-900/40 hover:text-white border border-slate-700/60 hover:border-cyan-500/40 transition-all flex items-center justify-between group shadow-sm"
+              className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-100 bg-slate-800/80 hover:bg-cyan-900/50 hover:text-white border border-slate-700/80 hover:border-cyan-500/60 transition-all flex items-center justify-between group shadow-sm cursor-pointer"
             >
               <span className="flex items-center space-x-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 group-hover:scale-125 transition-transform"></span>
@@ -216,16 +228,17 @@ export const VoiceAssistantWidget: React.FC<VoiceAssistantWidgetProps> = ({
             <span>AI Voice Pipeline</span>
           </span>
           <select
+            translate="no"
             value={selectedLang}
             onChange={(e) => {
               const langCode = e.target.value as SupportedLanguage;
               setSelectedLang(langCode);
               setLanguage(langCode);
             }}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-slate-200 text-[11px] focus:outline-none cursor-pointer"
+            className="notranslate bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-slate-200 text-[11px] focus:outline-none cursor-pointer"
           >
             {languages.map((l) => (
-              <option key={l.code} value={l.code}>
+              <option key={l.code} value={l.code} translate="no" className="notranslate">
                 {l.nativeName}
               </option>
             ))}

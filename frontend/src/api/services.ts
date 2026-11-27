@@ -172,13 +172,25 @@ export const deviceApi = {
 // 4. Emergency SOS & Escalation APIs
 // ==========================================
 export const emergencyApi = {
-  triggerSOS: async (alertData: { alert_type?: string; severity?: string; latitude?: number; longitude?: number; assistance_message?: string; trigger_source?: string; description?: string }): Promise<EmergencyAlert> => {
+  triggerSOS: async (alertData: {
+    alert_type?: string;
+    severity?: string;
+    latitude?: number;
+    longitude?: number;
+    assistance_message?: string;
+    trigger_source?: string;
+    description?: string;
+    patient_id?: number | string;
+    device_uuid?: string;
+  }): Promise<EmergencyAlert> => {
     const res = await apiClient.post<EmergencyAlert>('/emergency/sos', {
       alert_type: alertData.alert_type || 'manual_sos',
       severity: alertData.severity || 'critical',
       latitude: alertData.latitude,
       longitude: alertData.longitude,
       assistance_message: alertData.assistance_message || alertData.description,
+      patient_id: alertData.patient_id,
+      device_uuid: alertData.device_uuid,
     });
     return res.data;
   },

@@ -406,12 +406,13 @@ export const LoginPage: React.FC = () => {
           <div className="flex justify-end items-center mb-2">
             <div className="relative">
               <select
+                translate="no"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as SupportedLanguage)}
-                className="appearance-none bg-slate-50 border border-slate-200 rounded-full py-1.5 pl-8 pr-8 text-xs font-medium text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0284c7] cursor-pointer"
+                className="notranslate appearance-none bg-slate-50 border border-slate-200 rounded-full py-1.5 pl-8 pr-8 text-xs font-medium text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0284c7] cursor-pointer"
               >
                 {languages.map((l) => (
-                  <option key={l.code} value={l.code}>
+                  <option key={l.code} value={l.code} translate="no" className="notranslate">
                     {l.code === 'en' ? 'English' : `${l.nativeName} (${l.name})`}
                   </option>
                 ))}
