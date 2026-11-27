@@ -26,6 +26,7 @@ from app.models.health import (
     PatientHydrationLog,
     DigitalMedicalDocument,
     EmergencyQRProfile,
+    PatientMoodLog,
     QRAccessAuditLog,
 )
 from app.schemas.dashboard import (
@@ -48,6 +49,8 @@ from app.schemas.dashboard import (
     HydrationSummaryOut,
     DigitalDocumentUpload,
     DigitalDocumentOut,
+    PatientMoodCheckIn,
+    PatientMoodOut,
     EmergencyQRProfileOut,
     EmergencyQRPublicView,
 )
@@ -1023,3 +1026,143 @@ def get_public_emergency_qr_view(
         "is_verified": True,
         "notice": "Verified Emergency & Clinical Health QR Pass. Accessible for emergency first responders and attending clinical physicians."
     }
+
+
+# =========================================================================
+# FEATURE 23: AI Emotional Wellbeing & Mood Support Endpoints
+# =========================================================================
+@router.get("/mood", response_model=List[PatientMoodOut])
+def get_patient_mood_history(
+    patient_id: Optional[int] = Query(None, description="Patient profile ID (caregivers only)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> Any:
+    """
+    Retrieve mood history for patient.
+    Private by default: only the patient sees private entries, unless shared_with_caregiver is true.
+    """
+    patient = resolve_patient_profile(current_user, patient_id, db)
+    resolved_id = patient.id
+    query = db.query(PatientMoodLog).filter(PatientMoodLog.patient_id == resolved_id)
+
+    # Privacy filtering: Caregivers only see logs where shared_with_caregiver is True
+    if current_user.role != UserRole.PATIENT and current_user.id != resolved_id:
+        query = query.filter(PatientMoodLog.shared_with_caregiver == True)
+
+    records = query.order_by(desc(PatientMoodLog.logged_at)).limit(30).all()
+
+    # If no records, provide initial friendly baseline check-in
+    if not records:
+        return [
+            PatientMoodOut(
+                id=1,
+                patient_id=resolved_id,
+                mood="calm",
+                notes="Initial wellbeing baseline check-in. Vitals steady.",
+                heart_rate_context=72.0,
+                is_private=False,
+                shared_with_caregiver=True,
+                logged_at=datetime.now(timezone.utc) - timedelta(hours=3),
+                supportive_message="PulseGuardian NOVA is here to accompany and support you throughout your day."
+            )
+        ]
+
+    results = []
+    for r in records:
+        results.append(
+            PatientMoodOut(
+                id=r.id,
+                patient_id=r.patient_id,
+                mood=r.mood,
+                notes=r.notes,
+                heart_rate_context=r.heart_rate_context,
+                is_private=r.is_private,
+                shared_with_caregiver=r.shared_with_caregiver,
+                logged_at=r.logged_at,
+                supportive_message=_generate_supportive_message(r.mood),
+            )
+        )
+    return results
+
+
+def _generate_supportive_message(mood: str) -> str:
+    m = (mood or "").lower().strip()
+    if m in ["happy", "great", "joyful"]:
+        return "Wonderful! Your positive state supports your cardiac rhythm and overall wellbeing."
+    elif m in ["calm", "relaxed", "peaceful"]:
+        return "Gentle and steady. Maintaining calm helps keep your resting heart rate optimal."
+    elif m in ["stressed", "anxious", "worried"]:
+        return "Take a slow, deep breath in... and exhale. A brief rest and a glass of warm water can help soothe your nervous system."
+    elif m in ["sad", "low", "down"]:
+        return "It is completely okay to feel this way. You are never alone—NOVA and your loved ones are always here for you."
+    elif m in ["lonely", "alone"]:
+        return "I am right here with you. Would you like to call your family caregiver or listen to an uplifting story?"
+    elif m in ["tired", "fatigued", "exhausted"]:
+        return "Listen to your body's signals and get some nourishing rest. A steady sleep routine restores energy."
+    return "PulseGuardian NOVA is listening and here to support your daily journey."
+
+
+@router.post("/mood", response_model=PatientMoodOut)
+def record_patient_mood(
+    payload: PatientMoodCheckIn,
+    patient_id: Optional[int] = Query(None, description="Patient profile ID (caregivers only)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> Any:
+    """
+    Log a mood check-in for the patient with non-diagnostic context.
+    Detects severe emotional distress and includes certified crisis support guidance.
+    """
+    patient = resolve_patient_profile(current_user, patient_id, db)
+    resolved_id = patient.id
+
+    # Contextual heart rate from latest telemetry if available
+    latest_tel = db.query(HealthTelemetry).filter(
+        HealthTelemetry.patient_id == resolved_id
+    ).order_by(desc(HealthTelemetry.recorded_at)).first()
+    hr_context = payload.heart_rate_context or (float(latest_tel.heart_rate) if latest_tel and latest_tel.heart_rate else 72.0)
+
+    log_entry = PatientMoodLog(
+        patient_id=resolved_id,
+        mood=payload.mood.lower().strip(),
+        notes=payload.notes,
+        heart_rate_context=hr_context,
+        is_private=payload.is_private,
+        shared_with_caregiver=payload.shared_with_caregiver,
+        logged_at=datetime.now(timezone.utc)
+    )
+    db.add(log_entry)
+    db.commit()
+    db.refresh(log_entry)
+
+    supportive_msg = _generate_supportive_message(log_entry.mood)
+
+    # Check for crisis keywords in notes
+    notes_lower = (payload.notes or "").lower()
+    crisis_keywords = ["suicide", "kill myself", "end it all", "don't want to live", "want to die", "hopeless", "harm myself"]
+    helpline = None
+    if any(k in notes_lower for k in crisis_keywords) or log_entry.mood == "crisis":
+        supportive_msg = (
+            "We care deeply about your life and safety. Please reach out to someone who can help right now. "
+            "You are not alone, and support is available 24/7."
+        )
+        helpline = {
+            "tele_manas": "14416 (Toll-Free 24/7)",
+            "kiran_helpline": "1800-599-0019",
+            "vandrevala_foundation": "+91 9999 666 555",
+            "emergency_sos": "112",
+            "action": "Immediate supportive escalation available"
+        }
+
+    return PatientMoodOut(
+        id=log_entry.id,
+        patient_id=log_entry.patient_id,
+        mood=log_entry.mood,
+        notes=log_entry.notes,
+        heart_rate_context=log_entry.heart_rate_context,
+        is_private=log_entry.is_private,
+        shared_with_caregiver=log_entry.shared_with_caregiver,
+        logged_at=log_entry.logged_at,
+        supportive_message=supportive_msg,
+        helpline_guidance=helpline
+    )

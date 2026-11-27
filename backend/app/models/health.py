@@ -360,3 +360,21 @@ class DigitalMedicalDocument(Base):
     ai_confidence_score = Column(Float, default=0.92, nullable=False)
 
     patient = relationship("PatientProfile")
+
+
+# =========================================================================
+# FEATURE 23: AI Emotional Wellbeing & Mood Support Log
+# =========================================================================
+class PatientMoodLog(Base):
+    __tablename__ = "patient_mood_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    patient_id = Column(Integer, ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    mood = Column(String(50), nullable=False)  # 'happy', 'calm', 'stressed', 'sad', 'lonely', 'tired'
+    notes = Column(Text, nullable=True)
+    heart_rate_context = Column(Float, nullable=True)  # Non-diagnostic contextual biometric
+    is_private = Column(Boolean, default=True, nullable=False)  # Private by default
+    shared_with_caregiver = Column(Boolean, default=False, nullable=False)
+    logged_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    patient = relationship("PatientProfile")

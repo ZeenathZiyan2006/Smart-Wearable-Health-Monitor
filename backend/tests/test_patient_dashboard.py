@@ -258,3 +258,65 @@ def test_emergency_qr_profile_and_public_access(client):
     assert len(public_data["uploaded_documents"]) >= 1
     assert "Lipid" in public_data["uploaded_documents"][0]["document_name"]
     assert public_data["uploaded_documents"][0]["ai_summary"] is not None
+
+
+def test_patient_emotional_wellbeing_and_mood_checkin(client):
+    """Feature 23 Test: Emotional Wellbeing, Mood Check-ins, Privacy, and Crisis Safety Escalation."""
+    p_data = {
+        "full_name": "Kavita Nair",
+        "date_of_birth": "1992-03-10",
+        "gender": "female",
+        "contact_number": "+91 9666655555",
+        "family_email": "kavita.family@example.com",
+        "password": "Password@123",
+        "confirm_password": "Password@123"
+    }
+    reg_res = client.post("/api/v1/patient/register", json=p_data)
+    assert reg_res.status_code == status.HTTP_201_CREATED
+    token = reg_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Fetch initial baseline mood history
+    mood_get = client.get("/api/v1/patient/dashboard/mood", headers=headers)
+    assert mood_get.status_code == status.HTTP_200_OK
+    assert len(mood_get.json()) >= 1
+
+    # 2. Record a private mood check-in (Calm)
+    mood_payload = {
+        "mood": "calm",
+        "notes": "Enjoying quiet morning herbal tea",
+        "heart_rate_context": 70.0,
+        "is_private": True,
+        "shared_with_caregiver": False
+    }
+    create_res = client.post("/api/v1/patient/dashboard/mood", json=mood_payload, headers=headers)
+    assert create_res.status_code == status.HTTP_200_OK
+    data = create_res.json()
+    assert data["mood"] == "calm"
+    assert data["is_private"] is True
+    assert "calm" in data["supportive_message"].lower() or "steady" in data["supportive_message"].lower()
+
+    # 3. Record shared lonely mood check-in
+    lonely_payload = {
+        "mood": "lonely",
+        "notes": "Quiet evening at home",
+        "is_private": False,
+        "shared_with_caregiver": True
+    }
+    lonely_res = client.post("/api/v1/patient/dashboard/mood", json=lonely_payload, headers=headers)
+    assert lonely_res.status_code == status.HTTP_200_OK
+    assert "here with you" in lonely_res.json()["supportive_message"].lower() or "alone" in lonely_res.json()["supportive_message"].lower()
+
+    # 4. Test crisis safety escalation triggered by distress keywords
+    crisis_payload = {
+        "mood": "sad",
+        "notes": "Feeling completely hopeless and want to end it all",
+        "is_private": False,
+        "shared_with_caregiver": True
+    }
+    crisis_res = client.post("/api/v1/patient/dashboard/mood", json=crisis_payload, headers=headers)
+    assert crisis_res.status_code == status.HTTP_200_OK
+    crisis_data = crisis_res.json()
+    assert crisis_data["helpline_guidance"] is not None
+    assert "14416" in crisis_data["helpline_guidance"]["tele_manas"]
+    assert "1800-599-0019" in crisis_data["helpline_guidance"]["kiran_helpline"]

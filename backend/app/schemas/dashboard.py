@@ -479,3 +479,29 @@ class DigitalDocumentOut(BaseModel):
     ai_confidence_score: float
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# =========================================================================
+# FEATURE 23: AI Emotional Wellbeing & Mood Support Schemas
+# =========================================================================
+class PatientMoodCheckIn(BaseModel):
+    mood: str = Field(..., description="happy, calm, stressed, sad, lonely, tired")
+    notes: Optional[str] = Field(None, max_length=1000)
+    heart_rate_context: Optional[float] = Field(None, description="Contextual heart rate")
+    is_private: bool = Field(True, description="Private by default per Feature 23")
+    shared_with_caregiver: bool = Field(False)
+
+
+class PatientMoodOut(BaseModel):
+    id: int
+    patient_id: int
+    mood: str
+    notes: Optional[str] = None
+    heart_rate_context: Optional[float] = None
+    is_private: bool
+    shared_with_caregiver: bool
+    logged_at: datetime
+    supportive_message: Optional[str] = None
+    helpline_guidance: Optional[dict] = None
+
+    model_config = ConfigDict(from_attributes=True)

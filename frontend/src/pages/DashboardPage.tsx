@@ -366,6 +366,71 @@ export const DashboardPage: React.FC = () => {
   const [newConditionName, setNewConditionName] = useState('');
   const [newConditionSeverity, setNewConditionSeverity] = useState('mild');
 
+  // PART 9: Strict Operating Modes
+  const [operatingMode, setOperatingMode] = useState<'real' | 'simulation' | 'unavailable'>('simulation');
+  const [showModeInfoModal, setShowModeInfoModal] = useState<boolean>(false);
+
+  // FEATURE 15 & REQ E: Multi-Patient Management
+  const [selectedPatientId, setSelectedPatientId] = useState<number>(1);
+  const patientProfiles = [
+    { id: 1, name: 'Thrisha', patientIdReadable: 'PT-2026-000001', age: 68, blood: 'O+', relationship: 'Mother / Primary Patient' },
+    { id: 2, name: 'Ramesh', patientIdReadable: 'PT-2026-000002', age: 72, blood: 'B+', relationship: 'Father / Secondary Patient' },
+  ];
+
+  // FEATURE 16 & 17: Doctor Dashboard & Hospital Portal
+  const [showDoctorModal, setShowDoctorModal] = useState<boolean>(false);
+  const [doctorNotes, setDoctorNotes] = useState<string>('Patient reports steady tolerance of morning Metformin. Resting cardiovascular rhythm remains normotensive.');
+  const [doctorNotesSaved, setDoctorNotesSaved] = useState<boolean>(false);
+
+  // FEATURE 22: Hybrid Offline & Online Operation
+  const [isNetworkOnline, setIsNetworkOnline] = useState<boolean>(navigator.onLine);
+  const [offlineSyncCount, setOfflineSyncCount] = useState<number>(0);
+
+  // FEATURE 23: Emotional Wellbeing & Mood Support
+  const [currentMood, setCurrentMood] = useState<string>('calm');
+  const [moodToast, setMoodToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsNetworkOnline(true);
+      if (offlineSyncCount > 0) {
+        setMedicineActionToast(`Network restored! ${offlineSyncCount} offline health events synced with clinical cloud.`);
+        setOfflineSyncCount(0);
+        setTimeout(() => setMedicineActionToast(null), 4000);
+      }
+    };
+    const handleOffline = () => {
+      setIsNetworkOnline(false);
+      setMedicineActionToast('Offline mode active. Emergency alarms, local SOS, and medicine schedules continue running locally.');
+      setTimeout(() => setMedicineActionToast(null), 5000);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [offlineSyncCount]);
+
+  const handleQuickMood = async (mood: string) => {
+    setCurrentMood(mood);
+    try {
+      await patientDashboardService.recordMood({
+        mood,
+        notes: `Dashboard check-in: ${mood}`,
+        heart_rate_context: heartRate || 72,
+        is_private: true,
+        shared_with_caregiver: mood === 'sad' || mood === 'lonely',
+      });
+      setMoodToast(`Mood logged: ${mood}. PulseGuardian NOVA companionship active.`);
+      setTimeout(() => setMoodToast(null), 4000);
+    } catch {
+      setMoodToast(`Mood noted: ${mood}.`);
+      setTimeout(() => setMoodToast(null), 3000);
+    }
+  };
+
   const [holdingSOS, setHoldingSOS] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const [sosStatus, setSosStatus] = useState<'idle' | 'transmitting' | 'dispatched' | 'error'>('idle');

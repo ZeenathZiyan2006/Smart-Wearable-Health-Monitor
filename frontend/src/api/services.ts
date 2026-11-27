@@ -546,6 +546,16 @@ export const patientDashboardApi = {
     const res = await apiClient.get<any[]>('/patient/dashboard/caregivers-directory', { params: { patient_id: patientId } });
     return res.data;
   },
+
+  getMoodHistory: async (patientId?: number): Promise<any[]> => {
+    const res = await apiClient.get<any[]>('/patient/dashboard/mood', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  recordMood: async (payload: { mood: string; notes?: string; heart_rate_context?: number; is_private?: boolean; shared_with_caregiver?: boolean }, patientId?: number): Promise<any> => {
+    const res = await apiClient.post<any>('/patient/dashboard/mood', payload, { params: { patient_id: patientId } });
+    return res.data;
+  },
 };
 export const patientDashboardService = patientDashboardApi;
 
