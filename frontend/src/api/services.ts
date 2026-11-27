@@ -228,6 +228,11 @@ export const notificationApi = {
     return res.data;
   },
 
+  markAsUnread: async (id: number | string): Promise<InAppNotification> => {
+    const res = await apiClient.patch<InAppNotification>(`/notifications/${id}/unread`);
+    return res.data;
+  },
+
   markAllAsRead: async (): Promise<{ marked_read_count: number }> => {
     const res = await apiClient.post<{ marked_read_count: number }>('/notifications/read-all');
     return res.data;
@@ -514,6 +519,11 @@ export const patientDashboardApi = {
 
   getPublicEmergencyQRProfile: async (qrToken: string): Promise<EmergencyQRPublicView> => {
     const res = await apiClient.get<EmergencyQRPublicView>(`/patient/dashboard/emergency-qr/public/${qrToken}`);
+    return res.data;
+  },
+
+  getCaregiverDirectory: async (patientId?: number): Promise<any[]> => {
+    const res = await apiClient.get<any[]>('/patient/dashboard/caregivers-directory', { params: { patient_id: patientId } });
     return res.data;
   },
 };

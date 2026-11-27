@@ -11,6 +11,7 @@ from app.api.deps import (
 from app.api.v1.health import _check_patient_read_permission, _resolve_patient_id
 from app.models.emergency import EmergencyAlert, EscalationAuditLog
 from app.models.location import LocationLog
+from app.models.notification import InAppNotification
 from app.models.user import (
     CaregiverProfile,
     PatientCaregiverAssociation,
@@ -131,6 +132,20 @@ def trigger_manual_or_fall_sos(
         created_at=now
     )
     db.add(alert)
+
+    # Log in-app notification for patient and caregiver notification centers
+    if current_user:
+        notif = InAppNotification(
+            user_id=current_user.id,
+            title="🚨 Emergency SOS Broadcast Transmitted",
+            body=f"SOS alert #{alert.id or ''} triggered. Coordinates: ({lat or 'GPS acquiring'}, {lon or 'GPS acquiring'}). Primary & secondary caregiver escalation ladder engaged.",
+            notification_type="emergency",
+            severity="emergency",
+            is_read=False,
+            created_at=now
+        )
+        db.add(notif)
+
     db.commit()
     db.refresh(alert)
 
@@ -170,6 +185,20 @@ def request_assistance_not_okay(
         created_at=now
     )
     db.add(alert)
+
+    # Log in-app notification for patient and caregiver notification centers
+    if current_user:
+        notif = InAppNotification(
+            user_id=current_user.id,
+            title="🚨 Emergency SOS Broadcast Transmitted",
+            body=f"SOS alert #{alert.id or ''} triggered. Coordinates: ({lat or 'GPS acquiring'}, {lon or 'GPS acquiring'}). Primary & secondary caregiver escalation ladder engaged.",
+            notification_type="emergency",
+            severity="emergency",
+            is_read=False,
+            created_at=now
+        )
+        db.add(notif)
+
     db.commit()
     db.refresh(alert)
 

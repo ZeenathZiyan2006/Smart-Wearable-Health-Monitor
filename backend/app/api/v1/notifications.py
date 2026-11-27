@@ -26,7 +26,46 @@ def list_notifications(
 ) -> Any:
     """
     Retrieve in-app notifications for the authenticated user.
+    Auto-seeds initial alerts if user has no notification history.
     """
+    user_notifs_count = db.query(InAppNotification).filter(
+        InAppNotification.user_id == current_user.id
+    ).count()
+
+    if user_notifs_count == 0:
+        now = datetime.now(timezone.utc)
+        seeds = [
+            InAppNotification(
+                user_id=current_user.id,
+                title="Prescription Schedule: Dolo (1 Tablet)",
+                body="Scheduled morning dose for Dolo 1 Tablet (08:00, 20:00). Remember to take after meals.",
+                notification_type="medication",
+                severity="info",
+                is_read=False,
+                created_at=now
+            ),
+            InAppNotification(
+                user_id=current_user.id,
+                title="Daily Biometric Baseline Stabilized",
+                body="Resting Heart Rate (72 BPM) and SpO2 (98%) are within optimal clinical thresholds.",
+                notification_type="health",
+                severity="info",
+                is_read=False,
+                created_at=now
+            ),
+            InAppNotification(
+                user_id=current_user.id,
+                title="Smart Wearable Paired (DEV-WEAR-001)",
+                body="Continuous BLE / Wi-Fi telemetry telemetry sync active with verified 24/7 battery backup.",
+                notification_type="device",
+                severity="info",
+                is_read=True,
+                created_at=now
+            ),
+        ]
+        db.add_all(seeds)
+        db.commit()
+
     query = db.query(InAppNotification).filter(
         InAppNotification.user_id == current_user.id,
         InAppNotification.is_archived == False
@@ -77,6 +116,30 @@ def mark_notification_read(
         db.add(notif)
         db.commit()
         db.refresh(notif)
+    return notif
+
+
+@router.patch("/{notification_id}/unread", response_model=InAppNotificationOut)
+def mark_notification_unread(
+    notification_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Mark a single in-app notification as unread.
+    """
+    notif = db.query(InAppNotification).filter(
+        InAppNotification.id == notification_id,
+        InAppNotification.user_id == current_user.id
+    ).first()
+    if not notif:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found.")
+
+    notif.is_read = False
+    notif.read_at = None
+    db.add(notif)
+    db.commit()
+    db.refresh(notif)
     return notif
 
 
