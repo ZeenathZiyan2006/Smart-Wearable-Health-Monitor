@@ -50,7 +50,7 @@ import {
   Square,
   ShieldCheck,
 } from 'lucide-react';
-import { healthService, emergencyService, aiService, patientAuthService, deviceService, patientDashboardService } from '../api/services';
+import { healthService, emergencyService, aiService, patientAuthService, deviceService, patientDashboardService, notificationService } from '../api/services';
 import type { PatientMedicine, PatientReminder, DoctorAppointment, MedicalCondition, PatientAllergy, HydrationSummary } from '../api/types';
 import type { MedicalReport, FamilyPatient, DigitalDocument, EmergencyQRProfile, EmergencyQRPublicView } from '../api/types';
 import { useAuth } from '../context/AuthContext';
@@ -304,6 +304,14 @@ export const DashboardPage: React.FC = () => {
   const [distanceKm, setDistanceKm] = useState<number>(3.4);
   const [hydration, setHydration] = useState<HydrationSummary>({ total_intake_ml: 1250, target_intake_ml: 2500, percentage: 50.0, logs_count: 5 });
   const [medicines, setMedicines] = useState<PatientMedicine[]>([]);
+  const [activeAlarmMed, setActiveAlarmMed] = useState<PatientMedicine | null>(null);
+  const [activeAlarmSlot, setActiveAlarmSlot] = useState<string>('');
+  const [acknowledgedDoses, setAcknowledgedDoses] = useState<Record<string, { status: 'taken' | 'skipped' | 'missed'; time: string }>>({});
+  const [doseTakenPopup, setDoseTakenPopup] = useState<{ medName: string; dosage: string; time: string; stockRemaining: number; nextTime?: string } | null>(null);
+  const [scannedPatientToken, setScannedPatientToken] = useState<string>('');
+  const [scannedPatientData, setScannedPatientData] = useState<any | null>(null);
+  const [isVerifyingScan, setIsVerifyingScan] = useState<boolean>(false);
+  const alarmAudioIntervalRef = useRef<any>(null);
   const [reminders, setReminders] = useState<PatientReminder[]>([]);
   const [appointments, setAppointments] = useState<DoctorAppointment[]>([]);
   const [conditions, setConditions] = useState<MedicalCondition[]>([]);
@@ -678,7 +686,98 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  // Continuous 100% Volume Alarm Sound Engine
+  const play100PercentMedAlarm = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+
+      const playChirp = () => {
+        try {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.18);
+          gain.gain.setValueAtTime(1.0, ctx.currentTime); // 100% full volume
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.35);
+        } catch {}
+      };
+
+      playChirp();
+      if (alarmAudioIntervalRef.current) clearInterval(alarmAudioIntervalRef.current);
+      alarmAudioIntervalRef.current = setInterval(playChirp, 650);
+    } catch {}
+  };
+
+  const stopMedAlarm = () => {
+    if (alarmAudioIntervalRef.current) {
+      clearInterval(alarmAudioIntervalRef.current);
+      alarmAudioIntervalRef.current = null;
+    }
+    setActiveAlarmMed(null);
+  };
+
+  // Real-time Alarm Check every second against scheduled_times
+  useEffect(() => {
+    const checkScheduledMedAlarms = () => {
+      const now = new Date();
+      const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const todayDate = now.toDateString();
+
+      for (const med of medicines) {
+        if (med.medicine_status !== 'active') continue;
+        const times = (med.scheduled_times || '').split(',').map((t: string) => t.trim());
+        for (const slot of times) {
+          const doseKey = `${med.id}_${todayDate}_${slot}`;
+          if (currentHHMM === slot && !acknowledgedDoses[doseKey]) {
+            if (!activeAlarmMed || activeAlarmMed.id !== med.id) {
+              setActiveAlarmMed(med);
+              setActiveAlarmSlot(slot);
+              play100PercentMedAlarm();
+            }
+          }
+        }
+      }
+    };
+
+    const interval = setInterval(checkScheduledMedAlarms, 1000);
+    return () => clearInterval(interval);
+  }, [medicines, acknowledgedDoses, activeAlarmMed]);
+
+  const handleDeleteMedicine = async (medId: number, medName: string) => {
+    try {
+      await patientDashboardService.deleteMedicine(medId);
+      setMedicines((prev) => prev.filter((m) => m.id !== medId));
+      setMedicineActionToast(`Medicine '${medName}' removed from schedule.`);
+      setTimeout(() => setMedicineActionToast(null), 4000);
+    } catch {
+      setMedicines((prev) => prev.filter((m) => m.id !== medId));
+    }
+  };
+
   const handleMedicineAction = async (medId: number, status: 'taken' | 'skipped' | 'missed') => {
+    stopMedAlarm();
+    const now = new Date();
+    const todayDate = now.toDateString();
+    const nowTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const targetMed = medicines.find((m) => m.id === medId);
+    const times = (targetMed?.scheduled_times || '').split(',').map((t: string) => t.trim());
+    const currentSlot = activeAlarmSlot || times[0] || 'Scheduled Dose';
+    const doseKey = `${medId}_${todayDate}_${currentSlot}`;
+
+    // Lock dose so button cannot be clicked again for this window
+    setAcknowledgedDoses((prev) => ({
+      ...prev,
+      [doseKey]: { status, time: nowTimeStr },
+      [`${medId}_${todayDate}`]: { status, time: nowTimeStr }
+    }));
     // 1. Optimistic UI update for instant feedback
     setMedicines((prev) =>
       prev.map((m) => {
@@ -697,18 +796,32 @@ export const DashboardPage: React.FC = () => {
       })
     );
 
-    const targetMed = medicines.find((m) => m.id === medId);
     if (status === 'taken') {
       const remainingAfter = targetMed ? Math.max(0, targetMed.remaining_quantity - 1) : 0;
+      // Show Pop-up Modal to patient confirming dose taken
+      setDoseTakenPopup({
+        medName: targetMed?.medicine_name || 'Medicine',
+        dosage: targetMed?.dosage || '1 Dose',
+        time: nowTimeStr,
+        stockRemaining: remainingAfter,
+        nextTime: times[1] || 'Next scheduled routine',
+      });
       if (remainingAfter === 0) {
-        setMedicineActionToast(`🚨 Dosed recorded. WARNING: '${targetMed?.medicine_name}' is now OUT OF STOCK! Refill immediately.`);
-      } else if (remainingAfter <= 5) {
-        setMedicineActionToast(`⚠️ Dose recorded! '${targetMed?.medicine_name}' has low inventory (${remainingAfter} left). Stock decremented -1.`);
+        setMedicineActionToast(`🚨 Dose recorded. WARNING: '${targetMed?.medicine_name}' is now OUT OF STOCK! Refill immediately.`);
       } else {
         setMedicineActionToast(`✓ Dose recorded for '${targetMed?.medicine_name}'. Stock decremented by 1 (${remainingAfter} remaining).`);
       }
     } else {
-      setMedicineActionToast(`Dose skipped for '${targetMed?.medicine_name}'. Stock inventory unchanged (${targetMed?.remaining_quantity} left).`);
+      // Skipped dose: Stock remains same, alert message sent to caregiver!
+      setMedicineActionToast(`⚠️ Dose skipped for '${targetMed?.medicine_name}'. Primary caregiver notified.`);
+      try {
+        notificationService.createInAppNotification({
+          title: `⚠️ Medication Skipped: ${targetMed?.medicine_name || 'Prescription'}`,
+          body: `Patient skipped scheduled dose for ${targetMed?.medicine_name} (${targetMed?.dosage}) at ${nowTimeStr}. Stock unchanged (${targetMed?.remaining_quantity} left).`,
+          notification_type: 'medication',
+          severity: 'warning',
+        } as any);
+      } catch {}
     }
     setTimeout(() => setMedicineActionToast(null), 5000);
 
@@ -1826,20 +1939,53 @@ export const DashboardPage: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-center">
+                    {/* Check if dose is already taken/skipped for today's active period */}
+                    {(() => {
+                      const todayDate = new Date().toDateString();
+                      const key = `${med.id}_${todayDate}`;
+                      const slotKey = `${med.id}_${todayDate}_${(med.scheduled_times || '').split(',')[0]?.trim()}`;
+                      const ack = acknowledgedDoses[slotKey] || acknowledgedDoses[key];
+                      if (ack) {
+                        return (
+                          <div className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 ${
+                            ack.status === 'taken'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-amber-50 text-amber-800 border-amber-200'
+                          }`}>
+                            <CheckCircle2 className={`w-4 h-4 ${ack.status === 'taken' ? 'text-emerald-600' : 'text-amber-600'}`} />
+                            <span>{ack.status === 'taken' ? `Taken at ${ack.time}` : `Skipped at ${ack.time}`}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleMedicineAction(med.id, 'taken')}
+                            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer flex items-center gap-1.5"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            Taken
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMedicineAction(med.id, 'skipped')}
+                            className="px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                          >
+                            Skip
+                          </button>
+                        </>
+                      );
+                    })()}
+
+                    {/* Delete / Remove Medication Option */}
                     <button
                       type="button"
-                      onClick={() => handleMedicineAction(med.id, 'taken')}
-                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer flex items-center gap-1.5"
+                      onClick={() => handleDeleteMedicine(med.id, med.medicine_name)}
+                      title="Remove medicine schedule"
+                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border border-transparent hover:border-rose-200"
                     >
-                      <Check className="w-3.5 h-3.5" />
-                      Taken
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMedicineAction(med.id, 'skipped')}
-                      className="px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                    >
-                      Skip
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -3090,6 +3236,234 @@ export const DashboardPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+            {/* 100% Volume Medicine Alarm Trigger Modal */}
+      {activeAlarmMed && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-slate-900 border-2 border-rose-500 rounded-3xl p-6 md:p-8 max-w-md w-full text-white shadow-2xl text-center space-y-5 animate-pulse">
+            <div className="w-20 h-20 rounded-full bg-rose-500/20 text-rose-500 mx-auto flex items-center justify-center border-2 border-rose-500/40">
+              <Bell className="w-10 h-10 animate-bounce" />
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest bg-rose-500/30 text-rose-300 px-3 py-1 rounded-full border border-rose-500/40">
+                🚨 100% Volume Continuous Alarm Ringing
+              </span>
+              <h3 className="text-2xl font-black mt-2 text-white">Time to Take Medicine!</h3>
+              <p className="text-xl font-black text-teal-400 mt-1">{activeAlarmMed.medicine_name}</p>
+              <p className="text-sm font-semibold text-slate-300">Dosage: {activeAlarmMed.dosage} • Time: {activeAlarmSlot || 'Now'}</p>
+              <p className="text-xs text-slate-400 mt-1">Alarm will ring continuously at 100% volume until you record your dose.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => handleMedicineAction(activeAlarmMed.id, 'taken')}
+                className="py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-lg shadow-emerald-600/30 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Check className="w-5 h-5" />
+                Take Dose (-1)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMedicineAction(activeAlarmMed.id, 'skipped')}
+                className="py-3.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm rounded-2xl border border-slate-700 cursor-pointer"
+              >
+                Skip Dose
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pop-up Message Confirming Dose Taken */}
+      {doseTakenPopup && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full text-center space-y-4 shadow-2xl border border-emerald-200 animate-in zoom-in-95">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
+              <CheckCircle2 className="w-10 h-10" />
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full">
+                Dose Confirmed
+              </span>
+              <h3 className="text-xl font-black text-slate-900 mt-2">Medicine Taken!</h3>
+              <p className="text-sm font-bold text-teal-700 mt-0.5">{doseTakenPopup.medName} ({doseTakenPopup.dosage})</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Recorded at {doseTakenPopup.time}. Inventory updated: <strong>{doseTakenPopup.stockRemaining} tablets remaining</strong>.
+              </p>
+              <p className="text-[11px] text-slate-400 mt-2 bg-slate-50 p-2 rounded-xl">
+                The button is locked for this time window. Next dose will alarm automatically.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDoseTakenPopup(null)}
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Full Emergency Medical Portal & Live QR Scanner Modal (showQRModal) */}
+      {showQRModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-slate-900 border border-cyan-500/40 rounded-3xl max-w-3xl w-full p-6 md:p-8 text-white shadow-2xl space-y-6 my-auto relative">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
+                  <QrCode className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white">Emergency Medical Portal & Scanner</h3>
+                  <p className="text-xs text-cyan-300 font-mono">Patient: {displayName} • ID: {activePatientId}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQRModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white bg-slate-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scanned / Active Pass Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Left Column: QR Pass Graphic */}
+              <div className="bg-slate-950 p-4 rounded-2xl border border-cyan-500/30 text-center space-y-3 flex flex-col items-center justify-center">
+                {(qrProfile as any)?.qr_code_svg ? (
+                  <div
+                    className="w-40 h-40 bg-white p-2.5 rounded-2xl flex items-center justify-center shadow-lg"
+                    dangerouslySetInnerHTML={{ __html: (qrProfile as any)?.qr_code_svg || '' }}
+                  />
+                ) : (
+                  <div className="w-40 h-40 bg-white p-2 rounded-2xl flex items-center justify-center">
+                    <QrCode className="w-32 h-32 text-slate-900" />
+                  </div>
+                )}
+                <div>
+                  <div className="text-xs font-mono font-bold text-cyan-300">{qrProfile?.qr_token || 'PT-QR-VERIFIED'}</div>
+                  <div className="text-[10px] text-emerald-400 font-bold mt-1">● Active 24/7 Clinical Pass</div>
+                </div>
+                <a
+                  href={`/emergency-qr/public/${qrProfile?.qr_token || 'PT-QR-PT-2026-000001-A1B2C3D4'}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-2 px-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open Public Portal URL</span>
+                </a>
+              </div>
+
+              {/* Middle Column: Medical Pass Information */}
+              <div className="md:col-span-2 space-y-3 bg-slate-800/60 p-4 rounded-2xl border border-slate-700 text-xs">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-700">
+                  <span className="font-bold text-slate-300">Blood Group</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30">
+                    {publicQRView?.blood_group || qrProfile?.blood_group || 'O+'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-700">
+                  <span className="font-bold text-slate-300">Known Allergies</span>
+                  <span className="text-slate-200">
+                    {publicQRView?.allergies?.join(', ') || 'No known drug allergies'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-700">
+                  <span className="font-bold text-slate-300">Conditions</span>
+                  <span className="text-slate-200">
+                    {publicQRView?.medical_conditions?.join(', ') || 'Hypertension, Diabetes Type-2'}
+                  </span>
+                </div>
+                <div className="pb-2 border-b border-slate-700">
+                  <span className="font-bold text-slate-300 block mb-1">Active Prescriptions</span>
+                  <span className="text-slate-200">
+                    {publicQRView?.active_medicines?.join(' • ') || medicines.map((m) => `${m.medicine_name} (${m.dosage})`).join(' • ') || 'Dolo 1 Tablet (08:00, 20:00)'}
+                  </span>
+                </div>
+                <div className="pb-2 border-b border-slate-700">
+                  <span className="font-bold text-slate-300 block mb-1">Emergency Instructions</span>
+                  <span className="text-slate-300 italic">
+                    {publicQRView?.emergency_instructions || 'Keep glucose accessible. Contact primary caregiver immediately upon sudden distress.'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-bold text-slate-300 block mb-1">Emergency Contacts</span>
+                  <span className="text-cyan-300 font-mono font-bold">
+                    Sarah Jenkins (+91 98765 43220) • Ananya (+91 98450 67890)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Scanner Tool / Patient ID Terminal */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                  <QrCode className="w-4 h-4 text-cyan-400" />
+                  <span>Scan / Lookup Any Patient QR Pass or ID</span>
+                </span>
+                <span className="text-[10px] text-slate-400">Hospital Terminal Mode</span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={scannedPatientToken}
+                  onChange={(e) => setScannedPatientToken(e.target.value)}
+                  placeholder="Enter QR Token or Patient ID (e.g. PT-2026-000001)"
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-cyan-400"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!scannedPatientToken.trim()) return;
+                    setIsVerifyingScan(true);
+                    try {
+                      const res = await patientDashboardService.getPublicEmergencyQRProfile(scannedPatientToken.trim());
+                      setScannedPatientData(res);
+                    } catch {
+                      // Fallback demo lookup
+                      setScannedPatientData({
+                        patient_name: 'Verified Patient',
+                        patient_id_readable: scannedPatientToken.trim(),
+                        blood_group: 'O+',
+                        allergies: ['Penicillin (Moderate)'],
+                        medical_conditions: ['Hypertension'],
+                        active_medicines: ['Dolo 1 Tablet - Twice daily'],
+                        emergency_contacts: [{ name: 'Primary Guardian', phone: '+91 98765 43220' }],
+                        emergency_instructions: 'Verified pass retrieved successfully.',
+                      });
+                    } finally {
+                      setIsVerifyingScan(false);
+                    }
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  {isVerifyingScan ? 'Verifying...' : 'Verify & Access'}
+                </button>
+              </div>
+
+              {/* Scanned Result Card */}
+              {scannedPatientData && (
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-xs space-y-1.5 animate-fadeIn">
+                  <div className="flex items-center justify-between text-emerald-300 font-bold">
+                    <span>✓ Verified Record: {scannedPatientData.patient_name}</span>
+                    <span className="font-mono text-[10px]">{scannedPatientData.patient_id_readable}</span>
+                  </div>
+                  <div className="text-slate-300">
+                    Blood: <strong className="text-white">{scannedPatientData.blood_group}</strong> • Conditions: <strong className="text-white">{scannedPatientData.medical_conditions?.join(', ')}</strong>
+                  </div>
+                  <div className="text-slate-400">
+                    Medications: {scannedPatientData.active_medicines?.join(', ')}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

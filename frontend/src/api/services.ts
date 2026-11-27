@@ -220,6 +220,14 @@ export const emergencyApi = {
 // 5. In-App Notifications APIs
 // ==========================================
 export const notificationApi = {
+  createInAppNotification: async (payload: any): Promise<any> => {
+    try {
+      const res = await apiClient.post('/notifications', payload);
+      return res.data;
+    } catch {
+      return null;
+    }
+  },
   list: async (unreadOnly = false): Promise<InAppNotification[]> => {
     const res = await apiClient.get<InAppNotification[]>('/notifications', { params: { unread_only: unreadOnly } });
     return res.data;

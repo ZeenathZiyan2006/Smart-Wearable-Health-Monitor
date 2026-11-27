@@ -11,6 +11,8 @@ interface ChatItem {
   senderName: string;
   isMe: boolean;
   originalText: string;
+  englishText?: string;
+  localizedText?: string;
   translatedText?: string;
   sourceLang: string;
   targetLang: string;
@@ -27,15 +29,71 @@ interface CaregiverOption {
   isPrimary: boolean;
 }
 
-// Built-in verified multi-language dictionary for high-frequency patient-caregiver messages
-const QUICK_TRANSLATIONS: Record<string, Record<string, string>> = {
+// Comprehensive verified multi-language dictionary for high-frequency patient-caregiver messages
+const QUICK_TRANSLATIONS: Record<string, { en: string; kn: string; hi: string; ta: string; te: string; ml: string }> = {
+  'namaskara': {
+    en: 'Hello / Greetings (Namaskara)',
+    kn: 'ನಮಸ್ಕಾರ (Namaskara)',
+    hi: 'नमस्ते (Namaste)',
+    ta: 'வணக்கம் (Vanakkam)',
+    te: 'నమస్కారం (Namaskaram)',
+    ml: 'നമസ്കാരം (Namaskaram)',
+  },
+  'namaskra': {
+    en: 'Hello / Greetings (Namaskara)',
+    kn: 'ನಮಸ್ಕಾರ (Namaskara)',
+    hi: 'नमस्ते (Namaste)',
+    ta: 'வணக்கம் (Vanakkam)',
+    te: 'నಮస్కారం (Namaskaram)',
+    ml: 'നಮಸ್കാരം (Namaskaram)',
+  },
+  'namaskar': {
+    en: 'Hello / Greetings (Namaskara)',
+    kn: 'ನಮಸ್ಕಾರ (Namaskara)',
+    hi: 'नमस्ते (Namaste)',
+    ta: 'வணக்கம் (Vanakkam)',
+    te: 'నమస్కారం (Namaskaram)',
+    ml: 'നಮಸ್കാരം (Namaskaram)',
+  },
+  'namaste': {
+    en: 'Hello / Greetings (Namaste)',
+    kn: 'ನಮಸ್ಕಾರ (Namaskara)',
+    hi: 'नमस्ते (Namaste)',
+    ta: 'வணக்கம் (Vanakkam)',
+    te: 'నమస్కారం (Namaskaram)',
+    ml: 'നಮಸ್കാരം (Namaskaram)',
+  },
+  'ನಮಸ್ಕಾರ': {
+    en: 'Hello / Greetings (Namaskara)',
+    kn: 'ನಮಸ್ಕಾರ (Namaskara)',
+    hi: 'नमस्ते (Namaste)',
+    ta: 'வணக்கம் (Vanakkam)',
+    te: 'నమస్కారం (Namaskaram)',
+    ml: 'നಮಸ್കാരം (Namaskaram)',
+  },
+  'नमस्ते': {
+    en: 'Hello / Greetings (Namaste)',
+    kn: 'ನಮಸ್ಕಾರ (Namaskara)',
+    hi: 'नमस्ते (Namaste)',
+    ta: 'வணக்கம் (Vanakkam)',
+    te: 'నಮస్కారం (Namaskaram)',
+    ml: 'നಮಸ್കാരം (Namaskaram)',
+  },
+  'வணக்கம்': {
+    en: 'Hello / Greetings (Vanakkam)',
+    kn: 'ನಮಸ್ಕಾರ (Namaskara)',
+    hi: 'नमस्ते (Namaste)',
+    ta: 'வணக்கம் (Vanakkam)',
+    te: 'నమస్కారం (Namaskaram)',
+    ml: 'നಮಸ್കാരം (Namaskaram)',
+  },
   'hi': {
     en: 'Hello / Hi',
     kn: 'ನಮಸ್ಕಾರ (Namaskara)',
     hi: 'नमस्ते (Namaste)',
     ta: 'வணக்கம் (Vanakkam)',
     te: 'నమస్కారం (Namaskaram)',
-    ml: 'നമസ്കാരം (Namaskaram)',
+    ml: 'നಮಸ್കാരം (Namaskaram)',
   },
   'hello': {
     en: 'Hello',
@@ -43,54 +101,146 @@ const QUICK_TRANSLATIONS: Record<string, Record<string, string>> = {
     hi: 'नमस्ते (Namaste)',
     ta: 'வணக்கம் (Vanakkam)',
     te: 'నమస్కారం (Namaskaram)',
-    ml: 'നമസ്കാരം (Namaskaram)',
-  },
-  'i need help': {
-    en: 'I need medical help',
-    kn: 'ನನಗೆ ತುರ್ತು ಸಹಾಯ ಬೇಕು',
-    hi: 'मुझे तुरंत मदद चाहिए',
-    ta: 'எனக்கு உடனடி உதவி தேவை',
-    te: 'నాకు సహాయం కావాలి',
-    ml: 'എനിക്ക് സഹായം വേണം',
+    ml: 'നಮಸ್കാരം (Namaskaram)',
   },
   'how are you': {
-    en: 'How are you?',
-    kn: 'ನೀವು ಹೇಗಿದ್ದೀರಿ?',
-    hi: 'आप कैसे हैं?',
-    ta: 'நீங்கள் எப்படி இருக்கிறீர்கள்?',
-    te: 'మీరు ఎలా ఉన్నారు?',
-    ml: 'സുഖമാണോ?',
+    en: 'How are you feeling today?',
+    kn: 'ನೀವು ಹೇಗಿದ್ದೀರಿ? (Neevu hegiddiri?)',
+    hi: 'आप कैसे हैं? (Aap kaise hain?)',
+    ta: 'நீங்கள் எப்படி இருக்கிறீர்கள்? (Neengal eppadi irukkeereergal?)',
+    te: 'మీరు ఎలా ఉన్నారు? (Meeru ela unnaaru?)',
+    ml: 'സുഖമാണോ? (Sukhamano?)',
+  },
+  'hegiddira': {
+    en: 'How are you feeling today?',
+    kn: 'ನೀವು ಹೇಗಿದ್ದೀರಿ? (Neevu hegiddiri?)',
+    hi: 'आप कैसे हैं? (Aap kaise hain?)',
+    ta: 'நீங்கள் எப்படி இருக்கிறீர்கள்? (Neengal eppadi irukkeereergal?)',
+    te: 'మీరు ఎలా ఉన్నారు? (Meeru ela unnaaru?)',
+    ml: 'സുഖമാണೋ? (Sukhamano?)',
+  },
+  'ನೀವು ಹೇಗಿದ್ದೀರಿ': {
+    en: 'How are you feeling today?',
+    kn: 'ನೀವು ಹೇಗಿದ್ದೀರಿ? (Neevu hegiddiri?)',
+    hi: 'आप कैसे हैं? (Aap kaise hain?)',
+    ta: 'நீங்கள் எப்படி இருக்கிறீர்கள்? (Neengal eppadi irukkeereergal?)',
+    te: 'మీరు ఎలా ఉన్నారు? (Meeru ela unnaaru?)',
+    ml: 'സുഖമാണೋ? (Sukhamano?)',
+  },
+  'oota aayitha': {
+    en: 'Did you have your meal / food?',
+    kn: 'ಊಟ ಆಯ್ತಾ? (Oota aayitha?)',
+    hi: 'क्या आपने खाना खा लिया? (Kya aapne khana kha liya?)',
+    ta: 'சாப்பிட்டீர்களா? (Saapitteergala?)',
+    te: 'భోజనం చేశారా? (Bhojanam chesaara?)',
+    ml: 'ഭക്ഷണം കഴിച്ചോ? (Bhakshanam kazhicho?)',
+  },
+  'ಊಟ ಆಯ್ತಾ': {
+    en: 'Did you have your meal / food?',
+    kn: 'ಊಟ ಆಯ್ತಾ? (Oota aayitha?)',
+    hi: 'क्या आपने खाना खा लिया? (Kya aapne khana kha liya?)',
+    ta: 'சாப்பிட்டீர்களா? (Saapitteergala?)',
+    te: 'భోజనం చేశారా? (Bhojanam chesaara?)',
+    ml: 'ഭക്ഷണം കഴിച്ചോ? (Bhakshanam kazhicho?)',
   },
   'i took my medicine': {
-    en: 'I took my medicine.',
-    kn: 'ನಾನು ಔಷಧಿ ತೆಗೆದುಕೊಂಡಿದ್ದೇನೆ.',
-    hi: 'मैंने अपनी दवाई ले ली है।',
-    ta: 'நான் மருந்து எடுத்துக்கொண்டேன்.',
-    te: 'నేను మందులు తీసుకున్నాను.',
-    ml: 'ഞാൻ മരുന്ന് കഴിച്ചു.',
+    en: 'I have taken my prescribed medication on time.',
+    kn: 'ನಾನು ಔಷಧಿ ತೆಗೆದುಕೊಂಡಿದ್ದೇನೆ (Naanu aushadhi thegedukondiddene)',
+    hi: 'मैंने अपनी निर्धारित दवाई ले ली है। (Maine apni dawai le li hai)',
+    ta: 'நான் பரிந்துரைக்கப்பட்ட மருந்தை எடுத்துக்கொண்டேன் (Naan marunthu eduthukonden)',
+    te: 'నేను మందులు తీసుకున్నాను (Nenu mandulu teesukunnanu)',
+    ml: 'ഞാൻ മരുന്ന് കഴിച്ചു (Njaan marunnu kazhichu)',
+  },
+  'took medicine': {
+    en: 'I have taken my prescribed medication on time.',
+    kn: 'ನಾನು ಔಷಧಿ ತೆಗೆದುಕೊಂಡಿದ್ದೇನೆ (Naanu aushadhi thegedukondiddene)',
+    hi: 'मैंने अपनी निर्धारित दवाई ले ली है। (Maine apni dawai le li hai)',
+    ta: 'நான் பரிந்துரைக்கப்பட்ட மருந்தை எடுத்துக்கொண்டேன் (Naan marunthu eduthukonden)',
+    te: 'నేను మందులు తీసుకున్నాను (Nenu mandulu teesukunnanu)',
+    ml: 'ഞാൻ മരുന്ന് കഴിച്ചു (Njaan marunnu kazhichu)',
+  },
+  'dawai le li': {
+    en: 'I have taken my prescribed medication on time.',
+    kn: 'ನಾನು ಔಷಧಿ ತೆಗೆದುಕೊಂಡಿದ್ದೇನೆ (Naanu aushadhi thegedukondiddene)',
+    hi: 'मैंने अपनी निर्धारित दवाई ले ली है। (Maine apni dawai le li hai)',
+    ta: 'நான் பரிந்துரைக்கப்பட்ட மருந்தை எடுத்துக்கொண்டேன் (Naan marunthu eduthukonden)',
+    te: 'నేను మందులు తీసుకున్నాను (Nenu mandulu teesukunnanu)',
+    ml: 'ഞാൻ മരുന്ന് കഴിച്ചു (Njaan marunnu kazhichu)',
+  },
+  'i need help': {
+    en: 'I need immediate medical assistance / help.',
+    kn: 'ನನಗೆ ತುರ್ತು ವೈದ್ಯಕೀಯ ಸಹಾಯ ಬೇಕು (Nanage thurthu vaidhyakeeya sahaaya beku)',
+    hi: 'मुझे तत्काल चिकित्सा सहायता चाहिए। (Mujhe tatkaal chikitsa sahayata chahiye)',
+    ta: 'எனக்கு உடனடி மருத்துவ உதவி தேவை (Enakku udanadi udhavi thevai)',
+    te: 'ನಾకు అత్యవసర సహాయం కావాలి (Naaku atyavasara sahaayam kaavali)',
+    ml: 'എനിക്ക് അടിയന്തര സഹായം വേണം (Enikku aadiyanthara sahaayam venam)',
+  },
+  'sahaya beku': {
+    en: 'I need immediate medical assistance / help.',
+    kn: 'ನನಗೆ ತುರ್ತು ವೈದ್ಯಕೀಯ ಸಹಾಯ ಬೇಕು (Nanage thurthu vaidhyakeeya sahaaya beku)',
+    hi: 'मुझे तत्काल चिकित्सा सहायता चाहिए। (Mujhe tatkaal chikitsa sahayata chahiye)',
+    ta: 'எனக்கு உடனடி மருத்துவ உதவி தேவை (Enakku udanadi udhavi thevai)',
+    te: 'నాకు అత్యవసర సహాయం కావాలి (Naaku atyavasara sahaayam kaavali)',
+    ml: 'എനിക്ക് അടിയന്തര സഹായം വേണം (Enikku aadiyanthara sahaayam venam)',
   },
   'water': {
-    en: 'Please bring water.',
-    kn: 'ದಯವಿಟ್ಟು ನೀರು ತನ್ನಿ.',
-    hi: 'कृपया पानी दीजिए।',
-    ta: 'தயவுசெய்து தண்ணீர் கொண்டு வாருங்கள்.',
-    te: 'దయచేసి నీరు తీసుకురండి.',
-    ml: 'ദയവായി വെള്ളം തരൂ.',
+    en: 'Please bring fresh drinking water.',
+    kn: 'ದಯವಿಟ್ಟು ಕುಡಿಯುವ ನೀರು ತನ್ನಿ (Dayavittu kudiyuva neeru thanni)',
+    hi: 'कृपया पीने का पानी दीजिए। (Kripya peene ka paani dijiye)',
+    ta: 'தயவுசெய்து குடிநீர் கொண்டு வாருங்கள் (Thannir kondu vaarungal)',
+    te: 'దయచేసి మంచి నీరు తీసుకురండి (Dayachesi manchi neeru teesukurandi)',
+    ml: 'ദയവായി കുടിവെള്ളം തരൂ (Dayaavaayi kudivellam tharoo)',
+  },
+  'neeru': {
+    en: 'Please bring fresh drinking water.',
+    kn: 'ದಯವಿಟ್ಟು ಕುಡಿಯುವ ನೀರು ತನ್ನಿ (Dayavittu kudiyuva neeru thanni)',
+    hi: 'कृपया पीने का पानी दीजिए। (Kripya peene ka paani dijiye)',
+    ta: 'தயவுசெய்து குடிநீர் கொண்டு வாருங்கள் (Thannir kondu vaarungal)',
+    te: 'దయచేసి మంచి నీరు తీసుకురండి (Dayachesi manchi neeru teesukurandi)',
+    ml: 'ദയവായി കുടിവെള്ളം തരൂ (Dayaavaayi kudivellam tharoo)',
+  },
+  'pain': {
+    en: 'I am experiencing physical pain / discomfort.',
+    kn: 'ನನಗೆ ನೋವಾಗುತ್ತಿದೆ (Nanage novaaguttide)',
+    hi: 'मुझे दर्द और बेचैनी महसूस हो रही है। (Mujhe dard mehsoos ho raha hai)',
+    ta: 'எனக்கு உடலில் வலி உள்ளது (Enakku udambil vali ulladhu)',
+    te: 'నాకు నొప్పిగా ఉంది (Naaku noppigaa undi)',
+    ml: 'എനിക്ക് വേദന അനുഭവപ്പെടുന്നു (Enikku vedana anubhavappedunnu)',
+  },
+  'novagide': {
+    en: 'I am experiencing physical pain / discomfort.',
+    kn: 'ನನಗೆ ನೋವಾಗುತ್ತಿದೆ (Nanage novaaguttide)',
+    hi: 'मुझे दर्द और बेचैनी महसूस हो रही है। (Mujhe dard mehsoos ho raha hai)',
+    ta: 'எனக்கு உடலில் வலி உள்ளது (Enakku udambil vali ulladhu)',
+    te: 'నాకు నొప్పిగా ఉంది (Naaku noppigaa undi)',
+    ml: 'എനിക്ക് വേദന അനുഭവപ്പെടുന്നു (Enikku vedana anubhavappedunnu)',
   },
 };
 
-function getSmartTranslation(text: string, targetLang: string): string {
+function getDualSmartTranslation(text: string, targetLang: string): { englishText: string; localizedText: string } {
   const clean = text.trim().toLowerCase();
-  if (QUICK_TRANSLATIONS[clean] && QUICK_TRANSLATIONS[clean][targetLang]) {
-    return QUICK_TRANSLATIONS[clean][targetLang];
+
+  // 1. Direct dictionary lookup
+  if (QUICK_TRANSLATIONS[clean]) {
+    const entry = QUICK_TRANSLATIONS[clean];
+    const localized = (entry as any)[targetLang] || (entry as any)['kn'] || entry.en;
+    return {
+      englishText: entry.en,
+      localizedText: localized,
+    };
   }
-  // Check substring matches
-  for (const [key, mapping] of Object.entries(QUICK_TRANSLATIONS)) {
-    if (clean.includes(key) && mapping[targetLang]) {
-      return mapping[targetLang];
+
+  // 2. Substring matching
+  for (const [key, entry] of Object.entries(QUICK_TRANSLATIONS)) {
+    if (clean.includes(key) || key.includes(clean)) {
+      const localized = (entry as any)[targetLang] || (entry as any)['kn'] || entry.en;
+      return {
+        englishText: entry.en,
+        localizedText: localized,
+      };
     }
   }
-  // Generic formatted fallback
+
   const langNames: Record<string, string> = {
     kn: 'Kannada (ಕನ್ನಡ)',
     hi: 'Hindi (हिंदी)',
@@ -99,7 +249,16 @@ function getSmartTranslation(text: string, targetLang: string): string {
     ml: 'Malayalam (മലയാളം)',
     en: 'English',
   };
-  return `[${langNames[targetLang] || targetLang.toUpperCase()}]: ${text}`;
+
+  return {
+    englishText: text,
+    localizedText: `${langNames[targetLang] || targetLang.toUpperCase()}: ${text}`,
+  };
+}
+
+function getSmartTranslation(text: string, targetLang: string): string {
+  const res = getDualSmartTranslation(text, targetLang);
+  return res.localizedText;
 }
 
 export const CommunicationPage: React.FC = () => {
@@ -135,6 +294,8 @@ export const CommunicationPage: React.FC = () => {
       senderName: 'Sarah Jenkins (Primary Caregiver)',
       isMe: false,
       originalText: 'Good morning! Did you remember to drink water and take your morning vitamins?',
+      englishText: 'Good morning! Did you remember to drink water and take your morning vitamins?',
+      localizedText: 'காலை வணக்கம்! நீங்கள் தண்ணீர் குடித்து உங்கள் காலை வைட்டமின்களை எடுத்துக்கொள்ள நினைவிருக்கிறதா?',
       translatedText: 'காலை வணக்கம்! நீங்கள் தண்ணீர் குடித்து உங்கள் காலை வைட்டமின்களை எடுத்துக்கொள்ள நினைவிருக்கிறதா?',
       sourceLang: 'en',
       targetLang: 'ta',
@@ -145,9 +306,11 @@ export const CommunicationPage: React.FC = () => {
       id: '2',
       senderName: 'You',
       isMe: true,
-      originalText: 'ஆமாம் சாரா, நான் காலை உணவுக்குப் பிறகு வைட்டமின்களை எடுத்துக்கொண்டேன்.',
+      originalText: 'ಹೌದು ಸಾರಾ, ನಾನು ಉಪಾಹಾರದ ನಂತರ ಮಾತ್ರೆಗಳನ್ನು ತೆಗೆದುಕೊಂಡೆ.',
+      englishText: 'Yes Sarah, I took the vitamins after breakfast.',
+      localizedText: 'ಹೌದು ಸಾರಾ, ನಾನು ಉಪಾಹಾರದ ನಂತರ ಮಾತ್ರೆಗಳನ್ನು ತೆಗೆದುಕೊಂಡೆ.',
       translatedText: 'Yes Sarah, I took the vitamins after breakfast.',
-      sourceLang: 'ta',
+      sourceLang: 'kn',
       targetLang: 'en',
       timestamp: '08:34 AM',
       dispatchedToEmail: 'caregiver@pulseguardian.ai',
@@ -218,10 +381,12 @@ export const CommunicationPage: React.FC = () => {
     setInputText('');
     setSending(true);
 
-    const smartTrans = getSmartTranslation(currentText, targetLang);
+    const dual = getDualSmartTranslation(currentText, targetLang);
 
     try {
-      let finalTrans = smartTrans;
+      let finalEng = dual.englishText;
+      let finalLoc = dual.localizedText;
+
       try {
         const res = await voiceService.sendMessage({
           recipient_id: selectedCaregiver.id,
@@ -229,8 +394,8 @@ export const CommunicationPage: React.FC = () => {
           source_language: sourceLang,
           target_language: targetLang,
         });
-        if (res && res.translated_text && res.translated_text.trim()) {
-          finalTrans = res.translated_text;
+        if (res && res.translated_text && !res.translated_text.includes('[Simulated')) {
+          finalLoc = res.translated_text;
         }
       } catch {
         // Fallback to local verified dictionary
@@ -241,7 +406,9 @@ export const CommunicationPage: React.FC = () => {
         senderName: 'You',
         isMe: true,
         originalText: currentText,
-        translatedText: finalTrans,
+        englishText: finalEng,
+        localizedText: finalLoc,
+        translatedText: `${finalEng} • ${finalLoc}`,
         sourceLang,
         targetLang,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -416,16 +583,23 @@ export const CommunicationPage: React.FC = () => {
               >
                 <p className="text-sm font-medium leading-relaxed">{m.originalText}</p>
 
-                {m.translatedText && (
+                {(m.englishText || m.localizedText || m.translatedText) && (
                   <div
-                    className={`pt-2 mt-2 border-t text-xs ${
-                      m.isMe ? 'border-white/20 text-cyan-100' : 'border-slate-100 text-slate-600'
+                    className={`pt-2.5 mt-2 border-t text-xs space-y-1.5 ${
+                      m.isMe ? 'border-white/20 text-cyan-50' : 'border-slate-100 text-slate-700'
                     }`}
                   >
-                    <span className="font-extrabold uppercase text-[10px] block mb-0.5 tracking-wider">
-                      🌐 TRANSLATED:
+                    <span className="font-extrabold uppercase text-[10px] block tracking-wider text-cyan-300">
+                      🌐 TRANSLATED MEANING:
                     </span>
-                    <span className="font-semibold">{m.translatedText}</span>
+                    <div className="flex items-start gap-1.5 text-xs font-medium">
+                      <span className="px-1.5 py-0.5 rounded bg-white/20 text-[9px] uppercase font-mono font-bold text-white shrink-0">English</span>
+                      <span className="leading-snug">{m.englishText || (m.translatedText && !m.translatedText.includes('[Simulated') ? m.translatedText : m.originalText)}</span>
+                    </div>
+                    <div className="flex items-start gap-1.5 text-xs font-medium">
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-500/30 text-[9px] uppercase font-mono font-bold text-emerald-200 shrink-0">Native Lang</span>
+                      <span className="leading-snug text-emerald-100">{m.localizedText || (m.translatedText && !m.translatedText.includes('[Simulated') ? m.translatedText : m.originalText)}</span>
+                    </div>
                   </div>
                 )}
               </div>
