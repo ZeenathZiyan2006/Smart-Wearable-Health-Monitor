@@ -664,3 +664,70 @@ export const caregiverPortalService = {
   },
 };
 
+// ==========================================
+// 12. Nova Universal AI Assistant APIs
+// ==========================================
+export const novaService = {
+  getContext: async (): Promise<{
+    role: string;
+    user_name: string;
+    user_id: number;
+    preferred_language: string;
+    authorized_patients: Array<{
+      id: number;
+      patient_id: string;
+      name: string;
+      blood_group?: string;
+      relationship?: string;
+      is_primary?: boolean;
+    }>;
+    has_active_emergency: boolean;
+    capabilities: string[];
+  }> => {
+    const res = await apiClient.get('/nova/context');
+    return res.data;
+  },
+
+  interact: async (payload: {
+    message?: string;
+    action?: string;
+    patient_id?: string;
+    language?: string;
+    mood_type?: string;
+    notes?: string;
+    context_data?: Record<string, any>;
+  }): Promise<{
+    text: string;
+    audio_text: string;
+    role: string;
+    authorized_patient_id?: string;
+    patient_name?: string;
+    status: string;
+    action_result?: Record<string, any>;
+    suggested_actions: Array<{
+      id: string;
+      label: string;
+      action: string;
+      icon?: string;
+      color?: string;
+    }>;
+    is_emergency: boolean;
+    direct_call_url?: string;
+    requires_confirmation: boolean;
+    confirmation_prompt?: string;
+  }> => {
+    const res = await apiClient.post('/nova/interact', payload);
+    return res.data;
+  },
+
+  recordWellbeing: async (payload: { mood_type: string; notes?: string; target_patient_id?: string }): Promise<any> => {
+    const res = await apiClient.post('/nova/wellbeing', payload);
+    return res.data;
+  },
+
+  getWellbeingHistory: async (limit: number = 20): Promise<any[]> => {
+    const res = await apiClient.get('/nova/wellbeing/history', { params: { limit } });
+    return res.data;
+  },
+};
+

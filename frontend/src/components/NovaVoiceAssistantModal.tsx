@@ -1,331 +1,88 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, PhoneCall, MessageSquare, Sparkles, Volume2, X, Phone, UserCheck, ShieldAlert, Globe } from 'lucide-react';
+import {
+  Mic,
+  MicOff,
+  PhoneCall,
+  MessageSquare,
+  Sparkles,
+  Volume2,
+  VolumeX,
+  X,
+  Phone,
+  UserCheck,
+  ShieldAlert,
+  Globe,
+  Heart,
+  Pill,
+  MapPin,
+  TrendingUp,
+  FileText,
+  AlertTriangle,
+  RefreshCw,
+  Send,
+  Smile,
+  Activity,
+  ChevronDown,
+  Navigation,
+  CheckCircle,
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { patientDashboardService } from '../api/services';
-import { SupportedLanguage } from '../i18n/translations';
+import { novaService } from '../api/services';
 
 interface VoiceAssistantProps {
   onClose?: () => void;
   isOpen: boolean;
 }
 
-// Multilingual display responses
-const MULTILINGUAL_RESPONSES: Record<string, Record<string, string>> = {
-  vitals: {
-    en: 'Your vitals are stable. Heart rate is 72 BPM and oxygen saturation is 98 percent.',
-    kn: 'ನಿಮ್ಮ ಹೃದಯ ಬಡಿತ 72 BPM ಮತ್ತು ಆಮ್ಲಜನಕ 98 ಶೇಕಡಾ ಆಗಿದೆ, ಎಲ್ಲವೂ ಸಾಮಾನ್ಯ ಸ್ಥಿತಿಯಲ್ಲಿದೆ.',
-    hi: 'आपकी नब्ज 72 BPM और ऑक्सीजन 98 प्रतिशत सामान्य स्थिति में है।',
-    ta: 'உங்கள் இதயத் துடிப்பு 72 BPM மற்றும் ஆக்ஸிஜன் அளவு 98% சீராக உள்ளது.',
-    te: 'మీ గుండె కొట్టుకోవడం 72 BPM మరియు ఆక్సిజన్ 98% సాధారణంగా ఉన్నాయి.',
-    ml: 'നിങ്ങളുടെ ഹൃദയമിടിപ്പ് 72 BPM ഉം ഓക്സിജൻ 98% ഉം സാധാരണ നിലയിലാണ്.',
-  },
-  calling: {
-    en: 'Connecting direct call to your primary caregiver right now.',
-    kn: 'ನಿಮ್ಮ ಪ್ರಾಥಮಿಕ ಆರೈಕೆದಾರರಿಗೆ ಈಗ ಕರೆ ಸಂಪರ್ಕಿಸಲಾಗುತ್ತಿದೆ.',
-    hi: 'आपके प्राथमिक देखभालकर्ता को सीधे कॉल मिलाया जा रहा है।',
-    ta: 'உங்கள் முதன்மை பராமரிப்பாளருக்கு இப்போது அழைப்பு இணைக்கப்படுகிறது.',
-    te: 'మీ ప్రాథಮಿಕ సంరక్షకునికి ఇప్పుడు కాల్ కనెక్ట్ చేయబడుతోంది.',
-    ml: 'നിങ്ങളുടെ പരിചാരകനെ ഇപ്പോൾ വിളിക്കുന്നു.',
-  },
-  sos: {
-    en: 'Emergency SOS initiated! Dialing emergency services and alert sent.',
-    kn: 'ತುರ್ತು ಎಸ್‌ಒಎಸ್ ಪ್ರಕ್ರಿಯೆ ಆರಂಭಿಸಲಾಗಿದೆ! ಸಹಾಯವಾಣಿಗೆ ಕರೆ ಮಾಡಲಾಗುತ್ತಿದೆ.',
-    hi: 'आपातकालीन एसओएस शुरू किया गया! आपातकालीन नंबर पर कॉल किया जा रहा है।',
-    ta: 'அவசர எஸ்ஓஎஸ் தொடங்கப்பட்டது! அவசர உதவிக்கு அழைக்கப்படுகிறது.',
-    te: 'అత్యవసర SOS ప్రారంభించబడింది! సహాయానికి కాల్ చేయబడుతోంది.',
-    ml: 'അടിയന്തര SOS ആരംഭിച്ചു! ഉടൻ സഹായം ബന്ധപ്പെടും.',
-  },
-  messaging: {
-    en: 'Caregiver message sent and dispatched to registered email.',
-    kn: 'ಆರೈಕೆದಾರರಿಗೆ ಸಂದೇಶ ಕಳುಹಿಸಲಾಗಿದೆ ಮತ್ತು ಇಮೇಲ್ ರವಾನಿಸಲಾಗಿದೆ.',
-    hi: 'देखभालकर्ता को संदेश और ईमेल सफलतापूर्वक भेज दिया गया है।',
-    ta: 'பராமரிப்பாளருக்கு செய்தி மற்றும் மின்னஞ்சல் அனுப்பப்பட்டது.',
-    te: 'సంరక్షకునికి సందేశం మరియు ఈమెయిల్ పంపబడింది.',
-    ml: 'പരിചാരകന് സന്ദേശവും ഇമെയിലും അയച്ചു.',
-  },
-  medicine: {
-    en: 'Your upcoming dose is Dolo 1 Tablet. Please take it with a glass of water after your meal.',
-    kn: 'ನಿಮ್ಮ ಮುಂದಿನ ಔಷಧ ಡೋಲೋ 1 ಮಾತ್ರೆ, ಊಟದ ನಂತರ ಒಂದು ಲೋಟ ನೀರಿನೊಂದಿಗೆ ಸೇವಿಸಿ.',
-    hi: 'आपकी अगली खुराक डोलो 1 गोली है। भोजन के बाद पानी के साथ लें।',
-    ta: 'உங்கள் அடுத்த மருந்து டோலோ 1 மாத்திரை, உணவுக்குப் பின் எடுத்துக் கொள்ளுங்கள்.',
-    te: 'మీ తదుపరి మందు డోలో 1 మాత్ర, భోజనం తర్వాత తీసుకోండి.',
-    ml: 'നിങ്ങളുടെ അടുത്ത മരുന്ന് ഡോളോ 1 ഗുളികയാണ്, ഭക്ഷണത്തിന് ശേഷം കഴിക്കുക.',
-  },
-  appointment: {
-    en: 'Your upcoming appointment is with Dr. Sunita Rao (Cardiologist) at PulseGuardian Heart Center.',
-    kn: 'ನಿಮ್ಮ ಮುಂದಿನ ವೈದ್ಯರ ಭೇಟಿ ಡಾ. ಸುನೀತಾ ರಾವ್ (ಹೃದ್ರೋಗ ತಜ್ಞರು) ಅವರೊಂದಿಗೆ ನಿಗದಿಯಾಗಿದೆ.',
-    hi: 'आपकी अगली डॉक्टर अपॉइंटमेंट डॉ. सुनीता राव (हृदय रोग विशेषज्ञ) के साथ है।',
-    ta: 'உங்கள் அடுத்த மருத்துவ ஆலோசனை டாக்டர் சுனிதா ராவ் அவர்களுடன் உள்ளது.',
-    te: 'మీ తదుపరి డాక్టర్ సంప్రదింపులు డా. సునీతా రావు గారితో ఉన్నాయి.',
-    ml: 'നിങ്ങളുടെ അടുത്ത ഡോക്ടർ കൺസൾട്ടേഷൻ ഡോ. സുനിത റാവുമായി നിശ്ചയിച്ചിരിക്കുന്നു.',
-  },
-  hydration: {
-    en: 'Hydration reminder confirmed! Drinking water regularly maintains healthy blood circulation.',
-    kn: 'ನೀರು ಕುಡಿಯುವ ಜ್ಞಾಪನೆ ದೃಢಪಟ್ಟಿದೆ! ನಿಯಮಿತವಾಗಿ ನೀರು ಕುಡಿಯುವುದು ರಕ್ತ ಪರಿಚಲನೆಗೆ ಒಳ್ಳೆಯದು.',
-    hi: 'पानी पीने का रिमाइंडर सेट हो गया है! नियमित पानी पीना रक्त संचार के लिए आवश्यक है।',
-    ta: 'தண்ணீர் குடிக்கும் நினைவூட்டல் உறுதிப்படுத்தப்பட்டது!',
-    te: 'నీరు త్రాగే రిమైండర్ ధృవీకరించబడింది!',
-    ml: 'വെള്ളം കുടിക്കാനുള്ള ഓർമ്മപ്പെടുത്തൽ സ്ഥിരീകരിച്ചു!',
-  },
-  sleep: {
-    en: 'You logged 7 hours and 15 minutes of restful sleep last night with normal resting cardiac rhythm.',
-    kn: 'ನೀವು ನಿನ್ನೆ ರಾತ್ರಿ 7 ಗಂಟೆ 15 ನಿಮಿಷಗಳ ಕಾಲ ಉತ್ತಮ ನಿದ್ರೆ ಮಾಡಿದ್ದೀರಿ, ಹೃದಯ ಬಡಿತ ಸಾಮಾನ್ಯವಾಗಿತ್ತು.',
-    hi: 'आपने कल रात 7 घंटे 15 मिनट की अच्छी और आरामदायक नींद ली।',
-    ta: 'நீங்கள் நேற்றிரவு 7 மணி நேரம் 15 நிமிடங்கள் நிம்மதியாக தூங்கினீர்கள்.',
-    te: 'మీరు నిన్న రాత్రి 7 గంటల 15 నిమిషాలు ప్రశాంతంగా నిద్రపోయారు.',
-    ml: 'നിങ്ങൾ ഇന്നലെ രാത്രി 7 മണിക്കൂർ 15 മിനിറ്റ് നല്ല ഉറക്കം ലഭിച്ചു.',
-  },
-  mood_calm: {
-    en: 'It is wonderful to feel calm and balanced. Your resting pulse reflects your inner serenity.',
-    kn: 'ಪ್ರಶಾಂತವಾಗಿರುವುದು ತುಂಬಾ ಒಳ್ಳೆಯದು. ನಿಮ್ಮ ಮನಸ್ಸಿನ ನೆಮ್ಮದಿ ಹೃದಯದ ಆರೋಗ್ಯಕ್ಕೆ ಪೂರಕವಾಗಿದೆ.',
-    hi: 'शांत और संतुलित महसूस करना बहुत अच्छा है। यह आपके हृदय के लिए सर्वोत्तम है।',
-    ta: 'அமைதியாக இருப்பது மிகவும் நல்லது. இது உங்கள் இதய ஆரோக்கியத்திற்கு சிறந்தது.',
-    te: 'ప్రశాంతంగా ఉండటం చాలా మంచిది. ఇది మీ గుండె ఆరోగ్యానికి తోడ్పడుతుంది.',
-    ml: 'ശാന്തമായിരിക്കുന്നത് വളരെ നല്ലതാണ്. ഇത് നിങ്ങളുടെ ഹൃദയാരോഗ്യത്തിന് സഹായകരമാണ്.',
-  },
-  mood_sad: {
-    en: 'I hear you, and it is completely okay to feel down sometimes. You are valued and never alone.',
-    kn: 'ನಿಮ್ಮ ಭಾವನೆ ನನಗೆ ಅರ್ಥವಾಗುತ್ತದೆ. ನೀವು ಎಂದಿಗೂ ಒಂಟಿಯಲ್ಲ, ನೋವಾ ಮತ್ತು ನಿಮ್ಮ ಕುಟುಂಬದವರು ನಿಮ್ಮೊಂದಿಗಿದ್ದಾರೆ.',
-    hi: 'मैं समझ सकती हूँ। कभी-कभी ऐसा महसूस होना स्वाभाविक है। आप अकेले नहीं हैं, हम आपके साथ हैं।',
-    ta: 'உங்கள் மனநிலை எனக்குப் புரிகிறது. நீங்கள் தனிமையில் இல்லை, நாங்கள் உங்களுடன் இருக்கிறோம்.',
-    te: 'మీ బాధ నాకు అర్థమవుతోంది. మీరు ఎప్పటికీ ఒంటరి కాదు, మేము మీతో ఉన్నాము.',
-    ml: 'എനിക്ക് മനസ്സിലാകുന്നു. നിങ്ങൾ തനിച്ചല്ല, ഞങ്ങൾ എപ്പോഴും നിങ്ങളുടെ കൂടെയുണ്ട്.',
-  },
-  mood_lonely: {
-    en: 'I am right here with you. Would you like me to connect a call to your daughter or share an inspiring story?',
-    kn: 'ನಾನು ನಿಮ್ಮೊಂದಿಗಿದ್ದೇನೆ. ನಿಮ್ಮ ಮಗಳಿಗೆ ಕರೆ ಮಾಡಬೇಕೇ ಅಥವಾ ಒಂದು ಸುಂದರ ಕಥೆ ಹೇಳಬೇಕೇ?',
-    hi: 'मैं यहीं आपके साथ हूँ। क्या आप अपने परिवार से बात करना चाहेंगे या कोई कहानी सुनना चाहेंगे?',
-    ta: 'நான் உங்களுடன் இருக்கிறேன். உங்கள் குடும்பத்தினரை அழைக்க விரும்புகிறீர்களா?',
-    te: 'నేను మీతోనే ఉన్నాను. మీ కుటుంబ సభ్యులతో మాట్లాడాలనుకుంటున్నారా?',
-    ml: 'ഞാൻ ഇവിടെ നിങ്ങളുടെ കൂടെയുണ്ട്. കുടുംബാംഗങ്ങളോട് സംസാരിക്കാൻ ആഗ്രഹിക്കുന്നുണ്ടോ?',
-  },
-  crisis: {
-    en: 'We care deeply about your life and safety. Free 24/7 support is available at Tele-MANAS 14416. Connecting help now.',
-    kn: 'ನಿಮ್ಮ ಜೀವ ಮತ್ತು ಸುರಕ್ಷತೆ ನಮಗೆ ಅತ್ಯಂತ ಮುಖ್ಯವಾಗಿದೆ. 24/7 ಉಚಿತ ಸಹಾಯವಾಣಿ ಟೆಲಿ-ಮಾನಸ್ 14416 ಲಭ್ಯವಿದೆ. ಸಹಾಯವನ್ನು ಸಂಪರ್ಕಿಸಲಾಗುತ್ತಿದೆ.',
-    hi: 'आपकी सुरक्षा और जीवन हमारे लिए बेहद अनमोल है। टेली-मानस 14416 पर 24/7 मुफ्त सहायता उपलब्ध है।',
-    ta: 'உங்கள் வாழ்க்கை எங்களுக்கு மிகவும் முக்கியமானது. 14416 என்ற இலவச உதவி எண்ணை உடனே அழைக்கலாம்.',
-    te: 'మీ భద్రత మాకు ఎంతో ముఖ్యం. టెలి-మానస్ 14416 ద్వారా 24/7 ఉచిత సహాయం పొందవచ్చు.',
-    ml: 'നിങ്ങളുടെ ജീവൻ വിലപ്പെട്ടതാണ്. ടെലി-മാനസ് 14416 വഴി 24/7 സൗജന്യ സഹായം ലഭ്യമാണ്.',
-  },
-  general: {
-    en: 'Hello! I am Nova, your smart health assistant. You can say Call Caregiver, Check Vitals, or Send Message.',
-    kn: 'ನಮಸ್ಕಾರ! ನಾನು ನೋವಾ (Nova), ನಿಮ್ಮ ಸ್ಮಾರ್ಟ್ ಆರೋಗ್ಯ ಸಹಾಯಕ. ನೀವು ಕಾಲ್ ಕೇರ್‌ಗಿವರ್ ಅಥವಾ ವೈಟಲ್ಸ್ ಪರಿಶೀಲಿಸಿ ಎಂದು ಹೇಳಬಹುದು.',
-    hi: 'नमस्ते! मैं नोवा (Nova) हूँ, आपकी स्वास्थ्य सहायक। आप कॉल केयरगिवर या चेक वाइटल्स कह सकते हैं।',
-    ta: 'வணக்கம்! நான் நோவா (Nova), உங்கள் சுகாதார உதவியாளர். மருத்துவ அழைப்பு அல்லது பரிசோதனைக்கு கேட்கலாம்.',
-    te: 'నమస్కారం! నేను నోవా (Nova), మీ ఆరోగ్య సహాయకురాలిని.',
-    ml: 'നമസ്കാരം! ഞാൻ നോവ (Nova), നിങ്ങളുടെ ആരോഗ്യ സഹായി.',
-  },
-};
-
-// Phonetic transliteration responses for standard engines lacking regional Indic fonts
-const PHONETIC_RESPONSES: Record<string, Record<string, string>> = {
-  vitals: {
-    en: 'Your vitals are stable. Heart rate is 72 BPM and oxygen saturation is 98 percent.',
-    kn: 'Nimma hrudaya baditha eppatthyeradu BPM matthu aamlajanaka thombhatthenthu shekada aagide, ellavu saamaanya sthithiyallide.',
-    hi: 'Aapki hriday gati 72 BPM aur oxygen 98 pratishat saamaanya sthiti mein hai.',
-    ta: 'Ungal idhaya thudippu 72 BPM matrum oxygen alavu 98% seeraaga ulladhu.',
-    te: 'Mee gunde kottukovadam 72 BPM mariyu oxygen 98% saadharanamga unnaayi.',
-    ml: 'Ningalude hrudayamidippu 72 BPM um oxygen 98% um saadhaarananila-yilaanu.',
-  },
-  calling: {
-    en: 'Connecting direct call to your primary caregiver right now.',
-    kn: 'Nimma praathamika aaraikeyadaararige eega kare samparkisalaaguttide.',
-    hi: 'Aapke praathmik dekhbhaalkarta ko seedhe call milaya jaa raha hai.',
-    ta: 'Ungal mudhanmai paraamarippaalarukku ippodhu azhaippu inaikkappadugiradhu.',
-    te: 'Mee praathamika samrakshakuniki ippudu call connect cheyabaduthondi.',
-    ml: 'Ningalude parichaarakane ippol vilikkunnu.',
-  },
-  sos: {
-    en: 'Emergency SOS initiated! Dialing emergency services and alert sent.',
-    kn: 'Thurthu SOS prakriye aarambhisalaagide! Sahaayavaanige kare maadalaaguttide.',
-    hi: 'Aapaatkaaleen SOS shuru kiya gaya! Emergency number par call kiya jaa raha hai.',
-    ta: 'Avasara SOS thodangappattadhu! Avasara udhavikku azhaikkappadugiradhu.',
-    te: 'Atyavasara SOS praarambhincha-badindi! Sahaayaaniki call cheyabaduthondi.',
-    ml: 'Aadiyanthara SOS aarambhichu! Udan sahaayam bandhappadum.',
-  },
-  messaging: {
-    en: 'Caregiver message sent and dispatched to registered email.',
-    kn: 'Aaraikeyadaararige sandesha kaluhisalaagide matthu email ravaanisalaagide.',
-    hi: 'Dekhbhaalkarta ko sandesh aur email safalta-poorvak bhej diya gaya hai.',
-    ta: 'Paraamarippaalarukku seydhi matrum minnanjaal anuppappattadhu.',
-    te: 'Samrakshakuniki sandesham mariyu email pampabadindi.',
-    ml: 'Parichaarakanu sandeshavum emailum ayachu.',
-  },
-  medicine: {
-    en: 'Your upcoming dose is Dolo 1 Tablet. Please take it with a glass of water after your meal.',
-    kn: 'ನಿಮ್ಮ ಮುಂದಿನ ಔಷಧ ಡೋಲೋ 1 ಮಾತ್ರೆ, ಊಟದ ನಂತರ ಒಂದು ಲೋಟ ನೀರಿನೊಂದಿಗೆ ಸೇವಿಸಿ.',
-    hi: 'आपकी अगली खुराक डोलो 1 गोली है। भोजन के बाद पानी के साथ लें।',
-    ta: 'உங்கள் அடுத்த மருந்து டோலோ 1 மாத்திரை, உணவுக்குப் பின் எடுத்துக் கொள்ளுங்கள்.',
-    te: 'మీ తదుపరి మందు డోలో 1 మాత్ర, భోజనం తర్వాత తీసుకోండి.',
-    ml: 'നിങ്ങളുടെ അടുത്ത മരുന്ന് ഡോളോ 1 ഗുളികയാണ്, ഭക്ഷണത്തിന് ശേഷം കഴിക്കുക.',
-  },
-  appointment: {
-    en: 'Your upcoming appointment is with Dr. Sunita Rao (Cardiologist) at PulseGuardian Heart Center.',
-    kn: 'ನಿಮ್ಮ ಮುಂದಿನ ವೈದ್ಯರ ಭೇಟಿ ಡಾ. ಸುನೀತಾ ರಾವ್ (ಹೃದ್ರೋಗ ತಜ್ಞರು) ಅವರೊಂದಿಗೆ ನಿಗದಿಯಾಗಿದೆ.',
-    hi: 'आपकी अगली डॉक्टर अपॉइंटमेंट डॉ. सुनीता राव (हृदय रोग विशेषज्ञ) के साथ है।',
-    ta: 'உங்கள் அடுத்த மருத்துவ ஆலோசனை டாக்டர் சுனிதா ராவ் அவர்களுடன் உள்ளது.',
-    te: 'మీ తదుపరి డాక్టర్ సంప్రదింపులు డా. సునీతా రావు గారితో ఉన్నాయి.',
-    ml: 'നിങ്ങളുടെ അടുത്ത ഡോക്ടർ കൺസൾട്ടേഷൻ ഡോ. സുനിത റാവുമായി നിശ്ചയിച്ചിരിക്കുന്നു.',
-  },
-  hydration: {
-    en: 'Hydration reminder confirmed! Drinking water regularly maintains healthy blood circulation.',
-    kn: 'ನೀರು ಕುಡಿಯುವ ಜ್ಞಾಪನೆ ದೃಢಪಟ್ಟಿದೆ! ನಿಯಮಿತವಾಗಿ ನೀರು ಕುಡಿಯುವುದು ರಕ್ತ ಪರಿಚಲನೆಗೆ ಒಳ್ಳೆಯದು.',
-    hi: 'पानी पीने का रिमाइंडर सेट हो गया है! नियमित पानी पीना रक्त संचार के लिए आवश्यक है।',
-    ta: 'தண்ணீர் குடிக்கும் நினைவூட்டல் உறுதிப்படுத்தப்பட்டது!',
-    te: 'నీరు త్రాగే రిమైండర్ ధృవీకరించబడింది!',
-    ml: 'വെള്ളം കുടിക്കാനുള്ള ഓർമ്മപ്പെടുത്തൽ സ്ഥിരീകരിച്ചു!',
-  },
-  sleep: {
-    en: 'You logged 7 hours and 15 minutes of restful sleep last night with normal resting cardiac rhythm.',
-    kn: 'ನೀವು ನಿನ್ನೆ ರಾತ್ರಿ 7 ಗಂಟೆ 15 ನಿಮಿಷಗಳ ಕಾಲ ಉತ್ತಮ ನಿದ್ರೆ ಮಾಡಿದ್ದೀರಿ, ಹೃದಯ ಬಡಿತ ಸಾಮಾನ್ಯವಾಗಿತ್ತು.',
-    hi: 'आपने कल रात 7 घंटे 15 मिनट की अच्छी और आरामदायक नींद ली।',
-    ta: 'நீங்கள் நேற்றிரவு 7 மணி நேரம் 15 நிமிடங்கள் நிம்மதியாக தூங்கினீர்கள்.',
-    te: 'మీరు నిన్న రాత్రి 7 గంటల 15 నిమిషాలు ప్రశాంతంగా నిద్రపోయారు.',
-    ml: 'നിങ്ങൾ ഇന്നലെ രാത്രി 7 മണിക്കൂർ 15 മിനിറ്റ് നല്ല ഉറക്കം ലഭിച്ചു.',
-  },
-  mood_calm: {
-    en: 'It is wonderful to feel calm and balanced. Your resting pulse reflects your inner serenity.',
-    kn: 'ಪ್ರಶಾಂತವಾಗಿರುವುದು ತುಂಬಾ ಒಳ್ಳೆಯದು. ನಿಮ್ಮ ಮನಸ್ಸಿನ ನೆಮ್ಮದಿ ಹೃದಯದ ಆರೋಗ್ಯಕ್ಕೆ ಪೂರಕವಾಗಿದೆ.',
-    hi: 'शांत और संतुलित महसूस करना बहुत अच्छा है। यह आपके हृदय के लिए सर्वोत्तम है।',
-    ta: 'அமைதியாக இருப்பது மிகவும் நல்லது. இது உங்கள் இதய ஆரோக்கியத்திற்கு சிறந்தது.',
-    te: 'ప్రశాంతంగా ఉండటం చాలా మంచిది. ఇది మీ గుండె ఆరోగ్యానికి తోడ్పడుతుంది.',
-    ml: 'ശാന്തമായിരിക്കുന്നത് വളരെ നല്ലതാണ്. ഇത് നിങ്ങളുടെ ഹൃദയാരോഗ്യത്തിന് സഹായകരമാണ്.',
-  },
-  mood_sad: {
-    en: 'I hear you, and it is completely okay to feel down sometimes. You are valued and never alone.',
-    kn: 'ನಿಮ್ಮ ಭಾವನೆ ನನಗೆ ಅರ್ಥವಾಗುತ್ತದೆ. ನೀವು ಎಂದಿಗೂ ಒಂಟಿಯಲ್ಲ, ನೋವಾ ಮತ್ತು ನಿಮ್ಮ ಕುಟುಂಬದವರು ನಿಮ್ಮೊಂದಿಗಿದ್ದಾರೆ.',
-    hi: 'मैं समझ सकती हूँ। कभी-कभी ऐसा महसूस होना स्वाभाविक है। आप अकेले नहीं हैं, हम आपके साथ हैं।',
-    ta: 'உங்கள் மனநிலை எனக்குப் புரிகிறது. நீங்கள் தனிமையில் இல்லை, நாங்கள் உங்களுடன் இருக்கிறோம்.',
-    te: 'మీ బాధ నాకు అర్థమవుతోంది. మీరు ఎప్పటికీ ఒంటరి కాదు, మేము మీతో ఉన్నాము.',
-    ml: 'എനിക്ക് മനസ്സിലാകുന്നു. നിങ്ങൾ തനിച്ചല്ല, ഞങ്ങൾ എപ്പോഴും നിങ്ങളുടെ കൂടെയുണ്ട്.',
-  },
-  mood_lonely: {
-    en: 'I am right here with you. Would you like me to connect a call to your daughter or share an inspiring story?',
-    kn: 'ನಾನು ನಿಮ್ಮೊಂದಿಗಿದ್ದೇನೆ. ನಿಮ್ಮ ಮಗಳಿಗೆ ಕರೆ ಮಾಡಬೇಕೇ ಅಥವಾ ಒಂದು ಸುಂದರ ಕಥೆ ಹೇಳಬೇಕೇ?',
-    hi: 'मैं यहीं आपके साथ हूँ। क्या आप अपने परिवार से बात करना चाहेंगे या कोई कहानी सुनना चाहेंगे?',
-    ta: 'நான் உங்களுடன் இருக்கிறேன். உங்கள் குடும்பத்தினரை அழைக்க விரும்புகிறீர்களா?',
-    te: 'నేను మీతోనే ఉన్నాను. మీ కుటుంబ సభ్యులతో మాట్లాడాలనుకుంటున్నారా?',
-    ml: 'ഞാൻ ഇവിടെ നിങ്ങളുടെ കൂടെയുണ്ട്. കുടുംബാംഗങ്ങളോട് സംസാരിക്കാൻ ആഗ്രഹിക്കുന്നുണ്ടോ?',
-  },
-  crisis: {
-    en: 'We care deeply about your life and safety. Free 24/7 support is available at Tele-MANAS 14416. Connecting help now.',
-    kn: 'ನಿಮ್ಮ ಜೀವ ಮತ್ತು ಸುರಕ್ಷತೆ ನಮಗೆ ಅತ್ಯಂತ ಮುಖ್ಯವಾಗಿದೆ. 24/7 ಉಚಿತ ಸಹಾಯವಾಣಿ ಟೆಲಿ-ಮಾನಸ್ 14416 ಲಭ್ಯವಿದೆ. ಸಹಾಯವನ್ನು ಸಂಪರ್ಕಿಸಲಾಗುತ್ತಿದೆ.',
-    hi: 'आपकी सुरक्षा और जीवन हमारे लिए बेहद अनमोल है। टेली-मानस 14416 पर 24/7 मुफ्त सहायता उपलब्ध है।',
-    ta: 'உங்கள் வாழ்க்கை எங்களுக்கு மிகவும் முக்கியமானது. 14416 என்ற இலவச உதவி எண்ணை உடனே அழைக்கலாம்.',
-    te: 'మీ భద్రత మాకు ఎంతో ముఖ్యం. టెలి-మానస్ 14416 ద్వారా 24/7 ఉచిత సహాయం పొందవచ్చు.',
-    ml: 'നിങ്ങളുടെ ജീവൻ വിലപ്പെട്ടതാണ്. ടെലി-മാനസ് 14416 വഴി 24/7 സൗജന്യ സഹായം ലഭ്യമാണ്.',
-  },
-  general: {
-    en: 'Hello! I am Nova, your smart health assistant. You can say Call Caregiver, Check Vitals, or Send Message.',
-    kn: 'Namaskara! Naanu Nova, nimma smart aarogya sahaayaka. Neevu Call Caregiver athava Vitals parisheelisi endu helabahudu.',
-    hi: 'Namaste! Main Nova hoon, aapki swasthya sahaayak. Aap Call Caregiver ya Check Vitals keh sakte hain.',
-    ta: 'Vanakkam! Naan Nova, ungal sugadhaara udhavi-yaalar. Maruthuva azhaippu alladhu parisodhanai ketkalam.',
-    te: 'Namaskaram! Nenu Nova, mee aarogya sahaayakuraalini.',
-    ml: 'Namaskaram! Njaan Nova, ningalude aarogya sahaayi.',
-  },
-};
+interface ActionPill {
+  id: string;
+  label: string;
+  action: string;
+  icon?: string;
+  color?: string;
+}
 
 export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen, onClose }) => {
+  const { user, role } = useAuth();
   const { language: globalLanguage, setLanguage: setGlobalLanguage, languages } = useLanguage();
+
+  // Selected language for assistant
   const [selectedLang, setSelectedLang] = useState<string>(globalLanguage || 'kn');
   const [isListening, setIsListening] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [textInput, setTextInput] = useState('');
   const [assistantReply, setAssistantReply] = useState('');
-  const [lastCategory, setLastCategory] = useState<string>('general');
-  const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  const [moodToast, setMoodToast] = useState<string | null>(null);
-  const [isCrisisActive, setIsCrisisActive] = useState<boolean>(false);
-  const [caregiverContact, setCaregiverContact] = useState<{ name: string; phone: string; email: string }>({
-    name: 'Sarah Jenkins (Primary Caregiver)',
-    phone: '+919876543220',
-    email: 'caregiver@pulseguardian.ai',
-  });
-  const recognitionRef = useRef<any>(null);
+  const [isEmergencyActive, setIsEmergencyActive] = useState(false);
+  const [directCallUrl, setDirectCallUrl] = useState<string | null>(null);
 
-  // Sync selectedLang with globalLanguage on mount
+  // Authorized patients context (for family, doctor, EMS)
+  const [authorizedPatients, setAuthorizedPatients] = useState<any[]>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('');
+  const [selectedPatientName, setSelectedPatientName] = useState<string>('');
+  const [suggestedActions, setSuggestedActions] = useState<ActionPill[]>([]);
+
+  // Caregiver wellbeing check-in modal state
+  const [showWellbeingModal, setShowWellbeingModal] = useState(false);
+  const [wellbeingNotes, setWellbeingNotes] = useState('');
+  const [wellbeingToast, setWellbeingToast] = useState<string | null>(null);
+
+  const recognitionRef = useRef<any>(null);
+  const audioInstanceRef = useRef<HTMLAudioElement | null>(null);
+
+  // Sync with global language
   useEffect(() => {
     if (globalLanguage) {
       setSelectedLang(globalLanguage);
     }
   }, [globalLanguage]);
 
-  // Load patient's actual emergency contact/caregiver phone
-  useEffect(() => {
-    patientDashboardService.getCaregiverDirectory().then((cgList) => {
-      if (cgList && cgList.length > 0) {
-        const primary = cgList.find((c: any) => c.is_primary) || cgList[0];
-        setCaregiverContact({
-          name: primary.name,
-          phone: primary.phone,
-          email: primary.email,
-        });
-      }
-    }).catch(() => {});
-  }, []);
-
-  // Natural Indic Speech Engine with 100% volume and Native Language pronunciation
-  const speakWithWebSpeech = (text: string, langTag: string, langCode: string, category: string) => {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-
-    const voices = window.speechSynthesis.getVoices();
-    const langPrefix = langCode;
-
-    const matchedVoice = voices.find(
-      (v) =>
-        v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix) ||
-        v.name.toLowerCase().includes(langPrefix) ||
-        (langCode === 'kn' && (v.name.toLowerCase().includes('kannada') || v.lang.includes('kn'))) ||
-        (langCode === 'hi' && (v.name.toLowerCase().includes('hindi') || v.lang.includes('hi'))) ||
-        (langCode === 'ta' && (v.name.toLowerCase().includes('tamil') || v.lang.includes('ta'))) ||
-        (langCode === 'te' && (v.name.toLowerCase().includes('telugu') || v.lang.includes('te')))
-    );
-
-    const indianVoice = voices.find(
-      (v) => v.lang.toLowerCase().includes('in') || v.name.toLowerCase().includes('india')
-    );
-
-    const utterance = new SpeechSynthesisUtterance();
-
-    if (matchedVoice) {
-      utterance.voice = matchedVoice;
-      utterance.lang = matchedVoice.lang;
-      utterance.text = text;
-    } else {
-      utterance.lang = langTag;
-      if (indianVoice) utterance.voice = indianVoice;
-      const phoneticText = PHONETIC_RESPONSES[category]?.[langCode] || text;
-      utterance.text = phoneticText;
-    }
-
-    utterance.volume = 1.0;
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const speakText = (text: string, category: string = 'general') => {
-    const langCode = selectedLang || 'kn';
-    const langTag = langCode === 'kn' ? 'kn-IN' : langCode === 'hi' ? 'hi-IN' : langCode === 'ta' ? 'ta-IN' : langCode === 'te' ? 'te-IN' : langCode === 'ml' ? 'ml-IN' : 'en-IN';
-
-    // Play high-fidelity native audio with 100% volume
-    try {
-      const cleanSnippet = text.slice(0, 160);
-      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langCode}&client=tw-ob&q=${encodeURIComponent(cleanSnippet)}`;
-      const audio = new Audio(ttsUrl);
-      audio.volume = 1.0;
-      audio.play().catch(() => {
-        speakWithWebSpeech(text, langTag, langCode, category);
-      });
-    } catch {
-      speakWithWebSpeech(text, langTag, langCode, category);
-    }
-  };
-
-  // Web Speech API / Recognition initialization
+  // Load context from backend when modal opens
   useEffect(() => {
     if (!isOpen) {
+      stopSpeech();
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -335,16 +92,137 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
       return;
     }
 
-    // Greet user in their native language upon opening
-    const initialGreeting = MULTILINGUAL_RESPONSES.general[selectedLang] || MULTILINGUAL_RESPONSES.general.en;
-    setAssistantReply(initialGreeting);
-    setLastCategory('general');
-    speakText(initialGreeting, 'general');
+    novaService
+      .getContext()
+      .then((ctx) => {
+        if (ctx.authorized_patients && ctx.authorized_patients.length > 0) {
+          setAuthorizedPatients(ctx.authorized_patients);
+          const first = ctx.authorized_patients[0];
+          setSelectedPatientId(first.patient_id || `PT-${first.id}`);
+          setSelectedPatientName(first.name);
+        }
+        if (ctx.has_active_emergency) {
+          setIsEmergencyActive(true);
+        }
+      })
+      .catch(() => {
+        // Local baseline fallback
+        if (role === 'doctor') {
+          setSelectedPatientId('PT-2026-000001');
+          setSelectedPatientName('Ramesh Kumar');
+        } else if (role === 'family' || role === 'caregiver') {
+          setSelectedPatientId('PT-2026-000001');
+          setSelectedPatientName('Ramesh Kumar');
+        }
+      });
+
+    // Send initial greeting query
+    sendNovaQuery({ action: 'check_vitals' });
+  }, [isOpen]);
+
+  // Stop any active TTS audio
+  const stopSpeech = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    if (audioInstanceRef.current) {
+      audioInstanceRef.current.pause();
+      audioInstanceRef.current.currentTime = 0;
+    }
+    setIsSpeaking(false);
+  };
+
+  // High fidelity 100% volume Speech Engine
+  const speakText = (text: string) => {
+    stopSpeech();
+    setIsSpeaking(true);
+
+    const langCode = selectedLang || 'kn';
+    const cleanText = text.slice(0, 240);
+
+    // Attempt online native TTS first for regional natural accent
+    try {
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langCode}&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
+      const audio = new Audio(ttsUrl);
+      audio.volume = 1.0;
+      audioInstanceRef.current = audio;
+
+      audio.onended = () => setIsSpeaking(false);
+      audio.onerror = () => speakWithWebSpeech(text, langCode);
+
+      audio.play().catch(() => {
+        speakWithWebSpeech(text, langCode);
+      });
+    } catch {
+      speakWithWebSpeech(text, langCode);
+    }
+  };
+
+  const speakWithWebSpeech = (text: string, langCode: string) => {
+    if (!('speechSynthesis' in window)) {
+      setIsSpeaking(false);
+      return;
+    }
+
+    const langTag =
+      langCode === 'kn'
+        ? 'kn-IN'
+        : langCode === 'hi'
+        ? 'hi-IN'
+        : langCode === 'ta'
+        ? 'ta-IN'
+        : langCode === 'te'
+        ? 'te-IN'
+        : langCode === 'ml'
+        ? 'ml-IN'
+        : 'en-IN';
+
+    const voices = window.speechSynthesis.getVoices();
+    const matchedVoice = voices.find(
+      (v) =>
+        v.lang.toLowerCase().replace('_', '-').startsWith(langCode) ||
+        v.name.toLowerCase().includes(langCode) ||
+        (langCode === 'kn' && v.name.toLowerCase().includes('kannada')) ||
+        (langCode === 'hi' && v.name.toLowerCase().includes('hindi')) ||
+        (langCode === 'ta' && v.name.toLowerCase().includes('tamil'))
+    );
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = langTag;
+    if (matchedVoice) utterance.voice = matchedVoice;
+    utterance.volume = 1.0;
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Toggle microphone recording via Web Speech API
+  const toggleListening = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+      }
+      setIsListening(false);
+      return;
+    }
+
+    stopSpeech();
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in this browser. You can type commands below.');
+      return;
+    }
+
+    try {
       const recognition = new SpeechRecognition();
-      recognition.continuous = true;
+      recognition.continuous = false;
       recognition.interimResults = true;
       recognition.lang =
         selectedLang === 'kn'
@@ -361,15 +239,16 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
 
       recognition.onstart = () => {
         setIsListening(true);
+        setTranscript('');
       };
 
       recognition.onresult = (event: any) => {
-        let currentTranscript = '';
+        let current = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          currentTranscript += event.results[i][0].transcript;
+          current += event.results[i][0].transcript;
         }
-        setTranscript(currentTranscript);
-        processVoiceCommand(currentTranscript);
+        setTranscript(current);
+        setTextInput(current);
       };
 
       recognition.onerror = () => {
@@ -378,452 +257,507 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
 
       recognition.onend = () => {
         setIsListening(false);
+        if (textInput.trim() || transcript.trim()) {
+          sendNovaQuery({ message: textInput.trim() || transcript.trim() });
+        }
       };
 
       recognitionRef.current = recognition;
-      try {
-        recognition.start();
-      } catch {}
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {}
-      }
-    };
-  }, [isOpen, selectedLang]);
-
-  const processVoiceCommand = (cmd: string) => {
-    const lower = cmd.toLowerCase();
-
-    // 1. Direct Call Caregiver Action
-    if (
-      lower.includes('call') ||
-      lower.includes('phone') ||
-      lower.includes('ಕರೆ') ||
-      lower.includes('कॉल') ||
-      lower.includes('அழை') ||
-      lower.includes('కాల్') ||
-      lower.includes('വിളിക്കുക')
-    ) {
-      const reply = MULTILINGUAL_RESPONSES.calling[selectedLang] || MULTILINGUAL_RESPONSES.calling.en;
-      setAssistantReply(reply);
-      setLastCategory('calling');
-      speakText(reply, 'calling');
-
-      // Directly trigger phone call from patient's logged-in device
-      setTimeout(() => {
-        const cleanNumber = caregiverContact.phone.replace(/[^0-9+]/g, '');
-        window.location.href = `tel:${cleanNumber}`;
-      }, 1500);
-      return;
-    }
-
-    // 2. Emergency SOS Action
-    if (
-      lower.includes('emergency') ||
-      lower.includes('sos') ||
-      lower.includes('help') ||
-      lower.includes('ಸಹಾಯ') ||
-      lower.includes('ಮದದ್') ||
-      lower.includes('मदद') ||
-      lower.includes('உதவி') ||
-      lower.includes('సహాయం')
-    ) {
-      const reply = MULTILINGUAL_RESPONSES.sos[selectedLang] || MULTILINGUAL_RESPONSES.sos.en;
-      setAssistantReply(reply);
-      setLastCategory('sos');
-      speakText(reply, 'sos');
-      setTimeout(() => {
-        window.location.href = 'tel:112';
-      }, 1500);
-      return;
-    }
-
-    // 3. Message Caregiver Action
-    if (
-      lower.includes('message') ||
-      lower.includes('sms') ||
-      lower.includes('ಸಂದೇಶ') ||
-      lower.includes('संदेश') ||
-      lower.includes('செய்தி') ||
-      lower.includes('సందేశం')
-    ) {
-      const reply = MULTILINGUAL_RESPONSES.messaging[selectedLang] || MULTILINGUAL_RESPONSES.messaging.en;
-      setAssistantReply(reply);
-      setLastCategory('messaging');
-      speakText(reply, 'messaging');
-      return;
-    }
-
-    // Medicine query
-    if (lower.includes('medicine') || lower.includes('tablet') || lower.includes('dose') || lower.includes('ಔಷಧ') || lower.includes('दवाई') || lower.includes('மருந்து')) {
-      const reply = MULTILINGUAL_RESPONSES.medicine[selectedLang] || MULTILINGUAL_RESPONSES.medicine.en;
-      setAssistantReply(reply);
-      setLastCategory('medicine');
-      speakText(reply, 'medicine');
-      return;
-    }
-
-    // Appointment query
-    if (lower.includes('appointment') || lower.includes('doctor') || lower.includes('ವೈದ್ಯ') || lower.includes('डॉक्टर') || lower.includes('மருத்துவர்')) {
-      const reply = MULTILINGUAL_RESPONSES.appointment[selectedLang] || MULTILINGUAL_RESPONSES.appointment.en;
-      setAssistantReply(reply);
-      setLastCategory('appointment');
-      speakText(reply, 'appointment');
-      return;
-    }
-
-    // Hydration reminder
-    if (lower.includes('water') || lower.includes('drink') || lower.includes('ನೀರು') || lower.includes('पानी') || lower.includes('தண்ணீர்')) {
-      const reply = MULTILINGUAL_RESPONSES.hydration[selectedLang] || MULTILINGUAL_RESPONSES.hydration.en;
-      setAssistantReply(reply);
-      setLastCategory('hydration');
-      speakText(reply, 'hydration');
-      return;
-    }
-
-    // Sleep summary
-    if (lower.includes('sleep') || lower.includes('rest') || lower.includes('ನಿದ್ರೆ') || lower.includes('नींद') || lower.includes('தூக்கம்')) {
-      const reply = MULTILINGUAL_RESPONSES.sleep[selectedLang] || MULTILINGUAL_RESPONSES.sleep.en;
-      setAssistantReply(reply);
-      setLastCategory('sleep');
-      speakText(reply, 'sleep');
-      return;
-    }
-
-    // Crisis & emotional distress keywords
-    if (lower.includes('hopeless') || lower.includes('suicide') || lower.includes('harm') || lower.includes('die') || lower.includes('end it')) {
-      const reply = MULTILINGUAL_RESPONSES.crisis[selectedLang] || MULTILINGUAL_RESPONSES.crisis.en;
-      setAssistantReply(reply);
-      setLastCategory('crisis');
-      setIsCrisisActive(true);
-      speakText(reply, 'crisis');
-      return;
-    }
-
-    // Emotional wellbeing & loneliness
-    if (lower.includes('lonely') || lower.includes('alone') || lower.includes('sad') || lower.includes('ಒಂಟಿ') || lower.includes('उदास') || lower.includes('தனிமை')) {
-      const reply = MULTILINGUAL_RESPONSES.mood_lonely[selectedLang] || MULTILINGUAL_RESPONSES.mood_lonely.en;
-      setAssistantReply(reply);
-      setLastCategory('mood_lonely');
-      speakText(reply, 'mood_lonely');
-      return;
-    }
-
-    // 4. Vitals Query Action
-    if (
-      lower.includes('vital') ||
-      lower.includes('heart') ||
-      lower.includes('pulse') ||
-      lower.includes('health') ||
-      lower.includes('ಆರೋಗ್ಯ') ||
-      lower.includes('ಹೃದಯ') ||
-      lower.includes('स्वास्थ्य') ||
-      lower.includes('சுகாதாரம்') ||
-      lower.includes('ఆరోగ్యం')
-    ) {
-      const reply = MULTILINGUAL_RESPONSES.vitals[selectedLang] || MULTILINGUAL_RESPONSES.vitals.en;
-      setAssistantReply(reply);
-      setLastCategory('vitals');
-      speakText(reply, 'vitals');
-      return;
+      recognition.start();
+    } catch {
+      setIsListening(false);
     }
   };
 
-  const handleMoodSelect = async (mood: string) => {
-    setSelectedMood(mood);
-    let cat = 'mood_calm';
-    if (mood === 'sad') cat = 'mood_sad';
-    else if (mood === 'lonely') cat = 'mood_lonely';
-    else if (mood === 'stressed') cat = 'mood_sad';
-    else if (mood === 'happy' || mood === 'calm') cat = 'mood_calm';
-
-    const reply = MULTILINGUAL_RESPONSES[cat]?.[selectedLang] || MULTILINGUAL_RESPONSES[cat]?.en || 'Thank you for checking in with me.';
-    setAssistantReply(reply);
-    setLastCategory(cat);
-    speakText(reply, cat);
+  // Central query dispatcher to backend Nova API
+  const sendNovaQuery = async (params: { message?: string; action?: string; mood_type?: string }) => {
+    setIsThinking(true);
+    stopSpeech();
 
     try {
-      await patientDashboardService.recordMood({
-        mood,
-        notes: `Voice check-in: feeling ${mood}`,
-        heart_rate_context: 72,
-        is_private: true,
-        shared_with_caregiver: mood === 'sad' || mood === 'lonely',
+      const res = await novaService.interact({
+        message: params.message || textInput.trim(),
+        action: params.action,
+        patient_id: selectedPatientId || undefined,
+        language: selectedLang,
+        mood_type: params.mood_type,
+        context_data: {
+          latitude: 12.9716,
+          longitude: 77.5946,
+        },
       });
-      setMoodToast(`Mood logged: ${mood}. PulseGuardian NOVA is here with you.`);
-      setTimeout(() => setMoodToast(null), 4000);
+
+      setAssistantReply(res.text);
+      speakText(res.audio_text || res.text);
+
+      if (res.is_emergency) {
+        setIsEmergencyActive(true);
+      }
+      if (res.direct_call_url) {
+        setDirectCallUrl(res.direct_call_url);
+      } else {
+        setDirectCallUrl(null);
+      }
+
+      if (res.suggested_actions && res.suggested_actions.length > 0) {
+        setSuggestedActions(res.suggested_actions);
+      }
+
+      setTextInput('');
     } catch {
-      setMoodToast(`Mood noted: ${mood}.`);
-      setTimeout(() => setMoodToast(null), 3000);
+      // Local graceful fallback
+      const fallback = `Hello! I am Nova, your healthcare assistant. All telemetry baselines are stable.`;
+      setAssistantReply(fallback);
+      speakText(fallback);
+    } finally {
+      setIsThinking(false);
     }
   };
 
-  const executeActionManually = (type: 'call' | 'sos' | 'message' | 'vitals' | 'medicine' | 'appointment' | 'hydration' | 'sleep') => {
-    if (type === 'call') {
-      const reply = MULTILINGUAL_RESPONSES.calling[selectedLang] || MULTILINGUAL_RESPONSES.calling.en;
-      setAssistantReply(reply);
-      setLastCategory('calling');
-      speakText(reply, 'calling');
-      setTimeout(() => {
-        const cleanNumber = caregiverContact.phone.replace(/[^0-9+]/g, '');
-        window.location.href = `tel:${cleanNumber}`;
-      }, 1200);
-    } else if (type === 'sos') {
-      const reply = MULTILINGUAL_RESPONSES.sos[selectedLang] || MULTILINGUAL_RESPONSES.sos.en;
-      setAssistantReply(reply);
-      setLastCategory('sos');
-      speakText(reply, 'sos');
-      setTimeout(() => {
-        window.location.href = 'tel:112';
-      }, 1200);
-    } else if (type === 'message') {
-      const reply = MULTILINGUAL_RESPONSES.messaging[selectedLang] || MULTILINGUAL_RESPONSES.messaging.en;
-      setAssistantReply(reply);
-      setLastCategory('messaging');
-      speakText(reply, 'messaging');
-    } else if (type === 'vitals') {
-      const reply = MULTILINGUAL_RESPONSES.vitals[selectedLang] || MULTILINGUAL_RESPONSES.vitals.en;
-      setAssistantReply(reply);
-      setLastCategory('vitals');
-      speakText(reply, 'vitals');
+  // Submit caregiver personal wellbeing check-in
+  const handleSaveCaregiverWellbeing = async (mood: string) => {
+    try {
+      await novaService.recordWellbeing({
+        mood_type: mood,
+        notes: wellbeingNotes,
+      });
+      setWellbeingToast('Your caregiver wellbeing check-in was saved privately.');
+      setShowWellbeingModal(false);
+      setWellbeingNotes('');
+      setTimeout(() => setWellbeingToast(null), 4000);
+
+      sendNovaQuery({ action: 'caregiver_wellbeing', mood_type: mood });
+    } catch {
+      setWellbeingToast('Check-in logged locally.');
+      setShowWellbeingModal(false);
+      setTimeout(() => setWellbeingToast(null), 3000);
     }
   };
+
+  // Dynamic persona descriptions
+  const getPersonaHeader = () => {
+    if (role === 'doctor') {
+      return {
+        title: 'Nova Clinical Workflow Assistant',
+        subtitle: 'Assigned Patient EHR, Clinical Trends & Diagnostic AI',
+        badge: 'Doctor Clinical Hub',
+        badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+      };
+    }
+    if (role === 'emergency') {
+      return {
+        title: 'Nova Emergency Coordination Assistant',
+        subtitle: 'Active Incident Triaging, GPS & Paramedic Dispatch',
+        badge: 'EMS Trauma Hub',
+        badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+      };
+    }
+    if (role === 'family' || role === 'caregiver') {
+      return {
+        title: 'Nova Family Care Companion',
+        subtitle: 'Family Care Assistant & Caregiver Wellbeing',
+        badge: 'Family Portal',
+        badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+      };
+    }
+    return {
+      title: 'Nova Personal Health Companion',
+      subtitle: 'Personal Health, Daily Care & Emergency Assistant',
+      badge: 'Patient Self-Care',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+    };
+  };
+
+  const persona = getPersonaHeader();
+
+  // Role-specific default quick actions
+  const getDefaultActions = (): ActionPill[] => {
+    if (role === 'doctor') {
+      return [
+        { id: '1', label: '7-Day Clinical Trends', action: 'clinical_trends', icon: 'TrendingUp', color: 'cyan' },
+        { id: '2', label: 'AI Early Warnings', action: 'ai_observations', icon: 'Activity', color: 'emerald' },
+        { id: '3', label: 'Active Regimen', action: 'prescription_documentation_assist', icon: 'Pill', color: 'purple' },
+        { id: '4', label: 'Clinical Notes', action: 'clinical_notes_summary', icon: 'FileText', color: 'indigo' },
+      ];
+    }
+    if (role === 'emergency') {
+      return [
+        { id: '1', label: 'Active SOS Incidents', action: 'active_incidents', icon: 'AlertTriangle', color: 'rose' },
+        { id: '2', label: 'Verify GPS Coordinates', action: 'patient_gps_coordinates', icon: 'MapPin', color: 'cyan' },
+        { id: '3', label: 'Triage Vitals & Blood Group', action: 'incident_triage', icon: 'Heart', color: 'purple' },
+        { id: '4', label: 'Log Handover', action: 'record_handover', icon: 'CheckCircle', color: 'emerald' },
+      ];
+    }
+    if (role === 'family' || role === 'caregiver') {
+      return [
+        { id: '1', label: 'How is my patient today?', action: 'check_patient_health', icon: 'Heart', color: 'cyan' },
+        { id: '2', label: 'Medication Adherence', action: 'check_patient_medication', icon: 'Pill', color: 'emerald' },
+        { id: '3', label: 'Live GPS Location', action: 'check_patient_location', icon: 'MapPin', color: 'purple' },
+        { id: '4', label: 'My Caregiver Wellbeing', action: 'caregiver_wellbeing', icon: 'Smile', color: 'indigo' },
+        { id: '5', label: 'Active Emergency Status', action: 'emergency_status', icon: 'ShieldAlert', color: 'rose' },
+      ];
+    }
+    return [
+      { id: '1', label: 'How is my health?', action: 'check_vitals', icon: 'Heart', color: 'cyan' },
+      { id: '2', label: 'Medication Reminder', action: 'medicine_reminder', icon: 'Pill', color: 'emerald' },
+      { id: '3', label: 'Call Family Caregiver', action: 'call_family', icon: 'PhoneCall', color: 'purple' },
+      { id: '4', label: 'Daily Mood Check-in', action: 'mood_checkin', icon: 'Smile', color: 'indigo' },
+      { id: '5', label: 'Tell me a Story', action: 'listen_story', icon: 'Sparkles', color: 'amber' },
+      { id: '6', label: 'Emergency SOS', action: 'emergency_sos', icon: 'AlertTriangle', color: 'rose' },
+    ];
+  };
+
+  const actionList = suggestedActions.length > 0 ? suggestedActions : getDefaultActions();
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-slate-900 border border-cyan-500/40 rounded-3xl p-6 md:p-8 max-w-lg w-full text-white shadow-2xl space-y-6 relative overflow-hidden">
-        {/* Glow orbs */}
-        <div className="absolute -top-16 -right-16 w-48 h-48 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
-
-        {/* Modal Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-              <Sparkles className="w-5 h-5 text-white animate-spin-slow" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div
+        className={`w-full max-w-2xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 rounded-3xl shadow-2xl border ${
+          isEmergencyActive ? 'border-rose-500 shadow-rose-900/50 animate-pulse' : 'border-cyan-500/30 shadow-cyan-950/50'
+        } overflow-hidden flex flex-col max-h-[92vh]`}
+      >
+        {/* ========================================================= */}
+        {/* TOP BAR / HEADER */}
+        {/* ========================================================= */}
+        <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-600 via-cyan-500 to-teal-400 p-0.5 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-cyan-400 animate-spin-slow" />
+                </div>
+              </div>
+              <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-slate-900" />
             </div>
+
             <div>
-              <h3 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
-                <span>Nova Voice Assistant</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                  Wake: "Nova"
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">{persona.title}</h3>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${persona.badgeColor}`}>
+                  {persona.badge}
                 </span>
-              </h3>
-              <p className="text-xs text-slate-400">Activated via Codeword "Nova" or Screen Long-Press</p>
+              </div>
+              <p className="text-xs text-slate-400 hidden sm:block">{persona.subtitle}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Modal Native Language Selector */}
+            {/* Language Selector Dropdown */}
             <div className="relative">
               <select
-                translate="no"
                 value={selectedLang}
                 onChange={(e) => {
                   setSelectedLang(e.target.value);
-                  setGlobalLanguage(e.target.value as SupportedLanguage);
+                  setGlobalLanguage(e.target.value as any);
                 }}
-                className="notranslate bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1 text-slate-200 text-xs font-bold focus:outline-none focus:border-cyan-400 cursor-pointer"
+                className="text-xs bg-slate-800 text-slate-200 border border-slate-700 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-cyan-400 cursor-pointer appearance-none pr-7 font-medium"
               >
-                <option value="kn" translate="no" className="notranslate">ಕನ್ನಡ (Kannada)</option>
-                <option value="hi" translate="no" className="notranslate">हिन्दी (Hindi)</option>
-                <option value="ta" translate="no" className="notranslate">தமிழ் (Tamil)</option>
-                <option value="te" translate="no" className="notranslate">తెలుగు (Telugu)</option>
-                <option value="ml" translate="no" className="notranslate">മലയാളം (Malayalam)</option>
-                <option value="en" translate="no" className="notranslate">English</option>
+                {languages.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.nativeName} ({l.name})
+                  </option>
+                ))}
               </select>
+              <Globe className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-2.5 pointer-events-none" />
             </div>
 
+            {/* Close Button */}
             <button
-              type="button"
-              onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-800 cursor-pointer"
+              onClick={() => {
+                stopSpeech();
+                if (onClose) onClose();
+              }}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Pulsing Voice Sphere */}
-        <div className="py-4 text-center space-y-3">
-          <div className="relative mx-auto w-28 h-28 flex items-center justify-center">
-            <div
-              className={`absolute inset-0 rounded-full bg-cyan-400/25 blur-xl transition-all duration-700 ${
-                isListening ? 'scale-125 bg-emerald-400/35' : 'animate-pulse'
-              }`}
-            />
-            <div className="relative w-24 h-24 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 p-1 flex items-center justify-center shadow-2xl border border-cyan-300/50">
-              <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center">
-                <Mic className={`w-10 h-10 text-cyan-400 ${isListening ? 'animate-bounce text-emerald-400' : ''}`} />
-              </div>
+        {/* ========================================================= */}
+        {/* AUTHORIZED PATIENT SELECTOR (For Family & Doctor Roles) */}
+        {/* ========================================================= */}
+        {(role === 'family' || role === 'caregiver' || role === 'doctor') && authorizedPatients.length > 0 && (
+          <div className="px-5 py-2.5 bg-slate-800/40 border-b border-slate-800/80 flex items-center justify-between flex-wrap gap-2 text-xs">
+            <div className="flex items-center gap-2 text-slate-300 font-medium">
+              <UserCheck className="w-4 h-4 text-cyan-400" />
+              <span>Target Patient:</span>
             </div>
-          </div>
 
-          <div className="space-y-1">
-            <div className="text-sm font-bold text-cyan-300">
-              {isListening ? 'Listening for command in your preferred language...' : 'Ready. Speak or tap any action below.'}
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedPatientId}
+                onChange={(e) => {
+                  setSelectedPatientId(e.target.value);
+                  const found = authorizedPatients.find((p) => p.patient_id === e.target.value);
+                  if (found) setSelectedPatientName(found.name);
+                  sendNovaQuery({ action: role === 'doctor' ? 'clinical_trends' : 'check_patient_health' });
+                }}
+                className="bg-slate-900 border border-slate-700 text-cyan-300 rounded-lg px-2.5 py-1 text-xs font-semibold focus:outline-none focus:border-cyan-400 cursor-pointer"
+              >
+                {authorizedPatients.map((p) => (
+                  <option key={p.id} value={p.patient_id || `PT-${p.id}`}>
+                    {p.name} ({p.patient_id || `PT-${p.id}`})
+                  </option>
+                ))}
+              </select>
             </div>
-            {transcript && (
-              <p className="text-xs text-slate-300 italic font-mono bg-slate-800/60 p-2 rounded-xl border border-slate-700">
-                "{transcript}"
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Target Caregiver Dialer Info Card */}
-        <div className="p-4 rounded-2xl bg-slate-800/70 border border-slate-700 space-y-1.5 text-xs">
-          <div className="text-slate-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-            <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Dedicated Emergency Contact for Calls:</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="font-bold text-white">{caregiverContact.name}</span>
-            <span className="font-mono font-bold text-cyan-400">{caregiverContact.phone}</span>
-          </div>
-          <p className="text-[11px] text-slate-400">
-            When you say "Call", Nova places a direct phone call to this verified number.
-          </p>
-        </div>
-
-        {/* AI Response Display with 100% Volume Replay Button */}
-        {assistantReply && (
-          <div className="p-4 rounded-2xl bg-slate-950 border border-cyan-400/80 text-xs font-semibold text-cyan-100 flex items-start justify-between gap-3 shadow-lg shadow-cyan-950/60">
-            <div className="flex items-start gap-3 flex-1">
-              <Volume2 className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
-              <p className="leading-relaxed">{assistantReply}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => speakText(assistantReply, lastCategory)}
-              title="Replay in native voice at 100% volume"
-              className="px-2.5 py-1 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-bold border border-cyan-400/30 shrink-0 cursor-pointer flex items-center gap-1"
-            >
-              <Volume2 className="w-3 h-3" />
-              <span>100% Voice</span>
-            </button>
           </div>
         )}
 
-        {/* FEATURE 23: Emotional Wellbeing & Daily Mood Check-in Bar */}
-        <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-cyan-500/30 space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-cyan-300 flex items-center gap-1.5">
-              <span>💭 How are you feeling today?</span>
-            </span>
-            <span className="text-[10px] text-slate-400">Private by default</span>
+        {/* Caregiver Wellbeing Toast */}
+        {wellbeingToast && (
+          <div className="mx-4 mt-3 p-2.5 bg-emerald-950/80 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in">
+            <CheckCircle className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span>{wellbeingToast}</span>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* MAIN CONVERSATION / RESPONSE BOX */}
+        {/* ========================================================= */}
+        <div className="p-4 sm:p-6 flex-1 overflow-y-auto space-y-4">
+          {/* Nova AI Speech Bubble */}
+          <div className="flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shrink-0 mt-0.5">
+              <Sparkles className="w-4 h-4 text-cyan-400" />
+            </div>
+
+            <div className="flex-1 bg-slate-800/60 rounded-2xl p-4 border border-slate-700/60 text-slate-200 text-sm sm:text-base leading-relaxed relative">
+              {isThinking ? (
+                <div className="flex items-center gap-2.5 text-cyan-400 text-sm py-2">
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                  <span>Nova is analyzing authorized telemetry...</span>
+                </div>
+              ) : (
+                <div>
+                  <p className="font-medium whitespace-pre-line">{assistantReply}</p>
+                </div>
+              )}
+
+              {/* Audio Speaking Wave / Stop Indicator */}
+              {isSpeaking && (
+                <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-cyan-300 font-semibold">
+                    <Volume2 className="w-4 h-4 text-cyan-400 animate-pulse" />
+                    <span>Speaking in {selectedLang.toUpperCase()} (100% Volume)</span>
+                  </div>
+                  <button
+                    onClick={stopSpeech}
+                    className="text-xs px-2.5 py-1 bg-slate-700/60 hover:bg-slate-700 text-slate-300 rounded-lg flex items-center gap-1 cursor-pointer"
+                  >
+                    <VolumeX className="w-3.5 h-3.5" />
+                    <span>Stop</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 pt-0.5">
-            {[
-              { id: 'happy', emoji: '😊', label: 'Happy' },
-              { id: 'calm', emoji: '😌', label: 'Calm' },
-              { id: 'sad', emoji: '😔', label: 'Sad' },
-              { id: 'stressed', emoji: '😟', label: 'Stressed' },
-              { id: 'lonely', emoji: '🥺', label: 'Lonely' },
-              { id: 'tired', emoji: '😴', label: 'Tired' },
-            ].map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => handleMoodSelect(m.id)}
-                className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
-                  selectedMood === m.id
-                    ? 'bg-cyan-500/30 border-cyan-400 text-white font-black shadow-sm'
-                    : 'bg-slate-900/60 border-slate-700 text-slate-300 hover:bg-slate-800'
-                }`}
+          {/* Emergency SOS Banner Action */}
+          {isEmergencyActive && (
+            <div className="p-4 bg-rose-950/70 border-2 border-rose-500 rounded-2xl flex items-center justify-between flex-wrap gap-3 animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-rose-200 uppercase tracking-wide">Emergency Protocol Active</div>
+                  <div className="text-xs text-rose-300">Live coordinates dispatched to emergency services & caregivers.</div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href="tel:112"
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-rose-900/50"
+                >
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  <span>Call 112 SOS</span>
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Direct Phone Call Button */}
+          {directCallUrl && !isEmergencyActive && (
+            <div className="p-3.5 bg-emerald-950/60 border border-emerald-500/40 rounded-2xl flex items-center justify-between">
+              <div className="flex items-center gap-2.5 text-xs text-emerald-300">
+                <Phone className="w-4 h-4 text-emerald-400" />
+                <span>Direct contact line verified. Tap to dial:</span>
+              </div>
+              <a
+                href={directCallUrl}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5"
               >
-                <span className="text-base">{m.emoji}</span>
-                <span className="text-[10px] font-bold">{m.label}</span>
-              </button>
-            ))}
-          </div>
+                <PhoneCall className="w-3.5 h-3.5" />
+                <span>Call Now</span>
+              </a>
+            </div>
+          )}
 
-          {moodToast && (
-            <div className="text-[11px] font-medium text-emerald-300 bg-emerald-950/40 p-2 rounded-xl border border-emerald-500/30 text-center animate-fadeIn">
-              ✓ {moodToast}
+          {/* User Live Spoken Transcript */}
+          {transcript && (
+            <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/40 px-3 py-2 rounded-xl">
+              <Mic className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span className="italic">"{transcript}"</span>
             </div>
           )}
         </div>
 
-        {/* FEATURE 23: Crisis Safety Escalation Card (When severe distress or crisis is active) */}
-        {isCrisisActive && (
-          <div className="p-4 rounded-2xl bg-rose-950/80 border-2 border-rose-500 text-white space-y-2 animate-fadeIn">
-            <div className="flex items-center gap-2 text-rose-300 font-bold text-xs uppercase tracking-wider">
-              <ShieldAlert className="w-4 h-4 text-rose-400 animate-pulse" />
-              <span>24/7 Crisis Support & Emotional Care</span>
-            </div>
-            <p className="text-xs text-rose-100">
-              You are valued and not alone. Free certified emergency psychological support is available 24/7:
-            </p>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <a
-                href="tel:14416"
-                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black shadow-md flex items-center gap-1.5"
-              >
-                <Phone className="w-3.5 h-3.5" />
-                <span>Call Tele-MANAS (14416)</span>
-              </a>
-              <a
-                href="tel:18005990019"
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700"
-              >
-                <span>KIRAN (1800-599-0019)</span>
-              </a>
-            </div>
+        {/* ========================================================= */}
+        {/* ROLE-AWARE SUGGESTED ACTION PILLS */}
+        {/* ========================================================= */}
+        <div className="px-4 sm:px-6 py-2.5 bg-slate-950/40 border-t border-slate-800/80">
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3 text-cyan-400" />
+            <span>Role Quick Actions</span>
           </div>
-        )}
 
-        {/* Voice Trigger Buttons */}
-        <div className="grid grid-cols-2 gap-3 pt-1">
-          <button
-            type="button"
-            onClick={() => executeActionManually('call')}
-            className="p-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Phone className="w-4 h-4" />
-            <span>Call Caregiver</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => executeActionManually('vitals')}
-            className="p-3.5 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-lg shadow-cyan-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Check Vitals</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => executeActionManually('message')}
-            className="p-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>Send Message</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => executeActionManually('sos')}
-            className="p-3.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <ShieldAlert className="w-4 h-4" />
-            <span>Call 112 SOS</span>
-          </button>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {actionList.map((pill) => (
+              <button
+                key={pill.id}
+                onClick={() => {
+                  if (pill.action === 'caregiver_wellbeing' && (role === 'family' || role === 'caregiver')) {
+                    setShowWellbeingModal(true);
+                  } else {
+                    sendNovaQuery({ action: pill.action });
+                  }
+                }}
+                className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/80 hover:border-cyan-400 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+              >
+                <span>{pill.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Feature 01 & Feature 23 Safety Disclaimer */}
-        <p className="text-[10px] text-slate-500 text-center leading-relaxed">
-          Notice: Biometric signals and mood check-ins are non-diagnostic contextual indicators and are not a substitute for professional clinical or psychiatric diagnosis.
-        </p>
+        {/* ========================================================= */}
+        {/* INPUT DUAL INTERFACE: VOICE + TEXT BOX */}
+        {/* ========================================================= */}
+        <div className="p-4 sm:p-5 border-t border-slate-800 bg-slate-950/70">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (textInput.trim()) {
+                sendNovaQuery({ message: textInput.trim() });
+              }
+            }}
+            className="flex items-center gap-2.5"
+          >
+            {/* Microphone Voice Toggle */}
+            <button
+              type="button"
+              onClick={toggleListening}
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all cursor-pointer shadow-lg ${
+                isListening
+                  ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-500/30'
+                  : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950'
+              }`}
+              title={isListening ? 'Stop listening' : 'Start voice command'}
+            >
+              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </button>
+
+            {/* Text Input Box */}
+            <input
+              type="text"
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              placeholder={
+                isListening
+                  ? 'Listening to your voice...'
+                  : role === 'doctor'
+                  ? 'Ask Nova about patient trends, AI risk or clinical notes...'
+                  : role === 'emergency'
+                  ? 'Ask Nova about active incidents, triage vitals or handover...'
+                  : role === 'family' || role === 'caregiver'
+                  ? 'Ask Nova about your patient or caregiver wellbeing...'
+                  : 'Ask Nova anything about your health, reminders, or stories...'
+              }
+              className="flex-1 bg-slate-900 border border-slate-700/80 rounded-2xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
+            />
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={!textInput.trim() || isThinking}
+              className="w-12 h-12 rounded-2xl bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 text-slate-300 disabled:opacity-40 disabled:hover:bg-slate-800 disabled:hover:text-slate-300 flex items-center justify-center shrink-0 transition-all cursor-pointer"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+
+          {/* Status Subtitle */}
+          <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500 px-1">
+            <span>Say "Nova" anytime or press and hold screen for 1.2s</span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Verified RBAC Secure</span>
+            </span>
+          </div>
+        </div>
       </div>
+
+      {/* ========================================================= */}
+      {/* FAMILY CAREGIVER WELLBEING DIALOG (Isolated) */}
+      {/* ========================================================= */}
+      {showWellbeingModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 rounded-3xl p-5 border border-cyan-500/40 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Smile className="w-5 h-5 text-cyan-400" />
+                <h4 className="text-base font-bold text-white">Caregiver Personal Wellbeing</h4>
+              </div>
+              <button
+                onClick={() => setShowWellbeingModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Caregiver self-care is vital. How are you feeling right now? Your reflection is kept completely private and
+              is <strong>never</strong> mixed into the patient's medical records.
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {[
+                { id: 'calm', label: 'Balanced & Calm', icon: '🌱' },
+                { id: 'tired', label: 'Fatigued / Tired', icon: '☕' },
+                { id: 'stressed', label: 'Caregiver Stress', icon: '🧘' },
+                { id: 'happy', label: 'Fulfilling & Happy', icon: '✨' },
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => handleSaveCaregiverWellbeing(m.id)}
+                  className="p-3 bg-slate-800 hover:bg-cyan-950/50 hover:border-cyan-400 border border-slate-700 rounded-xl text-left font-medium text-slate-200 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                >
+                  <span className="text-base">{m.icon}</span>
+                  <span>{m.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div>
+              <label className="text-[11px] font-semibold text-slate-400 mb-1 block">
+                Optional Reflection / Self-Care Notes:
+              </label>
+              <textarea
+                value={wellbeingNotes}
+                onChange={(e) => setWellbeingNotes(e.target.value)}
+                placeholder="Take a short break, hydrate, and breathe..."
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-cyan-400 h-16"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

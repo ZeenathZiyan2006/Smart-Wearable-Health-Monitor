@@ -27,6 +27,7 @@ from app.models.voice import VoiceConsent, VoiceMessageLog, VoiceAuditLog
 from app.models.device import Device, DeviceConnectionHistory
 from app.models.notification import InAppNotification
 from app.models.audit import SystemAuditLog
+from app.models.nova import NovaWellbeingLog, NovaAuditActionLog
 
 __all__ = [
     "Base",

@@ -15,6 +15,7 @@ from app.api.v1 import (
     users,
     voice,
     caregiver_portal,
+    nova,
 )
 
 api_router = APIRouter()
@@ -35,3 +36,4 @@ api_router.include_router(audit.router, prefix="/audit", tags=["System Audit Log
 api_router.include_router(patient_dashboard.router, prefix="/patient/dashboard", tags=["Patient Dashboard Modules"])
 
 api_router.include_router(caregiver_portal.router, prefix="/caregiver-portal", tags=["Caregiver, Doctor & Emergency Portal"])
+api_router.include_router(nova.router, prefix="/nova", tags=["Nova Universal AI Assistant"])
