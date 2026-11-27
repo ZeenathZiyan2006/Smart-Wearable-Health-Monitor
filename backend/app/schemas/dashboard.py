@@ -195,3 +195,284 @@ class HydrationSummaryOut(BaseModel):
     target_intake_ml: int = 2500
     percentage: float
     logs_count: int
+
+
+# =========================================================================
+# MODULE 1: AI Early Warning Prediction Schemas
+# =========================================================================
+class EarlyWarningPredictionCreate(BaseModel):
+    risk_level: str = Field(default="normal")  # 'normal', 'low', 'moderate', 'high'
+    parameter_changed: str
+    previous_value: str
+    current_value: str
+    observed_pattern: str
+    recommendation: str
+    alert_triggered: bool = False
+
+
+class EarlyWarningPredictionOut(BaseModel):
+    id: int
+    patient_id: int
+    risk_level: str
+    parameter_changed: str
+    previous_value: str
+    current_value: str
+    observed_pattern: str
+    recommendation: str
+    alert_triggered: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EarlyWarningDashboardSummary(BaseModel):
+    overall_health_status: str
+    overall_risk_level: str
+    active_abnormal_count: int
+    predictions: List[EarlyWarningPredictionOut]
+    trend_history_daily: List[dict]
+    trend_history_weekly: List[dict]
+    trend_history_monthly: List[dict]
+    ai_health_explanation: str
+    analyzed_at: datetime
+
+
+# =========================================================================
+# MODULE 2: Fall Detection Schemas
+# =========================================================================
+class FallEventCreate(BaseModel):
+    device_uuid: Optional[str] = None
+    confidence_score: float = Field(default=0.88, ge=0.0, le=1.0)
+    impact_g: float = Field(default=3.2)
+    orientation_change_deg: float = Field(default=75.0)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class FallConfirmRequest(BaseModel):
+    action: str = Field(..., description="'safe', 'help', 'family'")  # 'safe', 'help', 'family'
+    notes: Optional[str] = None
+
+
+class FallEventOut(BaseModel):
+    id: int
+    patient_id: int
+    device_uuid: Optional[str] = None
+    status: str
+    confidence_score: float
+    impact_g: float
+    orientation_change_deg: float
+    confirmation_timeout_sec: int
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    patient_response: Optional[str] = None
+    escalated_at: Optional[datetime] = None
+    recorded_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# =========================================================================
+# MODULE 3: Abnormal Inactivity Schemas
+# =========================================================================
+class InactivityEventCreate(BaseModel):
+    device_uuid: Optional[str] = None
+    inactivity_duration_minutes: int = Field(..., ge=1)
+    threshold_minutes: int = Field(default=120)
+    during_sleep_schedule: bool = False
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class InactivityConfirmRequest(BaseModel):
+    action: str = Field(..., description="'safe', 'help'")
+
+
+class InactivityEventOut(BaseModel):
+    id: int
+    patient_id: int
+    device_uuid: Optional[str] = None
+    inactivity_duration_minutes: int
+    threshold_minutes: int
+    during_sleep_schedule: bool
+    status: str
+    patient_response: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    recorded_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# =========================================================================
+# MODULE 4: Voice Assistant Settings & Voice Interaction Schemas
+# =========================================================================
+class VoiceAssistantSettingUpdate(BaseModel):
+    is_enabled: Optional[bool] = None
+    preferred_language: Optional[str] = None  # 'en', 'kn', 'hi'
+    voice_id: Optional[str] = None
+    speech_speed: Optional[float] = Field(None, ge=0.5, le=2.0)
+    volume: Optional[float] = Field(None, ge=0.0, le=1.0)
+
+
+class VoiceAssistantSettingOut(BaseModel):
+    id: int
+    patient_id: int
+    is_enabled: bool
+    preferred_language: str
+    voice_id: str
+    speech_speed: float
+    volume: float
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class VoiceQueryRequest(BaseModel):
+    query_text: str = Field(..., min_length=1)
+    language: str = Field(default="en")  # 'en', 'kn', 'hi'
+
+
+class VoiceQueryResponse(BaseModel):
+    response_text: str
+    intent: str
+    data_payload: Optional[dict] = None
+    audio_tts_prompt: str
+
+
+# =========================================================================
+# MODULE 5: Nearest Hospital & Emergency Facility Schemas
+# =========================================================================
+class HospitalFacilityOut(BaseModel):
+    name: str
+    address: str
+    distance_km: float
+    phone: str
+    emergency_available_24_7: bool
+    google_maps_navigate_url: str
+
+
+class HospitalEmergencySettingsUpdate(BaseModel):
+    is_enabled: Optional[bool] = None
+    preferred_hospital_name: Optional[str] = None
+    preferred_hospital_phone: Optional[str] = None
+    fixed_family_doctor_name: Optional[str] = None
+    fixed_family_doctor_phone: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    location_sharing_permitted: Optional[bool] = None
+
+
+class HospitalEmergencySettingsOut(BaseModel):
+    id: int
+    patient_id: int
+    is_enabled: bool
+    preferred_hospital_name: str
+    preferred_hospital_phone: str
+    fixed_family_doctor_name: str
+    fixed_family_doctor_phone: str
+    emergency_contact_phone: str
+    location_sharing_permitted: bool
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# =========================================================================
+# MODULE 6: Medicine Adherence Intelligence Schemas
+# =========================================================================
+class MedicineStockAlertOut(BaseModel):
+    medicine_id: int
+    medicine_name: str
+    total_quantity: int
+    remaining_quantity: int
+    estimated_days_left: int
+    is_low_stock: bool
+    is_expired: bool
+    expiry_date: Optional[datetime] = None
+
+
+class AdherenceReportOut(BaseModel):
+    period: str  # 'weekly' or 'monthly'
+    total_scheduled_doses: int
+    doses_taken: int
+    doses_missed: int
+    doses_skipped: int
+    adherence_percentage: float
+    adherence_status: str  # 'Excellent', 'Good', 'Needs Attention'
+    medicines_requiring_refill: List[MedicineStockAlertOut]
+    explanation: str
+
+
+# =========================================================================
+# MODULE 7: Emergency Medical QR Profile Schemas
+# =========================================================================
+class EmergencyQRProfileUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    blood_group: Optional[str] = None
+    display_blood_group: Optional[bool] = None
+    display_allergies: Optional[bool] = None
+    display_conditions: Optional[bool] = None
+    display_medicines: Optional[bool] = None
+    display_emergency_contacts: Optional[bool] = None
+    emergency_instructions: Optional[str] = None
+    doctor_contact_details: Optional[str] = None
+
+
+class EmergencyQRProfileOut(BaseModel):
+    id: int
+    patient_id: int
+    qr_token: str
+    qr_code_url: str
+    is_active: bool
+    blood_group: str
+    display_blood_group: bool
+    display_allergies: bool
+    display_conditions: bool
+    display_medicines: bool
+    display_emergency_contacts: bool
+    emergency_instructions: Optional[str] = None
+    doctor_contact_details: Optional[str] = None
+    regenerated_at: datetime
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EmergencyQRPublicView(BaseModel):
+    patient_name: str
+    patient_id_readable: str
+    blood_group: Optional[str] = None
+    allergies: List[str] = []
+    medical_conditions: List[str] = []
+    active_medicines: List[str] = []
+    emergency_contacts: List[dict] = []
+    emergency_instructions: Optional[str] = None
+    doctor_contact: Optional[str] = None
+    is_verified: bool = True
+    notice: str = "Confidential Emergency Profile. Authorized for emergency medical personnel and first responders."
+
+
+# =========================================================================
+# ADDITIONAL FEATURE: Digital Medical Document & AI Clinical Analysis Schemas
+# =========================================================================
+class DigitalDocumentUpload(BaseModel):
+    document_name: str = Field(..., min_length=1, max_length=255)
+    document_type: str = Field(default="lab_report")  # 'lab_report', 'prescription', 'ecg_strip', 'discharge_summary', 'radiology'
+    file_text_content: Optional[str] = Field(None, description="Extracted OCR text or clinical summary")
+
+
+class DigitalDocumentOut(BaseModel):
+    id: int
+    patient_id: int
+    document_name: str
+    document_type: str
+    file_url: Optional[str] = None
+    uploaded_at: datetime
+    ai_analysis_status: str
+    ai_summary: Optional[str] = None
+    ai_detected_conditions: Optional[str] = None
+    ai_key_biomarkers: Optional[str] = None
+    ai_clinical_suggestions: Optional[str] = None
+    ai_confidence_score: float
+
+    model_config = ConfigDict(from_attributes=True)

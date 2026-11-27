@@ -9,6 +9,7 @@ import type {
   TelemetryReading,
   User,
   VoiceMessage,
+  DigitalDocument,
 } from './types';
 
 // ==========================================
@@ -482,6 +483,26 @@ export const patientDashboardApi = {
   logHydration: async (intakeMl: number, patientId?: number): Promise<{ total_intake_ml: number; target_intake_ml: number; percentage: number; logs_count: number }> => {
     const res = await apiClient.post('/patient/dashboard/hydration', { intake_ml: intakeMl }, { params: { patient_id: patientId } });
     return res.data;
+  },
+
+  // Digital Medical Documents & AI Clinical Analysis
+  getDigitalDocuments: async (patientId?: number): Promise<DigitalDocument[]> => {
+    const res = await apiClient.get<DigitalDocument[]>('/patient/dashboard/documents', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  uploadDigitalDocument: async (payload: { document_name: string; document_type: string; file_text_content?: string }, patientId?: number): Promise<DigitalDocument> => {
+    const res = await apiClient.post<DigitalDocument>('/patient/dashboard/documents', payload, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  analyzeDigitalDocument: async (documentId: number, patientId?: number): Promise<DigitalDocument> => {
+    const res = await apiClient.post<DigitalDocument>(`/patient/dashboard/documents/${documentId}/ai-analyze`, {}, { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  deleteDigitalDocument: async (documentId: number, patientId?: number): Promise<void> => {
+    await apiClient.delete(`/patient/dashboard/documents/${documentId}`, { params: { patient_id: patientId } });
   },
 };
 export const patientDashboardService = patientDashboardApi;

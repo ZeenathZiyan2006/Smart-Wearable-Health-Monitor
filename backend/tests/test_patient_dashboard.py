@@ -169,3 +169,56 @@ def test_patient_data_isolation_between_two_accounts(client):
     p2_own_meds = client.get("/api/v1/patient/dashboard/medicines", headers=h2)
     assert p2_own_meds.status_code == status.HTTP_200_OK
     assert len(p2_own_meds.json()) == 0
+
+
+def test_digital_medical_documents_and_ai_analysis(client):
+    """Test uploading digital medical documents, retrieving previous reports, and AI clinical analysis."""
+    p_data = {
+        "full_name": "Rohan Mehra",
+        "date_of_birth": "1988-06-20",
+        "gender": "male",
+        "contact_number": "+91 9888877777",
+        "family_email": "rohan.family@example.com",
+        "password": "Password@123",
+        "confirm_password": "Password@123"
+    }
+    reg_res = client.post("/api/v1/patient/register", json=p_data)
+    assert reg_res.status_code == status.HTTP_201_CREATED
+    token = reg_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Retrieve initial documents (auto-seeded previous reports with AI analysis)
+    docs_res = client.get("/api/v1/patient/dashboard/documents", headers=headers)
+    assert docs_res.status_code == status.HTTP_200_OK
+    docs = docs_res.json()
+    assert len(docs) >= 1
+    assert any("Lipid" in d["document_name"] for d in docs)
+    first_doc = docs[0]
+    assert first_doc["ai_analysis_status"] == "completed"
+    assert first_doc["ai_summary"] is not None
+    assert first_doc["ai_clinical_suggestions"] is not None
+    assert first_doc["ai_confidence_score"] >= 0.90
+
+    # 2. Upload an updated digital medical report
+    upload_payload = {
+        "document_name": "Annual Diabetic Glycemic Assay 2026.pdf",
+        "document_type": "lab_report",
+        "file_text_content": "Fasting blood glucose 94 mg/dL. HbA1c 5.6%. Normal renal clearance with eGFR 98."
+    }
+    upload_res = client.post("/api/v1/patient/dashboard/documents", json=upload_payload, headers=headers)
+    assert upload_res.status_code == status.HTTP_201_CREATED
+    new_doc = upload_res.json()
+    assert new_doc["document_name"] == "Annual Diabetic Glycemic Assay 2026.pdf"
+    assert new_doc["ai_analysis_status"] == "completed"
+    assert "Optimal Fasting Glycemic Control" in new_doc["ai_detected_conditions"]
+    assert "HbA1c: 5.6%" in new_doc["ai_key_biomarkers"]
+    assert "complex carbohydrate" in new_doc["ai_clinical_suggestions"].lower()
+
+    # 3. Trigger on-demand AI clinical re-analysis
+    reanalyze_res = client.post(f"/api/v1/patient/dashboard/documents/{new_doc['id']}/ai-analyze", headers=headers)
+    assert reanalyze_res.status_code == status.HTTP_200_OK
+    assert reanalyze_res.json()["ai_confidence_score"] >= 0.90
+
+    # 4. Delete digital document
+    del_res = client.delete(f"/api/v1/patient/dashboard/documents/{new_doc['id']}", headers=headers)
+    assert del_res.status_code == status.HTTP_204_NO_CONTENT

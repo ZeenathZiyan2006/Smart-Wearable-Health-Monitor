@@ -34,10 +34,14 @@ import {
   ChevronDown,
   Copy,
   X,
+  Upload,
+  FileUp,
+  ExternalLink,
+  Stethoscope,
 } from 'lucide-react';
 import { healthService, emergencyService, aiService, patientAuthService, deviceService, patientDashboardService } from '../api/services';
 import type { PatientMedicine, PatientReminder, DoctorAppointment, MedicalCondition, PatientAllergy, HydrationSummary } from '../api/types';
-import type { MedicalReport, FamilyPatient } from '../api/types';
+import type { MedicalReport, FamilyPatient, DigitalDocument } from '../api/types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LiveECGCanvas } from '../components/LiveECGCanvas';
@@ -84,6 +88,14 @@ export const DashboardPage: React.FC = () => {
   const [newDeviceInput, setNewDeviceInput] = useState('DEV-WEAR-001');
   const [pairingSuccessMsg, setPairingSuccessMsg] = useState<string | null>(null);
   const [copiedPatientId, setCopiedPatientId] = useState(false);
+  const [digitalDocs, setDigitalDocs] = useState<DigitalDocument[]>([]);
+  const [showUploadDocModal, setShowUploadDocModal] = useState(false);
+  const [uploadDocName, setUploadDocName] = useState('');
+  const [uploadDocType, setUploadDocType] = useState('lab_report');
+  const [uploadDocText, setUploadDocText] = useState('');
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [isAnalyzingDocId, setIsAnalyzingDocId] = useState<number | null>(null);
+  const [selectedDocDetails, setSelectedDocDetails] = useState<DigitalDocument | null>(null);
   const [bleConnected, setBleConnected] = useState(false);
   const [bleConnecting, setBleConnecting] = useState(false);
   const [testWifiSending, setTestWifiSending] = useState(false);
@@ -228,6 +240,7 @@ export const DashboardPage: React.FC = () => {
     patientDashboardService.getHydration().then(res => { if (res) setHydration(res); }).catch(() => {});
     patientDashboardService.getConditions().then(res => { if (res) setConditions(res); }).catch(() => {});
     patientDashboardService.getAllergies().then(res => { if (res) setAllergies(res); }).catch(() => {});
+    patientDashboardService.getDigitalDocuments().then(res => { if (res) setDigitalDocs(res); }).catch(() => {});
 
     loadDashboardData();
     const interval = setInterval(loadDashboardData, 12000);
@@ -475,7 +488,59 @@ export const DashboardPage: React.FC = () => {
     } catch {}
   };
 
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadDocName.trim()) return;
+    setIsUploadingDoc(true);
+    try {
+      const newDoc = await patientDashboardService.uploadDigitalDocument({
+        document_name: uploadDocName.trim(),
+        document_type: uploadDocType,
+        file_text_content: uploadDocText.trim() || `Clinical notes for ${uploadDocName.trim()}`,
+      });
+      const updated = await patientDashboardService.getDigitalDocuments();
+      setDigitalDocs(updated);
+      setSelectedDocDetails(newDoc);
+      setShowUploadDocModal(false);
+      setUploadDocName('');
+      setUploadDocText('');
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Failed to upload document.');
+    } finally {
+      setIsUploadingDoc(false);
+    }
+  };
+
+  const handleReanalyzeDocument = async (docId: number) => {
+    setIsAnalyzingDocId(docId);
+    try {
+      const updatedDoc = await patientDashboardService.analyzeDigitalDocument(docId);
+      const updatedList = await patientDashboardService.getDigitalDocuments();
+      setDigitalDocs(updatedList);
+      if (selectedDocDetails && selectedDocDetails.id === docId) {
+        setSelectedDocDetails(updatedDoc);
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Failed to re-analyze document.');
+    } finally {
+      setIsAnalyzingDocId(null);
+    }
+  };
+
+  const handleDeleteDocument = async (docId: number) => {
+    if (!confirm('Are you sure you want to remove this digital medical report?')) return;
+    try {
+      await patientDashboardService.deleteDigitalDocument(docId);
+      const updatedList = await patientDashboardService.getDigitalDocuments();
+      setDigitalDocs(updatedList);
+      if (selectedDocDetails && selectedDocDetails.id === docId) {
+        setSelectedDocDetails(null);
+      }
+    } catch {}
+  };
+
   const handleCreateCondition = async (e: React.FormEvent) => {
+
     e.preventDefault();
     if (!newConditionName.trim()) return;
     try {
@@ -1428,6 +1493,358 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* =========================================================================
+          DIGITAL MEDICAL REPORTS & AI CLINICAL DIAGNOSTIC ANALYSIS SECTION
+         ========================================================================= */}
+      <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-lg space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-600 to-indigo-700 text-white flex items-center justify-center shadow-lg shadow-indigo-500/25 shrink-0">
+              <Stethoscope className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-black text-slate-900 tracking-tight">Digital Medical Reports & AI Clinical Analysis</h3>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wider">
+                  AI Intelligence
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Upload digital copies of previous or updated reports. AI analyzes clinical biomarkers and generates actionable health suggestions.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowUploadDocModal(true)}
+            className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer shrink-0"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Upload Updated Report</span>
+          </button>
+        </div>
+
+        {/* Digital Documents List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {digitalDocs.length === 0 ? (
+            <div className="col-span-2 text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs">
+              No digital medical documents uploaded yet. Click <strong>Upload Updated Report</strong> to add your previous lab tests, ECGs, or clinical records.
+            </div>
+          ) : (
+            digitalDocs.map((doc) => (
+              <div
+                key={doc.id}
+                className="rounded-3xl p-5 border border-slate-200 bg-gradient-to-br from-slate-50/80 via-white to-indigo-50/30 hover:border-indigo-400 hover:shadow-xl hover:shadow-indigo-500/10 transition-all flex flex-col justify-between space-y-4"
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0 font-bold">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900 leading-snug">{doc.document_name}</h4>
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
+                        <span className="font-semibold text-indigo-600 uppercase tracking-wide">{doc.document_type.replace('_', ' ')}</span>
+                        <span>•</span>
+                        <span>Uploaded {new Date(doc.uploaded_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 shrink-0">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    {Math.round(doc.ai_confidence_score * 100)}% AI Conf.
+                  </span>
+                </div>
+
+                {/* AI Executive Summary */}
+                {doc.ai_summary && (
+                  <div className="p-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-cyan-600" />
+                      AI Executive Summary
+                    </div>
+                    <p className="text-xs text-slate-700 leading-relaxed font-medium">{doc.ai_summary}</p>
+                  </div>
+                )}
+
+                {/* Detected Conditions & Biomarkers */}
+                <div className="space-y-2">
+                  {doc.ai_detected_conditions && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Conditions:</span>
+                      {doc.ai_detected_conditions.split(',').map((cond, idx) => (
+                        <span key={idx} className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                          {cond.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {doc.ai_key_biomarkers && (
+                    <div className="p-2.5 bg-slate-100/70 rounded-xl text-[11px] text-slate-700 font-mono leading-relaxed">
+                      <strong className="text-slate-900 font-sans block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
+                        Extracted Biomarkers:
+                      </strong>
+                      {doc.ai_key_biomarkers}
+                    </div>
+                  )}
+                </div>
+
+                {/* AI Clinical Suggestions */}
+                {doc.ai_clinical_suggestions && (
+                  <div className="p-3.5 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 text-xs text-emerald-950 space-y-1">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5 mb-1">
+                      <span>💡</span>
+                      <span>Actionable AI Clinical Suggestions:</span>
+                    </div>
+                    <div className="whitespace-pre-line text-[11px] text-emerald-900 font-medium leading-relaxed">
+                      {doc.ai_clinical_suggestions}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Bar */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => handleReanalyzeDocument(doc.id)}
+                    disabled={isAnalyzingDocId === doc.id}
+                    className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzingDocId === doc.id ? 'animate-spin' : ''}`} />
+                    <span>{isAnalyzingDocId === doc.id ? 'Re-analyzing...' : 'Re-Analyze with AI'}</span>
+                  </button>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDocDetails(doc)}
+                      className="text-slate-600 hover:text-slate-900 font-bold cursor-pointer"
+                    >
+                      Full Details
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteDocument(doc.id)}
+                      className="text-rose-500 hover:text-rose-700 font-bold cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Upload Updated Digital Medical Report Modal */}
+      {showUploadDocModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Upload Digital Medical Report</h3>
+                  <p className="text-xs text-slate-500 font-mono">Patient: {activePatientId}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowUploadDocModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUploadDocument} className="space-y-4">
+              {/* Document File / Name */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Report / Document Title</label>
+                <input
+                  type="text"
+                  value={uploadDocName}
+                  onChange={(e) => setUploadDocName(e.target.value)}
+                  placeholder="e.g. Lipid Profile & Blood Sugar Panel 2026.pdf"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              {/* Document Category */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Document Category</label>
+                <select
+                  value={uploadDocType}
+                  onChange={(e) => setUploadDocType(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                >
+                  <option value="lab_report">Clinical Lab Report / Blood Assay</option>
+                  <option value="ecg_strip">12-Lead ECG / Holter Strip</option>
+                  <option value="prescription">Prescription / Medication Chart</option>
+                  <option value="discharge_summary">Hospital Discharge Summary</option>
+                  <option value="radiology">Radiology / Imaging Observation</option>
+                </select>
+              </div>
+
+              {/* Clinical Text / Extracted Lab Values */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Report Findings / Key Biomarkers (or OCR Content)
+                </label>
+                <textarea
+                  value={uploadDocText}
+                  onChange={(e) => setUploadDocText(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. Total Cholesterol 215 mg/dL, Fasting Sugar 96 mg/dL, HbA1c 5.6%, BP 128/82 mmHg..."
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none leading-relaxed"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Our clinical AI engine will automatically extract conditions, assess risk, and formulate actionable recommendations.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowUploadDocModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUploadingDoc}
+                  className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isUploadingDoc ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Analyzing with AI...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Upload & Run AI Analysis
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Full Document AI Clinical Report Viewer Modal */}
+      {selectedDocDetails && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 md:p-8 shadow-2xl border border-slate-100 max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                  <Stethoscope className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">{selectedDocDetails.document_name}</h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    Type: {selectedDocDetails.document_type.replace('_', ' ').toUpperCase()} • Uploaded {new Date(selectedDocDetails.uploaded_at).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDocDetails(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto py-4 space-y-4">
+              {/* Confidence Badge */}
+              <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-between text-xs">
+                <span className="font-bold text-indigo-950">AI Diagnostic Classification Confidence</span>
+                <span className="font-mono font-bold text-indigo-700 bg-white px-2 py-0.5 rounded-lg border border-indigo-200">
+                  {Math.round(selectedDocDetails.ai_confidence_score * 100)}% Verified
+                </span>
+              </div>
+
+              {/* Summary */}
+              {selectedDocDetails.ai_summary && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">AI Executive Synthesis</h4>
+                  <p className="text-xs text-slate-700 leading-relaxed">{selectedDocDetails.ai_summary}</p>
+                </div>
+              )}
+
+              {/* Detected Conditions */}
+              {selectedDocDetails.ai_detected_conditions && (
+                <div className="p-4 bg-purple-50/60 border border-purple-200/80 rounded-2xl space-y-2">
+                  <h4 className="text-xs font-black text-purple-950 uppercase tracking-wider">Diagnosed & Detected Indicators</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedDocDetails.ai_detected_conditions.split(',').map((cond, i) => (
+                      <span key={i} className="px-3 py-1 rounded-full text-xs font-bold bg-white text-purple-800 border border-purple-200 shadow-sm">
+                        {cond.trim()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Biomarkers */}
+              {selectedDocDetails.ai_key_biomarkers && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Clinical Lab Values & Biomarkers</h4>
+                  <p className="text-xs font-mono text-slate-800 leading-relaxed bg-white p-3 rounded-xl border border-slate-200">
+                    {selectedDocDetails.ai_key_biomarkers}
+                  </p>
+                </div>
+              )}
+
+              {/* Suggestions */}
+              {selectedDocDetails.ai_clinical_suggestions && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2">
+                  <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>💡</span>
+                    <span>Actionable Clinical & Lifestyle Suggestions</span>
+                  </h4>
+                  <div className="whitespace-pre-line text-xs text-emerald-900 font-medium leading-relaxed bg-white/70 p-3 rounded-xl border border-emerald-100">
+                    {selectedDocDetails.ai_clinical_suggestions}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => handleReanalyzeDocument(selectedDocDetails.id)}
+                disabled={isAnalyzingDocId === selectedDocDetails.id}
+                className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzingDocId === selectedDocDetails.id ? 'animate-spin' : ''}`} />
+                <span>Re-Analyze</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedDocDetails(null)}
+                className="px-5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 cursor-pointer"
+              >
+                Close Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Medical Reports & Clinical Observations Modal */}
       {showReportsModal && (

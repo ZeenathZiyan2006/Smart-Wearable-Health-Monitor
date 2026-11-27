@@ -367,3 +367,19 @@ export interface HydrationSummary {
   percentage: number;
   logs_count: number;
 }
+
+export interface DigitalDocument {
+  id: number;
+  patient_id: number;
+  document_name: string;
+  document_type: string;
+  file_url?: string;
+  file_text_content?: string;
+  uploaded_at: string;
+  ai_analysis_status: string;
+  ai_summary?: string;
+  ai_detected_conditions?: string;
+  ai_key_biomarkers?: string;
+  ai_clinical_suggestions?: string;
+  ai_confidence_score: number;
+}
