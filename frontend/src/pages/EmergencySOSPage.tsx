@@ -4,6 +4,7 @@ import { emergencyService, patientDashboardService } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import { useWebSocket } from '../context/WebSocketContext';
 import { useLanguage } from '../context/LanguageContext';
+import { formatDisplayDate, formatDisplayTime, formatDisplayDateTime } from '../utils/dateUtils';
 import type { EmergencyAlert } from '../api/types';
 
 interface CaregiverContact {
@@ -29,29 +30,8 @@ export const EmergencySOSPage: React.FC = () => {
   const [sosErrorMsg, setSosErrorMsg] = useState<string | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: 12.9716, lng: 77.5946 });
 
-  // Registered caregivers directory
-  const [caregivers, setCaregivers] = useState<CaregiverContact[]>([
-    {
-      id: 1,
-      name: 'Sarah Jenkins (Primary Caregiver)',
-      relationship: 'Primary Caregiver / Registered Nurse',
-      phone: '+91 98765 43220',
-      email: 'caregiver@pulseguardian.ai',
-      is_primary: true,
-      escalation_tier: 1,
-      organization: 'PulseHealth Clinic & Family Care',
-    },
-    {
-      id: 2,
-      name: 'Ananya (Family Caregiver)',
-      relationship: 'Daughter / Secondary Emergency Contact',
-      phone: '+91 98450 67890',
-      email: 'ananya.family@pulseguardian.ai',
-      is_primary: false,
-      escalation_tier: 2,
-      organization: 'Authorized Family Guardian',
-    },
-  ]);
+  // Registered caregivers directory loaded dynamically from patient's verified profile
+  const [caregivers, setCaregivers] = useState<CaregiverContact[]>([]);
 
   const [showCallModal, setShowCallModal] = useState(false);
   const [selectedCallContact, setSelectedCallContact] = useState<CaregiverContact | null>(null);
@@ -304,8 +284,13 @@ export const EmergencySOSPage: React.FC = () => {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {caregivers.map((cg) => (
+        {caregivers.length === 0 ? (
+          <div className="text-center py-6 text-xs text-slate-500 font-medium bg-slate-50 rounded-2xl border border-slate-200">
+            No primary caregiver registered. Add an emergency contact or physician to enable direct calling.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {caregivers.map((cg) => (
             <div
               key={cg.id}
               className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
@@ -363,6 +348,7 @@ export const EmergencySOSPage: React.FC = () => {
             </div>
           ))}
         </div>
+        )}
       </div>
 
       {/* Direct Call Escalation Modal (When SOS is triggered or if one doesn't pick) */}
@@ -455,19 +441,7 @@ export const EmergencySOSPage: React.FC = () => {
                   <div className="flex items-center space-x-3 text-[11px] text-slate-500 mt-1 font-mono flex-wrap">
                     <span className="flex items-center space-x-1">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>
-                        {new Date(a.created_at).toLocaleDateString([], {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                        })}{' '}
-                        at{' '}
-                        {new Date(a.created_at).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                        })}
-                      </span>
+                      <span>{formatDisplayDateTime(a.created_at)}</span>
                     </span>
                     {a.latitude && (
                       <span className="flex items-center space-x-1 font-semibold text-rose-700">

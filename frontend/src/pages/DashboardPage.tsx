@@ -61,6 +61,7 @@ import { FamilyDashboardView } from '../components/dashboards/FamilyDashboardVie
 import { DoctorDashboardView } from '../components/dashboards/DoctorDashboardView';
 import { EmergencyDashboardView } from '../components/dashboards/EmergencyDashboardView';
 import { QRScannerModal } from '../components/QRScannerModal';
+import { formatDisplayDate, formatDisplayTime, formatDisplayDateTime } from '../utils/dateUtils';
 
 // Web Audio API Ringtone Synthesizer
 function playRingtonePreview(tone: string): () => void {
@@ -228,7 +229,14 @@ export const DashboardPage: React.FC = () => {
 
   // SOS Press & Hold state
   // Patient Identity, Device Pairing & Medical Reports State
-  const [activePatientId, setActivePatientId] = useState<string>('PT-2026-000001');
+  const ownPatientId = user?.patient_id || (user as any)?.patient_profile?.patient_id || 'PT-2026-000001';
+  const [activePatientId, setActivePatientId] = useState<string>(ownPatientId);
+
+  useEffect(() => {
+    if (user?.patient_id) {
+      setActivePatientId(user.patient_id);
+    }
+  }, [user]);
   const [activeDeviceUuid, setActiveDeviceUuid] = useState<string>('DEV-WEAR-001');
   const [familyPatients, setFamilyPatients] = useState<FamilyPatient[]>([]);
   const [medicalReports, setMedicalReports] = useState<MedicalReport[]>([]);
@@ -523,18 +531,19 @@ export const DashboardPage: React.FC = () => {
   };
 
   useEffect(() => {
-    // Initial load of family patients & medical reports
-    patientAuthService.getFamilyPatients().then(pats => {
-      if (pats && pats.length > 0) {
-        setFamilyPatients(pats);
-        const savedPid = localStorage.getItem('patient_id') || pats[0].patient_id;
-        setActivePatientId(savedPid);
-        const match = pats.find(p => p.patient_id === savedPid);
-        if (match && match.device_uuid) {
-          setActiveDeviceUuid(match.device_uuid);
+    // Only fetch family multi-patient lists if user is in a caregiver/family role
+    if (role === 'family' || role === 'caregiver') {
+      patientAuthService.getFamilyPatients().then(pats => {
+        if (pats && pats.length > 0) {
+          setFamilyPatients(pats);
         }
-      }
-    }).catch(() => {});
+      }).catch(() => {});
+    } else {
+      // In patient mode: strictly lock to authenticated patient's own ID
+      const ownId = user?.patient_id || (user as any)?.patient_profile?.patient_id || 'PT-2026-000001';
+      setActivePatientId(ownId);
+      setFamilyPatients([]);
+    }
 
     patientAuthService.getMedicalReports().then(reps => {
       if (reps) setMedicalReports(reps);
@@ -1159,20 +1168,7 @@ export const DashboardPage: React.FC = () => {
             </div>
             <div className="flex flex-col text-left">
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-white tracking-wide">{displayName}</span>
-                {familyPatients.length > 1 && (
-                  <select
-                    value={activePatientId}
-                    onChange={(e) => handleSwitchPatient(e.target.value)}
-                    className="bg-slate-800 text-cyan-300 text-[10px] font-bold rounded-lg px-1.5 py-0.5 border border-cyan-500/40 cursor-pointer focus:outline-none"
-                  >
-                    {familyPatients.map((p) => (
-                      <option key={p.patient_id} value={p.patient_id} className="bg-slate-900 text-white">
-                        {p.full_name} ({p.patient_id})
-                      </option>
-                    ))}
-                  </select>
-                )}
+                <span className="text-xs font-bold text-white tracking-wide">{user?.full_name || displayName}</span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] text-cyan-300 font-mono font-medium">
                 <span>{activePatientId}</span>
@@ -2004,7 +2000,12 @@ export const DashboardPage: React.FC = () => {
           <div className="space-y-3">
             {(() => {
               const uniqueMedicines = Array.from(
-                new Map(medicines.map((m) => [m.id || `${m.medicine_name}_${m.scheduled_times}`, m])).values()
+                new Map(
+                  medicines.map((m) => [
+                    `${(m.medicine_name || '').toLowerCase().trim()}_${(m.dosage || '').toLowerCase().trim()}`,
+                    m,
+                  ])
+                ).values()
               );
               if (uniqueMedicines.length === 0) {
                 return (
@@ -2037,7 +2038,7 @@ export const DashboardPage: React.FC = () => {
                       ) : null}
                     </div>
                     <div className="text-xs text-slate-500 flex items-center gap-3">
-                      <span>Schedule: <strong className="text-slate-800">{med.scheduled_times}</strong> ({med.frequency})</span>
+                      <span>Schedule: <strong className="text-slate-800">{formatDisplayTime(med.scheduled_times)}</strong> ({med.frequency})</span>
                       <span>Stock: <strong className="text-slate-800">{med.remaining_quantity} / {med.total_quantity}</strong></span>
                     </div>
                   </div>
@@ -2078,8 +2079,13 @@ export const DashboardPage: React.FC = () => {
                           </button>
                           <button
                             type="button"
+                            disabled={med.remaining_quantity === 0}
                             onClick={() => handleMedicineAction(med.id, 'skipped')}
-                            className="px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                            className={`px-3 py-2 border rounded-xl text-xs font-bold transition-all ${
+                              med.remaining_quantity === 0
+                                ? 'border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                                : 'border-slate-300 text-slate-600 hover:bg-slate-100 cursor-pointer'
+                            }`}
                           >
                             Skip
                           </button>
@@ -2281,7 +2287,7 @@ export const DashboardPage: React.FC = () => {
                     <div>
                       <div className="text-xs font-bold text-slate-900">{appt.doctor_name}</div>
                       <div className="text-[10px] text-indigo-700 font-semibold">{appt.specialization} • {appt.hospital_name}</div>
-                      <div className="text-[10px] text-slate-400">{new Date(appt.appointment_date).toLocaleDateString()} at {new Date(appt.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div className="text-[10px] text-slate-500 font-medium">{formatDisplayDateTime(appt.appointment_date)}</div>
                     </div>
                     <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wider">
                       {appt.status}
@@ -3248,6 +3254,12 @@ export const DashboardPage: React.FC = () => {
                   className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   required
                 />
+                {newApptDate && (
+                  <p className="text-[11px] font-bold text-indigo-700 mt-1.5 flex items-center gap-1.5 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                    <Clock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <span>Formatted: {formatDisplayDateTime(newApptDate)}</span>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -3505,7 +3517,9 @@ export const DashboardPage: React.FC = () => {
                 <div>
                   <span className="font-bold text-slate-300 block mb-1">Emergency Contacts</span>
                   <span className="text-cyan-300 font-mono font-bold">
-                    Sarah Jenkins (+91 98765 43220) • Ananya (+91 98450 67890)
+                    {caregiverDirectory.length > 0
+                      ? caregiverDirectory.map((c) => `${c.name} (${c.phone})`).join(' • ')
+                      : 'No primary caregiver registered.'}
                   </span>
                 </div>
               </div>

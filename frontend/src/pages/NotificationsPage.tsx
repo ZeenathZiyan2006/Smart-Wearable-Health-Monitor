@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Bell, CheckCircle2, Clock, AlertTriangle, ShieldCheck, Trash2, Check, RotateCcw } from 'lucide-react';
 import { notificationService } from '../api/services';
 import { useLanguage } from '../context/LanguageContext';
+import { formatDisplayDate, formatDisplayTime, formatDisplayDateTime } from '../utils/dateUtils';
 import type { NotificationItem } from '../api/types';
 
 export const NotificationsPage: React.FC = () => {
@@ -216,10 +217,7 @@ export const NotificationsPage: React.FC = () => {
                   <div className="flex items-center gap-3 pt-1 text-[11px] text-slate-400 font-mono">
                     <span className="flex items-center gap-1 font-sans">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>
-                        {new Date(n.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}{' '}
-                        • {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      <span>{formatDisplayDateTime(n.created_at)}</span>
                     </span>
                     <span>•</span>
                     <span className="capitalize font-sans font-bold text-slate-500">{n.notification_type}</span>

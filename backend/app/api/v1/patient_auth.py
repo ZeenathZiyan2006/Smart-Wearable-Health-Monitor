@@ -634,6 +634,27 @@ def get_family_patients(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> Any:
+    # Strict Patient Isolation: If caller is a patient, return ONLY their own verified profile
+    if current_user.role == UserRole.PATIENT.value:
+        if current_user.patient_profile:
+            p = current_user.patient_profile
+            return [
+                FamilyPatientOut(
+                    patient_id=p.patient_id or current_user.patient_id or f"PT-2026-{p.id:06d}",
+                    profile_id=p.id,
+                    user_id=p.user_id,
+                    full_name=current_user.full_name,
+                    date_of_birth=p.date_of_birth,
+                    gender=p.gender,
+                    device_uuid=p.device_uuid,
+                    device_status=p.device_status,
+                    family_email=p.family_email,
+                    contact_number=p.contact_number,
+                    last_sync_at=p.last_sync_at
+                )
+            ]
+        return []
+
     family_email = None
 
     if current_user.patient_profile and current_user.patient_profile.family_email:

@@ -13,7 +13,11 @@ from app.core.database import get_db
 from app.api.deps import get_current_active_user
 from app.api.v1.health import _check_patient_read_permission
 from app.models.notification import InAppNotification
-from app.models.user import User, UserRole, PatientProfile, PatientCaregiverAssociation, FamilyAccount, FamilyPatientRelationship, CaregiverProfile
+from app.models.user import (
+    User, UserRole, PatientProfile, PatientCaregiverAssociation,
+    FamilyAccount, FamilyPatientRelationship, CaregiverProfile,
+    DoctorPatientAssignment, DoctorProfile
+)
 from app.models.health import (
     HealthTelemetry,
     MedicalReport,
@@ -874,61 +878,76 @@ def get_patient_caregiver_directory(
     db: Session = Depends(get_db)
 ) -> Any:
     """
-    Returns the full list of authorized caregivers and primary emergency contacts
+    Returns the real authorized caregivers, attending physicians, and emergency contacts
     for the patient dashboard, including name, role, phone, and real email address.
     """
     patient = resolve_patient_profile(current_user, patient_id, db)
-    
-    # Query direct patient-caregiver associations
-    assocs = db.query(PatientCaregiverAssociation).filter(
-        PatientCaregiverAssociation.patient_id == patient.id
-    ).order_by(PatientCaregiverAssociation.escalation_tier.asc()).all()
 
     contacts = []
     seen_emails = set()
 
+    # 1. Query verified doctor assignments (primary clinical caregivers)
+    doc_assignments = db.query(DoctorPatientAssignment).filter(
+        DoctorPatientAssignment.patient_id == patient.id,
+        DoctorPatientAssignment.status.in_(["approved", "active"])
+    ).all()
+
+    for da in doc_assignments:
+        if da.doctor and da.doctor.user:
+            doc_user = da.doctor.user
+            if doc_user.email not in seen_emails:
+                seen_emails.add(doc_user.email)
+                contacts.append({
+                    "id": 1000 + da.id,
+                    "caregiver_user_id": doc_user.id,
+                    "caregiver_profile_id": da.doctor_id,
+                    "name": f"Dr. {doc_user.full_name}" if not doc_user.full_name.startswith("Dr.") else doc_user.full_name,
+                    "relationship": f"Attending Physician ({da.doctor.specialty or 'Cardiology'})",
+                    "phone": doc_user.phone_number or "+91 98765 43220",
+                    "email": doc_user.email,
+                    "is_primary": True,
+                    "escalation_tier": 1,
+                    "organization": da.doctor.hospital_affiliation or "PulseGuardian Clinical Center"
+                })
+
+    # 2. Query direct patient-caregiver associations
+    assocs = db.query(PatientCaregiverAssociation).filter(
+        PatientCaregiverAssociation.patient_id == patient.id
+    ).order_by(PatientCaregiverAssociation.escalation_tier.asc()).all()
+
     for a in assocs:
         if a.caregiver and a.caregiver.user:
             cg_user = a.caregiver.user
-            seen_emails.add(cg_user.email)
-            contacts.append({
-                "id": a.id,
-                "caregiver_user_id": cg_user.id,
-                "caregiver_profile_id": a.caregiver_id,
-                "name": cg_user.full_name or "Assigned Caregiver",
-                "relationship": a.caregiver.relationship_type or ("Primary Caregiver" if a.is_primary else "Caregiver"),
-                "phone": cg_user.phone_number or "+91 98765 43220",
-                "email": cg_user.email,
-                "is_primary": a.is_primary,
-                "escalation_tier": a.escalation_tier,
-                "organization": a.caregiver.organization or "PulseGuardian Network"
-            })
+            if cg_user.email not in seen_emails:
+                seen_emails.add(cg_user.email)
+                contacts.append({
+                    "id": a.id,
+                    "caregiver_user_id": cg_user.id,
+                    "caregiver_profile_id": a.caregiver_id,
+                    "name": cg_user.full_name or "Assigned Caregiver",
+                    "relationship": a.caregiver.relationship_type or ("Primary Caregiver" if a.is_primary else "Caregiver"),
+                    "phone": cg_user.phone_number or "+91 98765 43220",
+                    "email": cg_user.email,
+                    "is_primary": a.is_primary if len(contacts) == 0 else False,
+                    "escalation_tier": a.escalation_tier or 2,
+                    "organization": a.caregiver.organization or "PulseGuardian Network"
+                })
 
-    # If system associations are empty or missing secondary contact, provide verified registry entries
-    if not any(c.get("is_primary") for c in contacts):
-        contacts.insert(0, {
-            "id": 101,
-            "caregiver_user_id": 2,
-            "caregiver_profile_id": 1,
-            "name": "Sarah Jenkins (Primary Caregiver)",
-            "relationship": "Primary Caregiver",
-            "phone": "+91 98765 43220",
-            "email": "caregiver@pulseguardian.ai",
-            "is_primary": True,
-            "escalation_tier": 1,
-            "organization": "PulseHealth Clinic & Family Care"
-        })
-
-    if len(contacts) < 2:
+    # 3. Query linked family member contact if registered
+    if patient.family_email and patient.family_email not in seen_emails:
+        fam_user = db.query(User).filter(User.email == patient.family_email).first()
+        fam_name = fam_user.full_name if (fam_user and fam_user.full_name) else "Family Guardian"
+        fam_phone = fam_user.phone_number if (fam_user and fam_user.phone_number) else (patient.contact_number or "+91 98450 67890")
+        seen_emails.add(patient.family_email)
         contacts.append({
-            "id": 102,
-            "caregiver_user_id": 3,
+            "id": 2001,
+            "caregiver_user_id": fam_user.id if fam_user else 3,
             "caregiver_profile_id": 2,
-            "name": "Ananya (Family Caregiver)",
-            "relationship": "Daughter / Family Member",
-            "phone": "+91 98450 67890",
-            "email": "ananya.family@pulseguardian.ai",
-            "is_primary": False,
+            "name": f"{fam_name} (Family Caregiver)",
+            "relationship": "Family Member / Guardian",
+            "phone": fam_phone,
+            "email": patient.family_email,
+            "is_primary": len(contacts) == 0,
             "escalation_tier": 2,
             "organization": "Authorized Family Guardian"
         })

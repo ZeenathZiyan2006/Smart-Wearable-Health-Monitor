@@ -5,6 +5,7 @@ export interface User {
   email: string;
   full_name: string;
   role: UserRole;
+  patient_id?: string;
   phone_number?: string;
   preferred_language: string;
   is_active: boolean;

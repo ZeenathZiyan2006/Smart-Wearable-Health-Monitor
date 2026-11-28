@@ -154,7 +154,7 @@ def verify_patient_id(
         doc_assoc = db.query(DoctorPatientAssignment).filter(
             DoctorPatientAssignment.doctor_id == doc_profile.id,
             DoctorPatientAssignment.patient_id == patient.id,
-            DoctorPatientAssignment.status == "approved"
+            DoctorPatientAssignment.status.in_(["approved", "active"])
         ).first()
         if doc_assoc:
             is_linked = True
@@ -323,7 +323,7 @@ def get_my_linked_patients(
     if doc_prof:
         assignments = db.query(DoctorPatientAssignment).filter(
             DoctorPatientAssignment.doctor_id == doc_prof.id,
-            DoctorPatientAssignment.status == "approved"
+            DoctorPatientAssignment.status.in_(["approved", "active"])
         ).all()
         for assign in assignments:
             p = assign.patient
@@ -542,7 +542,7 @@ def get_doctor_dashboard(
             assignment = db.query(DoctorPatientAssignment).filter(
                 DoctorPatientAssignment.doctor_id == doc_prof.id,
                 DoctorPatientAssignment.patient_id == patient.id,
-                DoctorPatientAssignment.status == "approved"
+                DoctorPatientAssignment.status.in_(["approved", "active"])
             ).first()
             if assignment:
                 is_authorized = True

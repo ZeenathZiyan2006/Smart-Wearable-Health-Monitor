@@ -71,6 +71,18 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
 
   const recognitionRef = useRef<any>(null);
   const audioInstanceRef = useRef<HTMLAudioElement | null>(null);
+  const lastTranscriptRef = useRef<string>('');
+  const [micErrorToast, setMicErrorToast] = useState<string | null>(null);
+
+  // Pre-warm speech synthesis voices
+  useEffect(() => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+  }, []);
 
   // Sync with global language
   useEffect(() => {
@@ -197,7 +209,14 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
 
-    window.speechSynthesis.speak(utterance);
+    // Safety timeout to prevent Chrome cancel race condition
+    setTimeout(() => {
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        setIsSpeaking(false);
+      }
+    }, 60);
   };
 
   // Toggle microphone recording via Web Speech API
@@ -213,10 +232,12 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
     }
 
     stopSpeech();
+    setMicErrorToast(null);
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser. You can type commands below.');
+      setMicErrorToast('Speech recognition is not supported in this browser. You can type commands below.');
+      setTimeout(() => setMicErrorToast(null), 5000);
       return;
     }
 
@@ -240,6 +261,7 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
       recognition.onstart = () => {
         setIsListening(true);
         setTranscript('');
+        lastTranscriptRef.current = '';
       };
 
       recognition.onresult = (event: any) => {
@@ -249,16 +271,23 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
         }
         setTranscript(current);
         setTextInput(current);
+        lastTranscriptRef.current = current;
       };
 
-      recognition.onerror = () => {
+      recognition.onerror = (event: any) => {
         setIsListening(false);
+        if (event && event.error === 'not-allowed') {
+          setMicErrorToast('Microphone permission blocked. Please allow microphone access in your browser settings.');
+          setTimeout(() => setMicErrorToast(null), 6000);
+        }
       };
 
       recognition.onend = () => {
         setIsListening(false);
-        if (textInput.trim() || transcript.trim()) {
-          sendNovaQuery({ message: textInput.trim() || transcript.trim() });
+        const queryText = lastTranscriptRef.current.trim() || transcript.trim() || textInput.trim();
+        if (queryText) {
+          sendNovaQuery({ message: queryText });
+          lastTranscriptRef.current = '';
         }
       };
 
@@ -512,6 +541,14 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
           <div className="mx-4 mt-3 p-2.5 bg-emerald-950/80 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in">
             <CheckCircle className="w-4 h-4 shrink-0 text-emerald-400" />
             <span>{wellbeingToast}</span>
+          </div>
+        )}
+
+        {/* Microphone Error Alert Toast */}
+        {micErrorToast && (
+          <div className="mx-4 mt-3 p-2.5 bg-rose-950/80 border border-rose-500/40 rounded-xl text-rose-300 text-xs flex items-center gap-2 animate-in fade-in">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+            <span>{micErrorToast}</span>
           </div>
         )}
 
