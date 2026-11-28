@@ -331,6 +331,8 @@ export const DashboardPage: React.FC = () => {
   const [scannedPatientData, setScannedPatientData] = useState<any | null>(null);
   const [isVerifyingScan, setIsVerifyingScan] = useState<boolean>(false);
   const alarmAudioIntervalRef = useRef<any>(null);
+  const sharedAudioCtxRef = useRef<AudioContext | null>(null);
+  const alarmAudioElemRef = useRef<HTMLAudioElement | null>(null);
   const [reminders, setReminders] = useState<PatientReminder[]>([]);
   const [appointments, setAppointments] = useState<DoctorAppointment[]>([]);
   const [conditions, setConditions] = useState<MedicalCondition[]>([]);
@@ -370,7 +372,16 @@ export const DashboardPage: React.FC = () => {
   const [newMedName, setNewMedName] = useState('');
   const [newMedDosage, setNewMedDosage] = useState('1 Tablet');
   const [newMedFreq, setNewMedFreq] = useState('Twice daily');
-  const [newMedTimes, setNewMedTimes] = useState('08:00,20:00');
+  const getInitialMedTimes = () => {
+    const now = new Date();
+    const next = new Date(now.getTime() + 60000);
+    const h1 = String(now.getHours()).padStart(2, '0');
+    const m1 = String(now.getMinutes()).padStart(2, '0');
+    const h2 = String(next.getHours()).padStart(2, '0');
+    const m2 = String(next.getMinutes()).padStart(2, '0');
+    return `${h1}:${m1}, ${h2}:${m2}`;
+  };
+  const [newMedTimes, setNewMedTimes] = useState<string>(getInitialMedTimes);
   const [newMedQty, setNewMedQty] = useState(30);
 
   const [newRemTitle, setNewRemTitle] = useState('');
@@ -771,32 +782,122 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  // Continuous 100% Volume Alarm Sound Engine
-  const play100PercentMedAlarm = () => {
+  // Global user interaction listener to unblock browser AudioContext autoplay policy
+  useEffect(() => {
+    const unlockAudio = () => {
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          if (!sharedAudioCtxRef.current || sharedAudioCtxRef.current.state === 'closed') {
+            sharedAudioCtxRef.current = new AudioCtx();
+          }
+          if (sharedAudioCtxRef.current.state === 'suspended') {
+            sharedAudioCtxRef.current.resume().catch(() => {});
+          }
+        }
+      } catch {}
+    };
+
+    window.addEventListener('click', unlockAudio, { passive: true });
+    window.addEventListener('keydown', unlockAudio, { passive: true });
+    window.addEventListener('touchstart', unlockAudio, { passive: true });
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
+
+  // Continuous 100% Volume Alarm Sound Engine with Multi-Layer Web Audio, Loop Audio & Voice
+  const play100PercentMedAlarm = (medName?: string) => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      if (AudioCtx) {
+        if (!sharedAudioCtxRef.current || sharedAudioCtxRef.current.state === 'closed') {
+          sharedAudioCtxRef.current = new AudioCtx();
+        }
+        const ctx = sharedAudioCtxRef.current;
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
 
-      const playChirp = () => {
-        try {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(880, ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.18);
-          gain.gain.setValueAtTime(1.0, ctx.currentTime); // 100% full volume
-          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(ctx.currentTime);
-          osc.stop(ctx.currentTime + 0.35);
-        } catch {}
-      };
+        const playChirp = () => {
+          try {
+            if (ctx.state === 'suspended') {
+              ctx.resume().catch(() => {});
+            }
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(950, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1400, ctx.currentTime + 0.18);
+            gain.gain.setValueAtTime(1.0, ctx.currentTime); // 100% full volume
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.35);
+          } catch {}
+        };
 
-      playChirp();
-      if (alarmAudioIntervalRef.current) clearInterval(alarmAudioIntervalRef.current);
-      alarmAudioIntervalRef.current = setInterval(playChirp, 650);
+        playChirp();
+        if (alarmAudioIntervalRef.current) clearInterval(alarmAudioIntervalRef.current);
+        alarmAudioIntervalRef.current = setInterval(playChirp, 500);
+      }
+    } catch {}
+
+    // Looping audio alert fallback
+    try {
+      if (!alarmAudioElemRef.current) {
+        const sampleRate = 8000;
+        const duration = 0.4;
+        const numSamples = Math.floor(sampleRate * duration);
+        const buffer = new Uint8Array(44 + numSamples);
+        buffer.set([0x52, 0x49, 0x46, 0x46]);
+        const fileSize = 36 + numSamples;
+        buffer[4] = fileSize & 0xff;
+        buffer[5] = (fileSize >> 8) & 0xff;
+        buffer[6] = (fileSize >> 16) & 0xff;
+        buffer[7] = (fileSize >> 24) & 0xff;
+        buffer.set([0x57, 0x41, 0x56, 0x45, 0x66, 0x6d, 0x74, 0x20, 16, 0, 0, 0, 1, 0, 1, 0], 8);
+        buffer[24] = sampleRate & 0xff;
+        buffer[25] = (sampleRate >> 8) & 0xff;
+        buffer[28] = sampleRate & 0xff;
+        buffer[29] = (sampleRate >> 8) & 0xff;
+        buffer[32] = 1;
+        buffer[34] = 8;
+        buffer.set([0x64, 0x61, 0x74, 0x61], 36);
+        buffer[40] = numSamples & 0xff;
+        buffer[41] = (numSamples >> 8) & 0xff;
+        for (let i = 0; i < numSamples; i++) {
+          const t = i / sampleRate;
+          buffer[44 + i] = (Math.sin(2 * Math.PI * 900 * t) > 0) ? 220 : 36;
+        }
+        let binary = '';
+        for (let i = 0; i < buffer.byteLength; i++) {
+          binary += String.fromCharCode(buffer[i]);
+        }
+        const audio = new Audio('data:audio/wav;base64,' + window.btoa(binary));
+        audio.loop = true;
+        audio.volume = 1.0;
+        alarmAudioElemRef.current = audio;
+      }
+      alarmAudioElemRef.current.currentTime = 0;
+      alarmAudioElemRef.current.play().catch(() => {});
+    } catch {}
+
+    // Vocal voice alarm fallback so it sounds even if browser audio autoplay is restricted
+    try {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const text = medName
+          ? `Attention! Time to take your scheduled medicine, ${medName}.`
+          : 'Attention! Time to take your scheduled medicine.';
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.volume = 1.0;
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
+      }
     } catch {}
   };
 
@@ -805,26 +906,71 @@ export const DashboardPage: React.FC = () => {
       clearInterval(alarmAudioIntervalRef.current);
       alarmAudioIntervalRef.current = null;
     }
+    if (alarmAudioElemRef.current) {
+      try {
+        alarmAudioElemRef.current.pause();
+        alarmAudioElemRef.current.currentTime = 0;
+      } catch {}
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     setActiveAlarmMed(null);
+  };
+
+  // Robust time slot matcher supporting 24h, 12h AM/PM, and bare hours
+  const isTimeSlotActiveNow = (slot: string, now: Date): boolean => {
+    if (!slot || !slot.trim()) return false;
+    const s = slot.trim().toUpperCase();
+
+    // Extract hour and minute numbers: e.g. "01:01", "1:01 AM", "13:01"
+    const match = s.match(/(\d{1,2}):(\d{2})/);
+    if (!match) return false;
+
+    const slotH = parseInt(match[1], 10);
+    const slotM = parseInt(match[2], 10);
+
+    const nowH24 = now.getHours(); // 0 - 23
+    const nowH12 = nowH24 % 12 || 12; // 1 - 12
+    const nowM = now.getMinutes(); // 0 - 59
+
+    // Minute check: exact minute match or within 1 minute
+    if (slotM !== nowM) return false;
+
+    const hasPM = s.includes('PM');
+    const hasAM = s.includes('AM');
+
+    if (hasPM) {
+      const slotH24 = (slotH % 12) + 12;
+      return slotH24 === nowH24;
+    }
+
+    if (hasAM) {
+      const slotH24 = slotH === 12 ? 0 : slotH;
+      // Matches 24h AM or 12h hour match (e.g. user typed "01:02 AM" at 1:02 PM)
+      return slotH24 === nowH24 || slotH === nowH12;
+    }
+
+    // Bare "HH:mm" (e.g. "01:02" or "13:02")
+    return slotH === nowH24 || slotH === nowH12;
   };
 
   // Real-time Alarm Check every second against scheduled_times
   useEffect(() => {
     const checkScheduledMedAlarms = () => {
       const now = new Date();
-      const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       const todayDate = now.toDateString();
 
       for (const med of medicines) {
         if (med.medicine_status !== 'active') continue;
-        const times = (med.scheduled_times || '').split(',').map((t: string) => t.trim());
+        const times = (med.scheduled_times || '').split(',').map((t: string) => t.trim()).filter(Boolean);
         for (const slot of times) {
           const doseKey = `${med.id}_${todayDate}_${slot}`;
-          if (currentHHMM === slot && !acknowledgedDoses[doseKey]) {
+          if (isTimeSlotActiveNow(slot, now) && !acknowledgedDoses[doseKey]) {
             if (!activeAlarmMed || activeAlarmMed.id !== med.id) {
               setActiveAlarmMed(med);
               setActiveAlarmSlot(slot);
-              play100PercentMedAlarm();
+              play100PercentMedAlarm(med.medicine_name);
             }
           }
         }
@@ -1975,7 +2121,10 @@ export const DashboardPage: React.FC = () => {
             </div>
             <button
               type="button"
-              onClick={() => setShowAddMedModal(true)}
+              onClick={() => {
+                setNewMedTimes(getInitialMedTimes());
+                setShowAddMedModal(true);
+              }}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -2107,6 +2256,21 @@ export const DashboardPage: React.FC = () => {
                         </>
                       );
                     })()}
+
+                    {/* Test Alarm Option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveAlarmMed(med);
+                        setActiveAlarmSlot('Now');
+                        play100PercentMedAlarm(med.medicine_name);
+                      }}
+                      title="Ring 100% volume alarm now for this medicine"
+                      className="p-1.5 px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all cursor-pointer border border-amber-200 flex items-center gap-1"
+                    >
+                      <Bell className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                      <span className="text-[11px] font-bold hidden sm:inline text-amber-700">Test Alarm</span>
+                    </button>
 
                     {/* Delete / Remove Medication Option */}
                     <button
@@ -3087,7 +3251,17 @@ export const DashboardPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Scheduled Times</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">Scheduled Times</label>
+                    <button
+                      type="button"
+                      onClick={() => setNewMedTimes(getInitialMedTimes())}
+                      className="text-[10px] font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-1.5 py-0.5 rounded border border-teal-200 transition-colors"
+                      title="Set scheduled times to current time"
+                    >
+                      â± Set to Current Time
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={newMedTimes}
