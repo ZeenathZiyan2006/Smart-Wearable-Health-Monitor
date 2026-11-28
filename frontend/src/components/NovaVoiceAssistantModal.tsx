@@ -45,6 +45,7 @@ interface ActionPill {
 
 export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen, onClose }) => {
   const { user, role } = useAuth();
+  const effectiveRole = user?.role || role || 'patient';
   const { language: globalLanguage, setLanguage: setGlobalLanguage, languages } = useLanguage();
 
   // Selected language for assistant
@@ -119,10 +120,10 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
       })
       .catch(() => {
         // Local baseline fallback
-        if (role === 'doctor') {
+        if (effectiveRole === 'doctor') {
           setSelectedPatientId('PT-2026-000001');
           setSelectedPatientName('Ramesh Kumar');
-        } else if (role === 'family' || role === 'caregiver') {
+        } else if (effectiveRole === 'family' || effectiveRole === 'caregiver') {
           setSelectedPatientId('PT-2026-000001');
           setSelectedPatientName('Ramesh Kumar');
         }
@@ -219,8 +220,8 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
     }, 60);
   };
 
-  // Toggle microphone recording via Web Speech API
-  const toggleListening = () => {
+  // Toggle microphone recording via Web Speech API with explicit permission prompt
+  const toggleListening = async () => {
     if (isListening) {
       if (recognitionRef.current) {
         try {
@@ -237,8 +238,27 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setMicErrorToast('Speech recognition is not supported in this browser. You can type commands below.');
-      setTimeout(() => setMicErrorToast(null), 5000);
+      setTimeout(() => setMicErrorToast(null), 6000);
       return;
+    }
+
+    // Explicitly prompt for browser microphone permission if supported
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Immediately stop tracks so recognition engine can take exclusive mic control
+        stream.getTracks().forEach((track) => track.stop());
+      } catch (err: any) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setMicErrorToast('Microphone access blocked. Click the lock/settings icon in the address bar to set Microphone to "Allow".');
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          setMicErrorToast('No microphone hardware detected on this system.');
+        } else {
+          setMicErrorToast('Microphone permission required for voice commands.');
+        }
+        setTimeout(() => setMicErrorToast(null), 7000);
+        return;
+      }
     }
 
     try {
@@ -276,10 +296,17 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
 
       recognition.onerror = (event: any) => {
         setIsListening(false);
-        if (event && event.error === 'not-allowed') {
-          setMicErrorToast('Microphone permission blocked. Please allow microphone access in your browser settings.');
-          setTimeout(() => setMicErrorToast(null), 6000);
+        const err = event?.error;
+        if (err === 'not-allowed' || err === 'service-not-allowed') {
+          setMicErrorToast('Microphone access blocked. Please allow microphone access in your browser settings.');
+        } else if (err === 'no-speech') {
+          // No speech detected, quietly reset
+        } else if (err === 'audio-capture') {
+          setMicErrorToast('No microphone detected. Please plug in or enable your microphone.');
+        } else if (err === 'network') {
+          setMicErrorToast('Speech recognition network error. You can type commands below.');
         }
+        setTimeout(() => setMicErrorToast(null), 6000);
       };
 
       recognition.onend = () => {
@@ -295,6 +322,8 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
       recognition.start();
     } catch {
       setIsListening(false);
+      setMicErrorToast('Could not initialize microphone. Please check browser permissions.');
+      setTimeout(() => setMicErrorToast(null), 5000);
     }
   };
 
@@ -365,7 +394,7 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
 
   // Dynamic persona descriptions
   const getPersonaHeader = () => {
-    if (role === 'doctor') {
+    if (effectiveRole === 'doctor') {
       return {
         title: 'Nova Clinical Workflow Assistant',
         subtitle: 'Assigned Patient EHR, Clinical Trends & Diagnostic AI',
@@ -373,7 +402,7 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
         badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
       };
     }
-    if (role === 'emergency') {
+    if (effectiveRole === 'emergency') {
       return {
         title: 'Nova Emergency Coordination Assistant',
         subtitle: 'Active Incident Triaging, GPS & Paramedic Dispatch',
@@ -381,7 +410,7 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
         badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
       };
     }
-    if (role === 'family' || role === 'caregiver') {
+    if (effectiveRole === 'family' || effectiveRole === 'caregiver') {
       return {
         title: 'Nova Family Care Companion',
         subtitle: 'Family Care Assistant & Caregiver Wellbeing',
@@ -401,7 +430,7 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
 
   // Role-specific default quick actions
   const getDefaultActions = (): ActionPill[] => {
-    if (role === 'doctor') {
+    if (effectiveRole === 'doctor') {
       return [
         { id: '1', label: '7-Day Clinical Trends', action: 'clinical_trends', icon: 'TrendingUp', color: 'cyan' },
         { id: '2', label: 'AI Early Warnings', action: 'ai_observations', icon: 'Activity', color: 'emerald' },
@@ -409,7 +438,7 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
         { id: '4', label: 'Clinical Notes', action: 'clinical_notes_summary', icon: 'FileText', color: 'indigo' },
       ];
     }
-    if (role === 'emergency') {
+    if (effectiveRole === 'emergency') {
       return [
         { id: '1', label: 'Active SOS Incidents', action: 'active_incidents', icon: 'AlertTriangle', color: 'rose' },
         { id: '2', label: 'Verify GPS Coordinates', action: 'patient_gps_coordinates', icon: 'MapPin', color: 'cyan' },
@@ -417,7 +446,7 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
         { id: '4', label: 'Log Handover', action: 'record_handover', icon: 'CheckCircle', color: 'emerald' },
       ];
     }
-    if (role === 'family' || role === 'caregiver') {
+    if (effectiveRole === 'family' || effectiveRole === 'caregiver') {
       return [
         { id: '1', label: 'How is my patient today?', action: 'check_patient_health', icon: 'Heart', color: 'cyan' },
         { id: '2', label: 'Medication Adherence', action: 'check_patient_medication', icon: 'Pill', color: 'emerald' },
@@ -508,7 +537,7 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
         {/* ========================================================= */}
         {/* AUTHORIZED PATIENT SELECTOR (For Family & Doctor Roles) */}
         {/* ========================================================= */}
-        {(role === 'family' || role === 'caregiver' || role === 'doctor') && authorizedPatients.length > 0 && (
+        {(effectiveRole === 'family' || effectiveRole === 'caregiver' || effectiveRole === 'doctor') && authorizedPatients.length > 0 && (
           <div className="px-5 py-2.5 bg-slate-800/40 border-b border-slate-800/80 flex items-center justify-between flex-wrap gap-2 text-xs">
             <div className="flex items-center gap-2 text-slate-300 font-medium">
               <UserCheck className="w-4 h-4 text-cyan-400" />
@@ -522,7 +551,7 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
                   setSelectedPatientId(e.target.value);
                   const found = authorizedPatients.find((p) => p.patient_id === e.target.value);
                   if (found) setSelectedPatientName(found.name);
-                  sendNovaQuery({ action: role === 'doctor' ? 'clinical_trends' : 'check_patient_health' });
+                  sendNovaQuery({ action: effectiveRole === 'doctor' ? 'clinical_trends' : 'check_patient_health' });
                 }}
                 className="bg-slate-900 border border-slate-700 text-cyan-300 rounded-lg px-2.5 py-1 text-xs font-semibold focus:outline-none focus:border-cyan-400 cursor-pointer"
               >
@@ -658,7 +687,7 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
               <button
                 key={pill.id}
                 onClick={() => {
-                  if (pill.action === 'caregiver_wellbeing' && (role === 'family' || role === 'caregiver')) {
+                  if (pill.action === 'caregiver_wellbeing' && (effectiveRole === 'family' || effectiveRole === 'caregiver')) {
                     setShowWellbeingModal(true);
                   } else {
                     sendNovaQuery({ action: pill.action });
@@ -707,11 +736,11 @@ export const NovaVoiceAssistantModal: React.FC<VoiceAssistantProps> = ({ isOpen,
               placeholder={
                 isListening
                   ? 'Listening to your voice...'
-                  : role === 'doctor'
+                  : effectiveRole === 'doctor'
                   ? 'Ask Nova about patient trends, AI risk or clinical notes...'
-                  : role === 'emergency'
+                  : effectiveRole === 'emergency'
                   ? 'Ask Nova about active incidents, triage vitals or handover...'
-                  : role === 'family' || role === 'caregiver'
+                  : effectiveRole === 'family' || effectiveRole === 'caregiver'
                   ? 'Ask Nova about your patient or caregiver wellbeing...'
                   : 'Ask Nova anything about your health, reminders, or stories...'
               }

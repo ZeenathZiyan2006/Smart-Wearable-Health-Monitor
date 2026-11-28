@@ -138,7 +138,13 @@ export const Sidebar: React.FC = () => {
                 {user?.full_name || 'Thrisha'}
               </p>
               <p className="text-[10px] text-slate-400 capitalize">
-                {user?.role === 'caregiver' ? t('role.caregiver', 'Caregiver') : t('role.patient', 'Patient')}
+                {user?.role === 'doctor'
+                  ? t('role.doctor', 'Doctor')
+                  : user?.role === 'caregiver'
+                  ? t('role.caregiver', 'Caregiver')
+                  : user?.role === 'emergency'
+                  ? t('role.emergency', 'Emergency Team')
+                  : t('role.patient', 'Patient')}
               </p>
             </div>
           </div>

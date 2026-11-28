@@ -306,13 +306,19 @@ def get_my_linked_patients(
             p = a.patient
             if p:
                 name = p.user.full_name if p.user else "Patient"
+                rel = a.caregiver.relationship_type or "Family Member"
+                rel_to_pt = "Assigned Clinical Caregiver" if rel in ["Doctor", "Nurse"] else rel
                 linked_patients.append({
                     "id": p.id,
                     "patient_id": p.patient_id or f"PT-2026-{p.id:06d}",
                     "full_name": name,
+                    "patient_role": "Patient",
                     "gender": p.gender or "Female",
                     "blood_group": p.blood_group or "O+",
-                    "relationship": current_user.caregiver_profile.relationship_type or "Family Member",
+                    "relationship": rel_to_pt,
+                    "relationship_to_patient": rel_to_pt,
+                    "caregiver_designation": current_user.caregiver_profile.relationship_type or "Caregiver",
+                    "authorization_status": "Approved & Active",
                     "device_status": p.device_status or "offline",
                     "last_sync_at": p.last_sync_at.isoformat() if p.last_sync_at else None,
                     "role_context": "family"
@@ -333,12 +339,40 @@ def get_my_linked_patients(
                     "id": p.id,
                     "patient_id": p.patient_id or f"PT-2026-{p.id:06d}",
                     "full_name": name,
+                    "patient_role": "Patient",
                     "gender": p.gender or "Male",
                     "blood_group": p.blood_group or "B+",
-                    "relationship": "Assigned Patient",
+                    "relationship": "Attending Physician",
+                    "relationship_to_patient": "Attending Physician",
+                    "caregiver_designation": "Doctor",
+                    "authorization_status": "Approved & Active",
                     "device_status": p.device_status or "offline",
                     "last_sync_at": p.last_sync_at.isoformat() if p.last_sync_at else None,
                     "role_context": "doctor"
+                })
+
+    # 3. Check Family Email association (if patient registered family email matching current user)
+    if current_user.email:
+        fam_patients = db.query(PatientProfile).filter(
+            func.lower(PatientProfile.family_email) == current_user.email.lower()
+        ).all()
+        for p in fam_patients:
+            if not any(lp["id"] == p.id for lp in linked_patients):
+                name = p.user.full_name if p.user else "Patient"
+                linked_patients.append({
+                    "id": p.id,
+                    "patient_id": p.patient_id or f"PT-2026-{p.id:06d}",
+                    "full_name": name,
+                    "patient_role": "Patient",
+                    "gender": p.gender or "Female",
+                    "blood_group": p.blood_group or "O+",
+                    "relationship": "Authorized Family Guardian",
+                    "relationship_to_patient": "Authorized Family Guardian",
+                    "caregiver_designation": "Family Member",
+                    "authorization_status": "Approved & Active",
+                    "device_status": p.device_status or "offline",
+                    "last_sync_at": p.last_sync_at.isoformat() if p.last_sync_at else None,
+                    "role_context": "family"
                 })
 
     return linked_patients
@@ -365,7 +399,7 @@ def get_family_dashboard(
             detail=f"Patient '{patient_id}' not found."
         )
 
-    # Check Family Authorization
+    # Check Family / Caregiver Authorization
     is_authorized = False
     if current_user.role == UserRole.ADMIN.value:
         is_authorized = True
@@ -376,6 +410,21 @@ def get_family_dashboard(
         ).first()
         if assoc:
             is_authorized = True
+
+    # Also check verified doctor assignment
+    doc_prof = db.query(DoctorProfile).filter(DoctorProfile.user_id == current_user.id).first()
+    if doc_prof:
+        doc_assign = db.query(DoctorPatientAssignment).filter(
+            DoctorPatientAssignment.doctor_id == doc_prof.id,
+            DoctorPatientAssignment.patient_id == patient.id,
+            DoctorPatientAssignment.status.in_(["approved", "active"])
+        ).first()
+        if doc_assign:
+            is_authorized = True
+
+    # Also check family email link
+    if patient.family_email and current_user.email and patient.family_email.lower() == current_user.email.lower():
+        is_authorized = True
 
     if not is_authorized:
         raise HTTPException(
@@ -431,10 +480,10 @@ def get_family_dashboard(
             "dosage": m.dosage,
             "frequency": m.frequency,
             "scheduled_times": m.scheduled_times,
-            "instructions": m.instructions or "Take after food",
+            "instructions": getattr(m, "notes", None) or "Take after food",
             "remaining_quantity": m.remaining_quantity,
             "total_quantity": m.total_quantity,
-            "is_refill_needed": m.remaining_quantity <= (m.refill_threshold or 5),
+            "is_refill_needed": m.remaining_quantity <= 5,
             "refill_status": "Low Stock" if m.remaining_quantity <= 5 else "Adequate"
         }
         for m in meds
@@ -491,20 +540,33 @@ def get_family_dashboard(
             "id": patient.id,
             "patient_id": patient.patient_id or str(patient.id),
             "full_name": patient_name,
+            "patient_role": "Patient",
             "age": age,
-            "gender": patient.gender or "Female",
+            "gender": patient.gender or "Male",
             "blood_group": patient.blood_group or "O+",
             "relationship": current_user.caregiver_profile.relationship_type if current_user.caregiver_profile else "Family Relative",
+            "relationship_to_user": "Assigned Patient" if (current_user.caregiver_profile and current_user.caregiver_profile.relationship_type in ["Doctor", "Nurse"]) else (current_user.caregiver_profile.relationship_type if current_user.caregiver_profile else "Family Relative"),
+            "contact_number": patient.contact_number or "+91 98450 12345",
             "device_status": patient.device_status or "online",
             "last_sync_at": patient.last_sync_at.isoformat() if patient.last_sync_at else datetime.now(timezone.utc).isoformat(),
         },
         "live_health": telemetry_payload,
         "medicine_schedule": medicine_list,
+        "medications": medicine_list,
         "daily_routine": routine_list,
+        "routines": routine_list,
         "patient_location": location_payload,
+        "gps_location": location_payload,
         "ai_early_warning": ai_warning,
         "active_emergency": {
             "is_active": active_alert is not None,
+            "has_active_emergency": active_alert is not None,
+            "alert_type": active_alert.alert_type if active_alert else None,
+            "triggered_at": active_alert.created_at.isoformat() if active_alert else None
+        },
+        "emergency_status": {
+            "is_active": active_alert is not None,
+            "has_active_emergency": active_alert is not None,
             "alert_type": active_alert.alert_type if active_alert else None,
             "triggered_at": active_alert.created_at.isoformat() if active_alert else None
         }
@@ -598,7 +660,7 @@ def get_doctor_dashboard(
                 "dosage": m.dosage,
                 "frequency": m.frequency,
                 "scheduled_times": m.scheduled_times,
-                "instructions": m.instructions,
+                "instructions": getattr(m, "notes", None) or "Prescribed dose",
                 "remaining_quantity": m.remaining_quantity
             }
             for m in meds

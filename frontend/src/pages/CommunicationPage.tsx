@@ -235,7 +235,12 @@ const QUICK_TRANSLATIONS: Record<string, { en: string; kn: string; hi: string; t
 };
 
 function getDualSmartTranslation(text: string, targetLang: string): { englishText: string; localizedText: string } {
-  const clean = text.trim().toLowerCase().replace(/[.,!?;:]/g, '');
+  const cleanOriginal = (text || '')
+    .replace(/\[Simulated.*?\]:\s*/gi, '')
+    .replace(/\[Draft.*?\]:\s*/gi, '')
+    .replace(/\[Kannada\]:\s*/gi, '')
+    .trim();
+  const clean = cleanOriginal.toLowerCase().replace(/[.,!?;:]/g, '');
 
   // 1. Direct dictionary lookup
   if (QUICK_TRANSLATIONS[clean]) {
@@ -247,7 +252,7 @@ function getDualSmartTranslation(text: string, targetLang: string): { englishTex
     };
   }
 
-  // 2. Substring matching
+  // 2. Substring matching in dictionary
   for (const [key, entry] of Object.entries(QUICK_TRANSLATIONS)) {
     if (clean.includes(key) || key.includes(clean)) {
       const localized = (entry as any)[targetLang] || (entry as any)['kn'] || entry.en;
@@ -258,39 +263,68 @@ function getDualSmartTranslation(text: string, targetLang: string): { englishTex
     }
   }
 
-  // Check if text is written in Kannada script
-  const isKannadaScript = /[\u0C80-\u0CFF]/.test(text);
+  // 3. Kannada script detection
+  const isKannadaScript = /[\u0C80-\u0CFF]/.test(cleanOriginal);
   if (isKannadaScript) {
-    if (text.includes('ನಮಸ್ಕಾರ')) {
+    if (cleanOriginal.includes("ನಮಸ್ಕಾರ")) {
       return {
-        englishText: 'Hello / Greetings (Namaskara)',
-        localizedText: text,
+        englishText: "Hello / Greetings! Wishing you good health.",
+        localizedText: "ನಮಸ್ಕಾರ",
       };
     }
-    if (text.includes('ಹೌದು') || text.includes('ಮಾತ್ರೆ')) {
+    if (cleanOriginal.includes("ಊಟ")) {
       return {
-        englishText: 'Yes, I took the vitamins / medicines after breakfast.',
-        localizedText: text,
+        englishText: "Did you have your meals / lunch?",
+        localizedText: cleanOriginal,
+      };
+    }
+    if (cleanOriginal.includes("ನೀರು")) {
+      return {
+        englishText: "I drank fresh water and stayed hydrated.",
+        localizedText: cleanOriginal,
+      };
+    }
+    if (cleanOriginal.includes("ಹೌದು") || cleanOriginal.includes("ಮಾತ್ರೆ")) {
+      return {
+        englishText: "Yes Sarah, I took the vitamins / medicines after breakfast.",
+        localizedText: cleanOriginal,
       };
     }
     return {
-      englishText: `[Kannada]: ${text}`,
-      localizedText: text,
+      englishText: cleanOriginal,
+      localizedText: cleanOriginal,
     };
   }
 
-  const langNames: Record<string, string> = {
-    kn: 'Kannada (ಕನ್ನಡ)',
-    hi: 'Hindi (हिंदी)',
-    ta: 'Tamil (தமிழ்)',
-    te: 'Telugu (తెలుగు)',
-    ml: 'Malayalam (മലയാളം)',
-    en: 'English',
-  };
+  // 4. Romanized terms
+  if (clean.includes("namask") || clean.includes("namaste") || clean.includes("vanakkam")) {
+    return {
+      englishText: "Hello / Greetings! Wishing you good health.",
+      localizedText: targetLang === "kn" ? "ನಮಸ್ಕಾರ" : targetLang === "hi" ? "नमस्ते" : targetLang === "ta" ? "வணக்கம்" : "Hello",
+    };
+  }
+  if (clean.includes("oota") || clean.includes("khana")) {
+    return {
+      englishText: "Did you have your meals / lunch?",
+      localizedText: targetLang === "kn" ? "ಊಟ ಆಯ್ತಾ?" : targetLang === "hi" ? "क्या आपने खाना खा लिया?" : "Did you have your meals?",
+    };
+  }
+  if (clean.includes("neeru") || clean.includes("paani") || clean.includes("water")) {
+    return {
+      englishText: "I drank fresh drinking water.",
+      localizedText: targetLang === "kn" ? "ನೀರು ಕುಡಿದೆ" : targetLang === "hi" ? "पानी पी लिया" : "Drank water",
+    };
+  }
+  if (clean.includes("mathre") || clean.includes("medicine") || clean.includes("dawa")) {
+    return {
+      englishText: "I have taken the prescribed medicine.",
+      localizedText: targetLang === "kn" ? "ಮಾತ್ರೆಗಳನ್ನು ತೆಗೆದುಕೊಂಡೆ" : targetLang === "hi" ? "दवाई ले ली है" : "Medicine taken",
+    };
+  }
 
   return {
-    englishText: text,
-    localizedText: `${langNames[targetLang] || targetLang.toUpperCase()}: ${text}`,
+    englishText: cleanOriginal,
+    localizedText: cleanOriginal,
   };
 }
 

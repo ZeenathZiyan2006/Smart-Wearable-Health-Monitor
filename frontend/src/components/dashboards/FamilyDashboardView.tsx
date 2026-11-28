@@ -190,7 +190,12 @@ export const FamilyDashboardView: React.FC<FamilyDashboardViewProps> = ({
             >
               <span>{p.full_name}</span>
               <span className="font-mono text-[10px] opacity-80">({p.patient_id})</span>
-              <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full">{p.relationship}</span>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                Patient
+              </span>
+              {p.relationship_to_patient && p.relationship_to_patient !== "Patient" && p.relationship_to_patient !== "Doctor" && (
+                <span className="text-[10px] opacity-75 font-medium">({p.relationship_to_patient})</span>
+              )}
             </button>
           ))}
         </div>
@@ -251,8 +256,8 @@ export const FamilyDashboardView: React.FC<FamilyDashboardViewProps> = ({
               </div>
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center">
                 <span className="text-[10px] text-slate-400 font-bold uppercase block">Emergency SOS</span>
-                <span className={`text-xs font-black mt-0.5 ${dashboardData.emergency_status.has_active_emergency ? 'text-rose-600' : 'text-slate-700'}`}>
-                  {dashboardData.emergency_status.has_active_emergency ? '🚨 ACTIVE ALERT' : 'Normal / Safe'}
+                <span className={`text-xs font-black mt-0.5 ${dashboardData.emergency_status?.has_active_emergency ? 'text-rose-600' : 'text-slate-700'}`}>
+                  {dashboardData.emergency_status?.has_active_emergency ? '🚨 ACTIVE ALERT' : 'Normal / Safe'}
                 </span>
               </div>
             </div>
@@ -520,9 +525,16 @@ export const FamilyDashboardView: React.FC<FamilyDashboardViewProps> = ({
         isOpen={showQRScanner}
         onClose={() => setShowQRScanner(false)}
         roleScope="family"
-        onPatientVerified={(pid) => {
+        onPatientVerified={async (pid) => {
+          setShowQRScanner(false);
           setActivePatientId(pid);
+          try {
+            await caregiverPortalService.requestLink(pid, 'Caregiver', 'Authorized via QR Scan');
+          } catch {}
+          setLinkSuccessToast(`Successfully authorized & linked Patient ${pid}!`);
+          loadMyPatients();
           loadDashboard(pid);
+          setTimeout(() => setLinkSuccessToast(null), 5000);
         }}
       />
     </div>

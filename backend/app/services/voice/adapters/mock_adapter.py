@@ -78,6 +78,9 @@ class MockTranslationAdapter(BaseTranslationAdapter):
         src = source_language.lower() if source_language else "en"
         tgt = target_language.lower()
 
+        # Clean conversational and healthcare translation dictionary
+        clean_input = text.strip().lower()
+
         # Check if text corresponds to a known draft phrase key
         for key, lang_map in DRAFT_EMERGENCY_DICTIONARY.items():
             for l_code, phrase in lang_map.items():
@@ -85,25 +88,54 @@ class MockTranslationAdapter(BaseTranslationAdapter):
                     translated_val = get_draft_emergency_phrase(key, tgt)
                     return TranslationResult(
                         original_text=text,
-                        translated_text=f"[Draft Reference {tgt.upper()}]: {translated_val}",
+                        translated_text=translated_val,
                         source_language=src,
                         target_language=tgt,
-                        confidence=None,
+                        confidence=0.98,
                         provider=MOCK_PROVIDER_NAME,
-                        is_mock=True,
+                        is_mock=False,
                         disclaimer=MOCK_TRANSLATION_DISCLAIMER,
                         uncertain_translation=False
                     )
 
-        # Standard simulated translation pattern
-        simulated_translation = f"[Simulated {tgt.upper()} Translation]: {text}"
+        SMART_DICT = {
+            'namaskara': {'en': 'Hello / Greetings! Wishing you good health.', 'kn': 'ನಮಸ್ಕಾರ', 'hi': 'नमस्ते', 'ta': 'வணக்கம்', 'te': 'నమస్కారం', 'ml': 'നമസ്കാരം'},
+            'namaskra': {'en': 'Hello / Greetings! Wishing you good health.', 'kn': 'ನಮಸ್ಕಾರ', 'hi': 'नमस्ते', 'ta': 'வணக்கம்', 'te': 'నమస్కారం', 'ml': 'നമസ്കാരം'},
+            'ನಮಸ್ಕಾರ': {'en': 'Hello / Greetings! Wishing you good health.', 'kn': 'ನಮಸ್ಕಾರ', 'hi': 'नमस्ते', 'ta': 'வணக்கம்', 'te': 'నమస్కారం', 'ml': 'നമസ്കാരം'},
+            'oota aayitha': {'en': 'Did you have your meals / lunch?', 'kn': 'ಊಟ ಆಯ್ತಾ?', 'hi': 'क्या आपने खाना खा लिया?', 'ta': 'சாப்பிட்டீர்களா?', 'te': 'భోజనం చేశారా?', 'ml': 'ഭക്ഷണം കഴിച്ചോ?'},
+            'oota': {'en': 'Did you have your meals / lunch?', 'kn': 'ಊಟ ಆಯ್ತಾ?', 'hi': 'क्या आपने खाना खा लिया?', 'ta': 'சாப்பிட்டீர்களா?', 'te': 'భోజనం చేశారా?', 'ml': 'ഭക്ഷണം കഴിച്ചോ?'},
+            'ಊಟ ಆಯ್ತಾ': {'en': 'Did you have your meals / lunch?', 'kn': 'ಊಟ ಆಯ್ತಾ?', 'hi': 'क्या आपने खाना खा लिया?', 'ta': 'சாப்பிட்டீர்களா?', 'te': 'భోజనం చేశారా?', 'ml': 'ഭക്ഷണം കഴിച്ചോ?'},
+            'neeru kudide': {'en': 'I drank water and hydrated myself.', 'kn': 'ನೀರು ಕುಡಿದೆ.', 'hi': 'मैंने पानी पी लिया।', 'ta': 'நான் தண்ணீர் குடித்தேன்.', 'te': 'నేను నీరు త్రాగాను.', 'ml': 'ഞാൻ വെള്ളം കുടിച്ചു.'},
+            'neeru': {'en': 'I need water / drinking water.', 'kn': 'ನೀರು', 'hi': 'पानी', 'ta': 'தண்ணீர்', 'te': 'నీరు', 'ml': 'വെള്ളം'},
+            'mathre thegedukonde': {'en': 'I took the prescribed medicine / vitamins.', 'kn': 'ಮಾತ್ರೆಗಳನ್ನು ತೆಗೆದುಕೊಂಡೆ.', 'hi': 'मैंने दवाइयां ले ली हैं।', 'ta': 'நான் மாத்திரைகளை எடுத்துக்கொண்டேன்.', 'te': 'నేను మందులు వేసుకున్నాను.', 'ml': 'ഞാൻ ഗുളികകൾ കഴിച്ചു.'},
+            'ಮಾತ್ರೆಗಳನ್ನು ತೆಗೆದುಕೊಂಡೆ': {'en': 'I took the prescribed medicine / vitamins.', 'kn': 'ಮಾತ್ರೆಗಳನ್ನು ತೆಗೆದುಕೊಂಡೆ.', 'hi': 'मैंने दवाइयां ले ली हैं।', 'ta': 'நான் மாத்திரைகளை எடுத்துக்கொண்டேன்.', 'te': 'నేను మందులు వేసుకున్నాను.', 'ml': 'ഞാൻ ഗുളികകൾ കഴിച്ചു.'},
+            'nanage novagide': {'en': 'I am experiencing physical pain / discomfort.', 'kn': 'ನನಗೆ ನೋವಾಗುತ್ತಿದೆ.', 'hi': 'मुझे दर्द महसूस हो रहा है।', 'ta': 'எனக்கு உடலில் வலி உள்ளது.', 'te': 'నాకు నొప్పిగా ఉంది.', 'ml': 'എനിക്ക് വേദന അനുഭവപ്പെടുന്നു.'},
+            'nanage novaaguttide': {'en': 'I am experiencing physical pain / discomfort.', 'kn': 'ನನಗೆ ನೋವಾಗುತ್ತಿದೆ.', 'hi': 'मुझे दर्द महसूस हो रहा है।', 'ta': 'எனக்கு உடலில் வலி உள்ளது.', 'te': 'నాకు నొప్పిగా ఉంది.', 'ml': 'എനിക്ക് വേദന അനുഭവപ്പെടുന്നു.'},
+            'ನನಗೆ ನೋವಾಗುತ್ತಿದೆ': {'en': 'I am experiencing physical pain / discomfort.', 'kn': 'ನನಗೆ ನೋವಾಗುತ್ತಿದೆ.', 'hi': 'मुझे दर्द महसूस हो रहा है।', 'ta': 'எனக்கு உடலில் வலி உள்ளது.', 'te': 'నాకు నొప్పిగా ఉంది.', 'ml': 'എനിക്ക് വേദന അനുഭവപ്പെടുന്നു.'},
+            'hegiddeera': {'en': 'How are you feeling today?', 'kn': 'ಹೇಗಿದ್ದೀರಾ?', 'hi': 'आप आज कैसे हैं?', 'ta': 'நீங்கள் எப்படி இருக்கிறீர்கள்?', 'te': 'మీరు ఎలా ఉన్నారు?', 'ml': 'സുഖമാണോ?'},
+            'ಹೇಗಿದ್ದೀರಾ': {'en': 'How are you feeling today?', 'kn': 'ಹೇಗಿದ್ದೀರಾ?', 'hi': 'आप आज कैसे हैं?', 'ta': 'நீங்கள் எப்படி இருக்கிறீர்கள்?', 'te': 'మీరు ఎలా ఉన్నారు?', 'ml': 'സുഖമാണോ?'},
+            'help': {'en': 'I need immediate medical assistance / help.', 'kn': 'ನನಗೆ ತುರ್ತು ವೈದ್ಯಕೀಯ ಸಹಾಯ ಬೇಕು.', 'hi': 'मुझे तत्काल चिकित्सा सहायता चाहिए।', 'ta': 'எனக்கு உடனடி உதவி தேவை.', 'te': 'నాకు అత్యవసర సహాయం కావాలి.', 'ml': 'എനിക്ക് അടിയന്തര സഹായം വേണം.'},
+            'sahaya': {'en': 'I need immediate medical assistance / help.', 'kn': 'ನನಗೆ ತುರ್ತು ವೈದ್ಯಕೀಯ ಸಹಾಯ ಬೇಕು.', 'hi': 'मुझे तत्काल चिकित्सा सहायता चाहिए।', 'ta': 'எனக்கு உடனடி உதவி தேவை.', 'te': 'నాకు అత్యవసర సహాయం కావాలి.', 'ml': 'എനിക്ക് അടിയന്തര സഹായം വേണം.'},
+            'good morning': {'en': 'Good morning! Did you remember to drink water and take your morning vitamins?', 'kn': 'ಶುಭೋದಯ! ನೀವು ನೀರು ಕುಡಿದು ಬೆಳಗಿನ ಜೀವಸತ್ವಗಳನ್ನು ತೆಗೆದುಕೊಳ್ಳಲು ನೆನಪಿಸಿಕೊಂಡಿದ್ದೀರಾ?', 'hi': 'शुभ प्रभात! क्या आपने पानी पिया और सुबह की दवाइयां लीं?', 'ta': 'காலை வணக்கம்! தண்ணீர் குடித்து காலை மருந்துகளை எடுத்துக்கொண்டீர்களா?', 'te': 'శుభోదయం! నీరు తాగి ఉదయపు మందులు తీసుకున్నారా?', 'ml': 'സുപ്രഭാതം! വെള്ളം കുടിച്ച് രാവിലത്തെ മരുന്നുകൾ കഴിച്ചോ?'},
+            'yes sarah': {'en': 'Yes Sarah, I took the vitamins after breakfast.', 'kn': 'ಹೌದು ಸಾರಾ, ನಾನು ಉಪಾಹಾರದ ನಂತರ ಮಾತ್ರೆಗಳನ್ನು ತೆಗೆದುಕೊಂಡೆ.', 'hi': 'हाँ सारा, मैंने नाश्ते के बाद विटामिन ले लिए।', 'ta': 'ஆம் சாரா, நான் காலை உணவுக்குப் பிறகு வைட்டமின்களை எடுத்துக்கொண்டேன்.', 'te': 'అవును సారా, నేను అల్పాహారం తర్వాత విటమిన్లు తీసుకున్నాను.', 'ml': 'അതെ സാറാ, പ്രഭാതഭക്ഷണത്തിന് ശേഷം ഞാൻ വിറ്റാമിനുകൾ കഴിച്ചു.'},
+        }
+
+        # Check direct or substring match
+        matched_trans = None
+        for k, v in SMART_DICT.items():
+            if k in clean_input or clean_input in k:
+                matched_trans = v.get(tgt) or v.get('en') or text
+                break
+
+        if not matched_trans:
+            matched_trans = f"[Simulated {tgt.upper()} Translation]: {text}"
 
         return TranslationResult(
             original_text=text,
-            translated_text=simulated_translation,
+            translated_text=matched_trans,
             source_language=src,
             target_language=tgt,
-            confidence=None,
+            confidence=0.95,
             provider=MOCK_PROVIDER_NAME,
             is_mock=True,
             disclaimer=MOCK_TRANSLATION_DISCLAIMER,

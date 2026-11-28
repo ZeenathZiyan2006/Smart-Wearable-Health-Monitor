@@ -853,17 +853,20 @@ export const DashboardPage: React.FC = () => {
     const nowTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const targetMed = medicines.find((m) => m.id === medId);
-    const times = (targetMed?.scheduled_times || '').split(',').map((t: string) => t.trim());
-    const currentSlot = activeAlarmSlot || times[0] || 'Scheduled Dose';
+    const times = (targetMed?.scheduled_times || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+    const currentSlot = activeAlarmSlot || times.find((s) => !acknowledgedDoses[`${medId}_${todayDate}_${s}`]) || times[0] || 'Scheduled Dose';
     const doseKey = `${medId}_${todayDate}_${currentSlot}`;
 
     // Lock dose so button cannot be clicked again for this window
     setAcknowledgedDoses((prev) => {
       const next = {
         ...prev,
-        [doseKey]: { status, time: nowTimeStr },
-        [`${medId}_${todayDate}`]: { status, time: nowTimeStr },
+        [doseKey]: { status, time: nowTimeStr, slot: currentSlot },
       };
+      const allDosesDone = times.length > 0 && times.every((s) => next[`${medId}_${todayDate}_${s}`]);
+      if (allDosesDone) {
+        next[`${medId}_${todayDate}`] = { status, time: nowTimeStr };
+      }
       try {
         localStorage.setItem('pulseguardian_acknowledged_doses', JSON.stringify(next));
       } catch {}
@@ -984,7 +987,7 @@ export const DashboardPage: React.FC = () => {
     setShowQRModal(true);
     setIsLoadingPublicQR(true);
     try {
-      const token = qrProfile?.qr_token || 'PT-QR-PT-2026-000001-A1B2C3D4';
+      const token = qrProfile?.qr_token || activePatientId || 'PT-2026-000001';
       const data = await patientDashboardService.getPublicEmergencyQRProfile(token);
       setPublicQRView(data);
     } catch {
@@ -1924,7 +1927,7 @@ export const DashboardPage: React.FC = () => {
             </button>
 
             <a
-              href={`/emergency-qr/public/${qrProfile?.qr_token || 'PT-QR-PT-2026-000001-A1B2C3D4'}`}
+              href={`/emergency-qr/public/${qrProfile?.qr_token || activePatientId || 'PT-2026-000001'}`}
               target="_blank"
               rel="noreferrer"
               className="px-5 py-2.5 rounded-2xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/30 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
@@ -2047,44 +2050,56 @@ export const DashboardPage: React.FC = () => {
                     {/* Check if dose is already taken/skipped for today's active period */}
                     {(() => {
                       const todayDate = new Date().toDateString();
-                      const key = `${med.id}_${todayDate}`;
-                      const slotKey = `${med.id}_${todayDate}_${(med.scheduled_times || '').split(',')[0]?.trim()}`;
-                      const ack = acknowledgedDoses[slotKey] || acknowledgedDoses[key];
-                      if (ack) {
+                      const times = (med.scheduled_times || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+                      
+                      const slotToCheck = (activeAlarmMed?.id === med.id && activeAlarmSlot)
+                        ? activeAlarmSlot
+                        : (times.find((s) => !acknowledgedDoses[`${med.id}_${todayDate}_${s}`]) || times[times.length - 1] || 'default');
+                      
+                      const slotKey = `${med.id}_${todayDate}_${slotToCheck}`;
+                      const ack = acknowledgedDoses[slotKey];
+                      const allDosesDone = times.length > 0 && times.every((s) => acknowledgedDoses[`${med.id}_${todayDate}_${s}`]);
+
+                      if (allDosesDone || (ack && !activeAlarmMed)) {
+                        const displayStatus = ack?.status || 'taken';
+                        const displayTime = ack?.time || 'recorded';
                         return (
                           <div className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 ${
-                            ack.status === 'taken'
+                            displayStatus === 'taken'
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                               : 'bg-amber-50 text-amber-800 border-amber-200'
                           }`}>
-                            <CheckCircle2 className={`w-4 h-4 ${ack.status === 'taken' ? 'text-emerald-600' : 'text-amber-600'}`} />
-                            <span>{ack.status === 'taken' ? `Taken at ${ack.time}` : `Skipped at ${ack.time}`}</span>
+                            <CheckCircle2 className={`w-4 h-4 ${displayStatus === 'taken' ? 'text-emerald-600' : 'text-amber-600'}`} />
+                            <span>{displayStatus === 'taken' ? `Taken at ${displayTime}` : `Skipped at ${displayTime}`}</span>
                           </div>
                         );
                       }
+
+                      const isOutOfStock = med.remaining_quantity <= 0;
+
                       return (
                         <>
                           <button
                             type="button"
-                            disabled={med.remaining_quantity === 0}
+                            disabled={isOutOfStock}
                             onClick={() => handleMedicineAction(med.id, 'taken')}
                             className={`px-3.5 py-2 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1.5 ${
-                              med.remaining_quantity === 0
-                                ? 'bg-slate-400 opacity-60 cursor-not-allowed'
-                                : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20 cursor-pointer'
+                              isOutOfStock
+                                ? 'bg-slate-300 text-slate-500 opacity-60 cursor-not-allowed shadow-none'
+                                : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20 cursor-pointer active:scale-95'
                             }`}
                           >
                             <Check className="w-3.5 h-3.5" />
-                            {med.remaining_quantity === 0 ? 'Out of Stock' : 'Taken'}
+                            {isOutOfStock ? 'Out of Stock' : 'Taken'}
                           </button>
                           <button
                             type="button"
-                            disabled={med.remaining_quantity === 0}
+                            disabled={isOutOfStock}
                             onClick={() => handleMedicineAction(med.id, 'skipped')}
                             className={`px-3 py-2 border rounded-xl text-xs font-bold transition-all ${
-                              med.remaining_quantity === 0
+                              isOutOfStock
                                 ? 'border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
-                                : 'border-slate-300 text-slate-600 hover:bg-slate-100 cursor-pointer'
+                                : 'border-slate-300 text-slate-600 hover:bg-slate-100 cursor-pointer active:scale-95'
                             }`}
                           >
                             Skip
@@ -3472,7 +3487,7 @@ export const DashboardPage: React.FC = () => {
                   <div className="text-[10px] text-emerald-400 font-bold mt-1">● Active 24/7 Clinical Pass</div>
                 </div>
                 <a
-                  href={`/emergency-qr/public/${qrProfile?.qr_token || 'PT-QR-PT-2026-000001-A1B2C3D4'}`}
+                  href={`/emergency-qr/public/${qrProfile?.qr_token || activePatientId || 'PT-2026-000001'}`}
                   target="_blank"
                   rel="noreferrer"
                   className="w-full py-2 px-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
